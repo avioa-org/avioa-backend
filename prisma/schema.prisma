@@ -1,0 +1,36 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Operaciones {
+  thread_id           String    @id @map("thread_id")
+  tipo                String?
+  estado              String?
+  fecha_inicio        DateTime?
+  fecha_ultima_alerta DateTime?
+  fecha_emision       DateTime?
+  asunto              String?
+  cliente             String?
+  cantidad_alertas    Int       @default(0)
+  ultimo_mensaje      BigInt?
+  ultima_revision     DateTime?
+  fecha_evento        DateTime?
+  estado_evento       String?
+  fecha_alerta_evento DateTime?
+  fecha_gestion       DateTime?
+  es_avianca          Boolean?  @default(false)
+  sheet_row           Int?      @unique
+
+  @@map("operaciones")
+}
