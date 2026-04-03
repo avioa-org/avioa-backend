@@ -5,7 +5,7 @@ import { google } from 'googleapis';
 import { envs } from 'src/config/env.config';
 
 @Injectable()
-export class GmailService {
+export class GmailInfraService {
   private readonly gmail: ReturnType<typeof google.gmail>;
 
   constructor(private config: ConfigService) {

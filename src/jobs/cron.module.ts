@@ -1,21 +1,22 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CronService } from './cron.service';
-import { OperacionesQueue } from 'src/modules/monitoreo-reservas/queue/operaciones.queue';
-import { OperacionesWorker } from 'src/modules/monitoreo-reservas/workers/operaciones.worker';
-import { MonitoreoReservasService } from 'src/modules/monitoreo-reservas/monitoreo-reservas.service';
-import { GmailService } from 'src/infrastructure/gmail/gmail.infra';
+import { GmailInfraService } from 'src/infrastructure/gmail-infra/gmail.infra';
 import { ConfigService } from '@nestjs/config';
+import { SheetsService } from 'src/infrastructure/sheets/sheets.service';
+import { EvolutionApiService } from 'src/infrastructure/evolution-api/evolution-api.service';
+import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
-  imports: [ScheduleModule.forRoot()],
+  imports: [ScheduleModule.forRoot(), HttpModule],
   providers: [
     CronService,
-    OperacionesQueue,
-    OperacionesWorker,
-    MonitoreoReservasService,
-    GmailService,
+    GmailInfraService,
     ConfigService,
+    SheetsService,
+    EvolutionApiService,
+    PrismaService,
   ],
   exports: [CronService],
 })

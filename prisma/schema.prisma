@@ -13,24 +13,52 @@ datasource db {
   provider = "postgresql"
 }
 
-model Operaciones {
-  thread_id           String    @id @map("thread_id")
-  tipo                String?
-  estado              String?
-  fecha_inicio        DateTime?
-  fecha_ultima_alerta DateTime?
-  fecha_emision       DateTime?
-  asunto              String?
-  cliente             String?
-  cantidad_alertas    Int       @default(0)
-  ultimo_mensaje      BigInt?
-  ultima_revision     DateTime?
-  fecha_evento        DateTime?
-  estado_evento       String?
-  fecha_alerta_evento DateTime?
-  fecha_gestion       DateTime?
-  es_avianca          Boolean?  @default(false)
-  sheet_row           Int?      @unique
+model HiloOperacion {
+  threadId          String    @id @map("thread_id")
+  tipo              String?
+  estado            EstadoOp  @default(PENDIENTE)
+  fechaInicio       DateTime? @map("fecha_inicio")
+  fechaUltimaAlerta DateTime? @map("fecha_ultima_alerta")
+  fechaEmision      DateTime? @map("fecha_emision")
+  asunto            String?
+  cliente           String?
+  cantidadAlertas   Int       @default(0) @map("cantidad_alertas")
+  ultimoMensaje     BigInt?   @map("ultimo_mensaje")
+  ultimaRevision    DateTime? @map("ultima_revision")
+  fechaEvento       DateTime? @map("fecha_evento")
+  estadoEvento      String?   @map("estado_evento")
+  fechaAlertaEvento DateTime? @map("fecha_alerta_evento")
+  fechaGestion      DateTime? @map("fecha_gestion")
+  esAvianca         Boolean?  @default(false) @map("es_avianca")
+  sheetRow          Int?      @unique @map("sheet_row")
 
-  @@map("operaciones")
+  @@map("hilo_operaciones")
+}
+
+model HiloPagoTotal {
+  id             String   @id @default(cuid())
+  threadId       String   @unique @map("thread_id")
+  asunto         String
+  cliente        String
+  estado         EstadoPT @default(PENDIENTE)
+  intencion      String?
+  razon          String?
+  ultimoMensaje  BigInt   @map("ultimo_mensaje")
+  ultimaRevision DateTime @updatedAt @map("ultima_revision")
+  creadoEn       DateTime @default(now()) @map("creado_en")
+
+  @@map("hilos_pago_total")
+}
+
+enum EstadoPT {
+  PENDIENTE
+  SOLICITUD
+  CONFIRMADO
+  DESCARTADO
+}
+
+enum EstadoOp {
+  PENDIENTE
+  ALERTA_ENVIADA
+  EMITIDO
 }

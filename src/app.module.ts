@@ -1,19 +1,19 @@
 import { Module } from '@nestjs/common';
-import { GmailProcessorModule } from './modules/monitoreo-reservas/monitoreo-reservas.module';
-import { ConfirmacionPagoTotalModule } from './modules/confirmacion-pago-total/confirmacion-pago-total.module';
 import { QueueModule } from './infrastructure/queue/queue.module';
 import { CronModule } from './jobs/cron.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './infrastructure/prisma/prisma.module';
+import { GmailModule } from './modules/gmail/gmail.module';
+import { PagoTotalModule } from './modules/pago-total/pago-total.module';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
-    GmailProcessorModule,
-    ConfirmacionPagoTotalModule,
     QueueModule,
     CronModule,
     PrismaModule,
+    GmailModule,
+    PagoTotalModule,
   ],
   controllers: [],
   providers: [],

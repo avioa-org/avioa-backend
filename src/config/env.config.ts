@@ -9,4 +9,7 @@ export const envs = {
   googleRefreshToken: process.env.GOOGLE_REFRESH_TOKEN,
   databaseUrl: process.env.DATABASE_URL,
   googleCredentials: process.env.GOOGLE_CREDENTIALS ?? '',
+  googleRedirectUri: process.env.GOOGLE_REDIRECT_URI,
+  internalToken: process.env.INTERNAL_TOKEN,
+  openaiApiKey: process.env.OPENAI_API_KEY,
 };
