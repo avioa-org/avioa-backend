@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Headers,
   Post,
   UnauthorizedException,
@@ -18,12 +19,20 @@ export class PagoTotalController {
     @InjectQueue('pago-total') private readonly queue: Queue,
   ) {}
 
+  @Get('sheet')
+  async obtenerParaSheet(@Headers('x-internal-token') token: string) {
+    if (token !== envs.internalToken) {
+      throw new UnauthorizedException();
+    }
+
+    return await this.pagoTotalService.obtenerParaSheet();
+  }
+
   @Post()
   async recibirEventos(
     @Headers('x-internal-token') token: string,
     @Body() body: PagoTotalEventosDto,
   ) {
-    console.log(body);
     if (token !== envs.internalToken) {
       throw new UnauthorizedException();
     }

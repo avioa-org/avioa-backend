@@ -46,6 +46,7 @@ model HiloPagoTotal {
   ultimoMensaje  BigInt   @map("ultimo_mensaje")
   ultimaRevision DateTime @updatedAt @map("ultima_revision")
   creadoEn       DateTime @default(now()) @map("creado_en")
+  syncSheet      Boolean  @default(false) @map("sync_sheet")
 
   @@map("hilos_pago_total")
 }
@@ -55,6 +56,7 @@ enum EstadoPT {
   SOLICITUD
   CONFIRMADO
   DESCARTADO
+  REVISION
 }
 
 enum EstadoOp {

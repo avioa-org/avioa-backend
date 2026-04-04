@@ -15,6 +15,7 @@ export class EventoPTDto {
   ultimoMensajeEpochMs: number;
   totalMensajes: number;
   mensajesNuevos: MensajePTDto[];
+  todosLosMensajes: MensajePTDto[];
 }
 
 export class PagoTotalEventosDto {
