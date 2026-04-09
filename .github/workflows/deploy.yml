@@ -24,12 +24,6 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
-            echo "📦 Installing deps (for prisma)..."
-            npm install
-
-            echo "🗄️ Running migrations..."
-            SKIP_ENV_VALIDATION=true npx prisma migrate deploy
-
             echo "🔨 Building..."
             docker compose -f docker-compose.prod.yml build --no-cache
 
