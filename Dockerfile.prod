@@ -9,6 +9,9 @@ RUN npm ci
 
 COPY . .
 
+# Generar prisma
+RUN npx prisma generate
+
 # sí existe nest
 RUN npm run build
 
