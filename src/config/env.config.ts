@@ -2,12 +2,16 @@ import { z } from 'zod';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 
-const nodeEnv = process.env.NODE_ENV || 'development';
-const envFile = `.env.${nodeEnv}`;
+const isBuild = process.env.SKIP_ENV_VALIDATION === 'true';
 
-dotenv.config({
-  path: path.resolve(process.cwd(), envFile),
-});
+if (!isBuild) {
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  const envFile = `.env.${nodeEnv}`;
+
+  dotenv.config({
+    path: path.resolve(process.cwd(), envFile),
+  });
+}
 
 const envSchema = z.object({
   NODE_ENV: z
@@ -29,31 +33,22 @@ const envSchema = z.object({
   EVOLUTION_CORREO_ALERTA: z.string().email(),
 });
 
-const skipValidation =
-  process.env.SKIP_ENV_VALIDATION === 'true' || process.env.NODE_ENV === 'test';
+let envs: any;
 
-let envs: z.infer<typeof envSchema>;
-
-if (skipValidation) {
+if (isBuild) {
   envs = process.env as unknown as z.infer<typeof envSchema>;
 } else {
   const parsed = envSchema.safeParse(process.env);
 
   if (!parsed.success) {
-    console.error(`❌ Variables de entorno inválidas en ${envFile}:`);
+    console.error(
+      `❌ Variables de entorno inválidas:\n${parsed.error.message}`,
+    );
     console.error(parsed.error.flatten().fieldErrors);
     process.exit(1);
   }
 
   envs = parsed.data;
-}
-
-const parsed = envSchema.safeParse(process.env);
-
-if (!parsed.success) {
-  console.error(`❌ Variables de entorno inválidas en ${envFile}:`);
-  console.error(parsed.error.flatten().fieldErrors);
-  process.exit(1);
 }
 
 export { envs };
