@@ -20,8 +20,9 @@ jobs:
 
             cd /opt/infra/projects/avioa-backend
 
-            echo "📥 Pulling changes..."
-            git pull origin main
+            echo "📥 Syncing with GitHub..."
+            git fetch origin main
+            git reset --hard origin/main
 
             echo "🔨 Building..."
             docker compose -f docker-compose.prod.yml build --no-cache
