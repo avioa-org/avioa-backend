@@ -14,8 +14,9 @@ const envSchema = z.object({
     .enum(['development', 'production', 'test'])
     .default('development'),
   DATABASE_URL: z.string().url(),
-  REDIS_HOST: z.string().min(1),
-  REDIS_PORT: z.coerce.number().default(6379),
+  // REDIS_HOST: z.string().min(1),
+  // REDIS_PORT: z.coerce.number().default(6379),
+  REDIS_URL: z.string(),
   OPENAI_API_KEY: z.string().min(1),
   INTERNAL_TOKEN: z.string().min(10),
   GOOGLE_CLIENT_ID: z.string().min(1),

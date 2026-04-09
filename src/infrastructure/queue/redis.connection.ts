@@ -9,21 +9,13 @@ export class RedisConnection {
   private workerClient: Redis;
 
   constructor(private configService: ConfigService) {
-    const redisOptions = {
-      host: envs.REDIS_HOST,
-      port: envs.REDIS_PORT,
-      password: this.configService.get<string>('redis.password'),
-    };
-
     // Cliente para queues
-    this.queueClient = new Redis({
-      ...redisOptions,
+    this.queueClient = new Redis(envs.REDIS_URL, {
       maxRetriesPerRequest: null,
     });
 
     // Cliente para workers
-    this.workerClient = new Redis({
-      ...redisOptions,
+    this.workerClient = new Redis(envs.REDIS_URL, {
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
     });

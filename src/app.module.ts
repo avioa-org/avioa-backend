@@ -18,8 +18,7 @@ import { AlertaReservasModule } from './modules/alerta-reservas/alerta-reservas.
     PagoTotalModule,
     BullModule.forRoot({
       connection: {
-        host: envs.REDIS_HOST || 'localhost',
-        port: Number(envs.REDIS_PORT) || 6379,
+        url: envs.REDIS_URL,
       },
     }),
     HealthModule,

@@ -32,8 +32,7 @@ async function bootstrap() {
       new BullMQAdapter(
         new Queue('pago-total', {
           connection: {
-            host: envs.REDIS_HOST || 'localhost',
-            port: Number(envs.REDIS_PORT) || 6379,
+            url: envs.REDIS_URL,
           },
         }),
       ),
