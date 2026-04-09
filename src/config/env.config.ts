@@ -14,8 +14,6 @@ const envSchema = z.object({
     .enum(['development', 'production', 'test'])
     .default('development'),
   DATABASE_URL: z.string().url(),
-  // REDIS_HOST: z.string().min(1),
-  // REDIS_PORT: z.coerce.number().default(6379),
   REDIS_URL: z.string(),
   OPENAI_API_KEY: z.string().min(1),
   INTERNAL_TOKEN: z.string().min(10),
@@ -31,6 +29,25 @@ const envSchema = z.object({
   EVOLUTION_CORREO_ALERTA: z.string().email(),
 });
 
+const skipValidation =
+  process.env.SKIP_ENV_VALIDATION === 'true' || process.env.NODE_ENV === 'test';
+
+let envs: z.infer<typeof envSchema>;
+
+if (skipValidation) {
+  envs = process.env as unknown as z.infer<typeof envSchema>;
+} else {
+  const parsed = envSchema.safeParse(process.env);
+
+  if (!parsed.success) {
+    console.error(`❌ Variables de entorno inválidas en ${envFile}:`);
+    console.error(parsed.error.flatten().fieldErrors);
+    process.exit(1);
+  }
+
+  envs = parsed.data;
+}
+
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
@@ -39,6 +56,6 @@ if (!parsed.success) {
   process.exit(1);
 }
 
-export const envs = parsed.data;
+export { envs };
 export const isDev = envs.NODE_ENV === 'development';
 export const isProd = envs.NODE_ENV === 'production';

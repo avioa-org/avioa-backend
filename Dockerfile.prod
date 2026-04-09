@@ -9,6 +9,9 @@ RUN npm ci
 
 COPY . .
 
+ENV NODE_ENV=test
+ENV SKIP_ENV_VALIDATION=true
+
 # Generar prisma
 RUN npx prisma generate
 
