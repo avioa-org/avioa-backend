@@ -1,11 +1,40 @@
-name: Avioa Backend Deploy to VPS
+name: Build & Deploy Avioa Backend
 
 on:
   push:
     branches: [main]
 
 jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set image tag
+        id: meta
+        run: echo "tag=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Login GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build image
+        run: |
+          docker build \
+            -t ghcr.io/${{ github.repository }}/avioa-backend:latest \
+            -t ghcr.io/${{ github.repository }}/avioa-backend:${{ steps.meta.outputs.tag }} \
+            -f Dockerfile.prod .
+
+      - name: Push images
+        run: |
+          docker push ghcr.io/${{ github.repository }}/avioa-backend:latest
+          docker push ghcr.io/${{ github.repository }}/avioa-backend:${{ steps.meta.outputs.tag }}
+
   deploy:
+    needs: build-and-push
     runs-on: ubuntu-latest
 
     steps:
@@ -18,19 +47,81 @@ jobs:
           script: |
             set -e
 
+            IMAGE=ghcr.io/${{ github.repository }}/avioa-backend:${{ needs.build-and-push.outputs.image_tag }}
+
+            echo "🔐 Login GHCR..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
             cd /opt/infra/projects/avioa-backend
 
-            echo "📥 Syncing with GitHub..."
-            git fetch origin main
-            git reset --hard origin/main
+            echo "📥 Pulling new version..."
+            docker pull $IMAGE
 
-            echo "🔨 Building..."
-            docker compose -f docker-compose.prod.yml build --no-cache
+            echo "🗄️ Running migrations..."
+            docker run --rm \
+              --network infra_network \
+              --env-file .env.production \
+              $IMAGE \
+              sh -c "SKIP_ENV_VALIDATION=true npx prisma migrate deploy"
 
-            echo "🚀 Restarting..."
-            docker compose -f docker-compose.prod.yml up -d --force-recreate
+            echo "🚀 Updating container..."
+            docker stop avioa-backend || true
+            docker rm avioa-backend || true
+
+            docker run -d \
+              --name avioa-backend \
+              --network infra_network \
+              --env-file .env.production \
+              -p 3000:3000 \
+              -v $(pwd)/logs:/usr/src/app/logs \
+              $IMAGE
 
             echo "🧹 Cleaning old images..."
-            docker image prune -f
+            docker image prune -af
 
             echo "✅ Deploy complete"
+
+# name: Avioa Backend Deploy to VPS
+
+# on:
+#   push:
+#     branches: [main]
+
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Deploy to VPS
+#         uses: appleboy/ssh-action@v1
+#         with:
+#           host: ${{ secrets.SSH_HOST }}
+#           username: ${{ secrets.SSH_USER }}
+#           key: ${{ secrets.SSH_PRIVATE_KEY }}
+#           script: |
+#             set -e
+
+#             cd /opt/infra/projects/avioa-backend
+
+#             echo "📥 Syncing with GitHub..."
+#             git fetch origin main
+#             git reset --hard origin/main
+
+#             echo "🔨 Building (with cache)..."
+#             docker compose -f docker-compose.prod.yml build
+
+#             echo "🗄️ Running migrations..."
+#             docker compose -f docker-compose.prod.yml run --rm app \
+#               sh -c "SKIP_ENV_VALIDATION=true npx prisma migrate deploy"
+
+#             echo "🚀 Restarting (smart recreate)..."
+#             docker compose -f docker-compose.prod.yml up -d
+
+#             echo "🧹 Cleaning unused stuff (safe)..."
+#             docker image prune -f
+#             docker builder prune -f
+
+#             echo "📊 Disk usage:"
+#             docker system df
+
+#             echo "✅ Deploy complete"
