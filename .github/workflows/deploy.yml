@@ -22,6 +22,7 @@ jobs:
         run: npx prisma migrate deploy
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SKIP_ENV_VALIDATION: 'true'
 
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1
