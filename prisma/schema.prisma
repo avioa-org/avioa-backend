@@ -13,7 +13,7 @@ datasource db {
   provider = "postgresql"
 }
 
-model HiloOperacion {
+model AlertaReserva {
   threadId          String    @id @map("thread_id")
   tipo              String?
   estado            EstadoOp  @default(PENDIENTE)
@@ -32,7 +32,7 @@ model HiloOperacion {
   esAvianca         Boolean?  @default(false) @map("es_avianca")
   sheetRow          Int?      @unique @map("sheet_row")
 
-  @@map("hilo_operaciones")
+  @@map("alerta_reservas")
 }
 
 model HiloPagoTotal {

@@ -13,9 +13,9 @@ export class GmailInfraService {
   }
 
   private createClient() {
-    const clientId = envs.googleClientId;
-    const clientSecret = envs.googleClientSecret;
-    const refreshToken = envs.googleRefreshToken;
+    const clientId = envs.GOOGLE_CLIENT_ID;
+    const clientSecret = envs.GOOGLE_CLIENT_SECRET;
+    const refreshToken = envs.GOOGLE_REFRESH_TOKEN;
 
     const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
 

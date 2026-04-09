@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 import { PagoTotalClasificadorService } from './pago-total-clasificador.service';
-import { EventoPTDto } from './dto/pago-total.dto';
+import { EventoPTDto } from '../../common/dto/gmail-evento.dto';
 import { envs } from 'src/config/env.config';
 
 @Injectable()
@@ -14,21 +14,9 @@ export class PagoTotalService {
   ) {}
 
   public async procesarHiloPagoTotal(evento: EventoPTDto) {
-    // if (evento.mensajesNuevos.length === 0) return;
-
-    this.logger.debug(`Procesando hilo ${evento.threadId}`);
-
-    // this.logger.debug(evento);
-
     const registro = await this.prisma.hiloPagoTotal.findUnique({
       where: { threadId: evento.threadId },
     });
-
-    // const yaConfirmado = registro?.estado === 'CONFIRMADO';
-    // const tieneNuevos = evento.mensajesNuevos.length > 0;
-
-    // if (yaConfirmado && !tieneNuevos) return;
-    // if (!tieneNuevos && registro) return;
 
     const mensajesAAnalizar = !registro
       ? evento.todosLosMensajes
@@ -36,45 +24,10 @@ export class PagoTotalService {
 
     if (mensajesAAnalizar.length === 0) return;
 
-    const apiKey = envs.openaiApiKey;
+    const apiKey = envs.OPENAI_API_KEY;
 
     for (const msg of mensajesAAnalizar) {
       if (!this.clasificador.mencionaPagoTotal(msg.cuerpo)) continue;
-
-      //   const esConfirmacionDirecta = [
-      //     /ingreso\s+pago\s+total/i,
-      //     /ingreso[\s:]+\$?[\d\.,]+\s+pago\s+total/i,
-      //     /pago\s+total\s+realizado/i,
-      //     /confirmo\s+(el\s+)?pago\s+total/i,
-      //     /pago\s+total/,
-      //   ].some((r) => r.test(msg.cuerpo));
-
-      //   if (esConfirmacionDirecta) {
-      //     await this.prisma.hiloPagoTotal.upsert({
-      //       where: { threadId: evento.threadId },
-      //       create: {
-      //         threadId: evento.threadId,
-      //         asunto: evento.asunto,
-      //         cliente: evento.cliente,
-      //         estado: 'CONFIRMADO',
-      //         intencion: 'CONFIRMACION_PAGO',
-      //         razon: 'patrón directo detectado',
-      //         ultimoMensaje: BigInt(evento.ultimoMensajeEpochMs),
-      //       },
-      //       update: {
-      //         estado: 'CONFIRMADO',
-      //         intencion: 'CONFIRMACION_PAGO',
-      //         razon: 'patrón directo detectado',
-      //         ultimoMensaje: BigInt(evento.ultimoMensajeEpochMs),
-      //       },
-      //     });
-
-      //     return {
-      //       intencion: 'CONFIRMACION_PAGO',
-      //       confianza: 1.0,
-      //       razon: 'patrón directo detectado',
-      //     };
-      //   }
 
       const porRegex = this.clasificador.clasificarPorRegex(msg.cuerpo);
       if (porRegex !== null) {
@@ -100,13 +53,17 @@ export class PagoTotalService {
             ultimoMensaje: BigInt(evento.ultimoMensajeEpochMs),
           },
         });
+
+        this.logger.log(
+          `Hilo ${evento.asunto} clasificado como ${estado} con confianza ${confianza} (${razon})`,
+        );
       }
 
       const { intencion, confianza, razon } =
         await this.clasificador.clasificarIntencion(
           msg.cuerpo,
           msg.asunto,
-          apiKey as string,
+          apiKey,
         );
 
       this.logger.debug(
@@ -142,7 +99,7 @@ export class PagoTotalService {
         });
 
         this.logger.log(
-          `Hilo ${evento.threadId} clasificado como ${estado} con confianza ${confianza} (${razon})`,
+          `Hilo ${evento.asunto} clasificado como ${estado} con confianza ${confianza} (${razon})`,
         );
 
         return;
@@ -168,7 +125,7 @@ export class PagoTotalService {
         });
 
         this.logger.log(
-          `Hilo ${evento.threadId} marcado para revisión manual con confianza ${confianza} (${razon})`,
+          `Hilo ${evento.asunto} marcado para revisión manual con confianza ${confianza} (${razon})`,
         );
 
         return;
@@ -205,7 +162,6 @@ export class PagoTotalService {
         creadoEn: true,
       },
     });
-
     // Marcar como sincronizados
     if (hilos.length > 0) {
       await this.prisma.hiloPagoTotal.updateMany({
@@ -217,7 +173,7 @@ export class PagoTotalService {
     return {
       procesados: hilos.map((h) => ({
         asunto: h.asunto,
-        fecha: h.creadoEn.toISOString(),
+        fecha: h.creadoEn.toLocaleString('es-ES'),
         from: h.cliente,
         threadId: h.threadId,
         estado: h.estado,

@@ -2,6 +2,7 @@ import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
+import { envs } from 'src/config/env.config';
 
 @Injectable()
 export class EvolutionApiService {
@@ -16,13 +17,13 @@ export class EvolutionApiService {
     return this.config.get<string>('EVOLUTION_URL');
   }
   private get instance() {
-    return this.config.get<string>('EVOLUTION_INSTANCE');
+    return envs.EVOLUTION_INSTANCE;
   }
   private get apiKey() {
-    return this.config.get<string>('EVOLUTION_API_KEY');
+    return envs.EVOLUTION_API_KEY;
   }
   private get numero() {
-    return this.config.get<string>('NUMERO_DESTINO');
+    return envs.EVOLUTION_NUMERO_DESTINO;
   }
   private get correo() {
     return this.config.get<string>('CORREO_ALERTA');
@@ -65,7 +66,7 @@ export class EvolutionApiService {
       );
       this.logger.log('Alerta WhatsApp enviada correctamente');
     } catch (e) {
-      this.logger.error(`Error enviando WhatsApp: ${e.message}`);
+      this.logger.error(`Error enviando WhatsApp: ${e?.['message']}`);
     }
   }
 }

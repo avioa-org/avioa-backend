@@ -1,0 +1,33 @@
+name: Avioa Backend Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/infra/projects/avioa-backend
+
+            echo "📥 Pulling changes..."
+            git pull origin main
+
+            echo "🔨 Building..."
+            docker compose -f docker-compose.prod.yml build --no-cache
+
+            echo "🚀 Restarting..."
+            docker compose -f docker-compose.prod.yml up -d
+
+            echo "🧹 Cleaning old images..."
+            docker image prune -f
+
+            echo "✅ Deploy complete"

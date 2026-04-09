@@ -1,5 +1,5 @@
 import { EventoPTDto } from 'src/common/dto/gmail-evento.dto';
 
-export class PagoTotalEventosDto {
-  eventos: EventoPTDto[];
+export class AlertaReservasDto {
+  eventos!: EventoPTDto[];
 }

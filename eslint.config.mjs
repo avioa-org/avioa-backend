@@ -37,6 +37,7 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-return': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',
       'no-useless-escape': 'off',
+      '@typescript-eslint/restrict-template-expressions': 'off',
     },
   },
 );

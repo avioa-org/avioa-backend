@@ -1,16 +1,9 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Headers,
-  Post,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { PagoTotalService } from './pago-total.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PagoTotalEventosDto } from './dto/pago-total.dto';
-import { envs } from 'src/config/env.config';
+import { InternalTokenGuard } from 'src/common/guards/internal-token.guard';
 
 @Controller('pago-total')
 export class PagoTotalController {
@@ -19,24 +12,15 @@ export class PagoTotalController {
     @InjectQueue('pago-total') private readonly queue: Queue,
   ) {}
 
+  @UseGuards(InternalTokenGuard)
   @Get('sheet')
-  async obtenerParaSheet(@Headers('x-internal-token') token: string) {
-    if (token !== envs.internalToken) {
-      throw new UnauthorizedException();
-    }
-
+  async obtenerParaSheet() {
     return await this.pagoTotalService.obtenerParaSheet();
   }
 
+  @UseGuards(InternalTokenGuard)
   @Post()
-  async recibirEventos(
-    @Headers('x-internal-token') token: string,
-    @Body() body: PagoTotalEventosDto,
-  ) {
-    if (token !== envs.internalToken) {
-      throw new UnauthorizedException();
-    }
-
+  async recibirEventos(@Body() body: PagoTotalEventosDto) {
     // Se procesa un job por hilo asi se procesan en paralelo
     // y si uno fall no bloquea los demas
     await Promise.all(

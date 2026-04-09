@@ -1,7 +1,7 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { EventoPTDto } from './dto/pago-total.dto';
+import { EventoPTDto } from '../../common/dto/gmail-evento.dto';
 import { PagoTotalService } from './pago-total.service';
 
 @Processor('pago-total')

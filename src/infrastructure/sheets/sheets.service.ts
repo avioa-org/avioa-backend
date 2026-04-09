@@ -8,7 +8,7 @@ export class SheetsService implements OnModuleInit {
   private sheets: sheets_v4.Sheets;
 
   async onModuleInit() {
-    const credentials = JSON.parse(envs.googleCredentials);
+    const credentials = JSON.parse(envs.GOOGLE_CREDENTIALS);
 
     const auth = new google.auth.GoogleAuth({
       credentials,

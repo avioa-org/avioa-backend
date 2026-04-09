@@ -1,15 +1,43 @@
-import 'dotenv/config';
+import { z } from 'zod';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
 
-export const envs = {
-  redisHost: process.env.REDIS_HOST,
-  redisPort: process.env.REDIS_PORT || 6379,
-  redisPassword: process.env.REDIS_PASSWORD,
-  googleClientId: process.env.GOOGLE_CLIENT_ID,
-  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  googleRefreshToken: process.env.GOOGLE_REFRESH_TOKEN,
-  databaseUrl: process.env.DATABASE_URL,
-  googleCredentials: process.env.GOOGLE_CREDENTIALS ?? '',
-  googleRedirectUri: process.env.GOOGLE_REDIRECT_URI,
-  internalToken: process.env.INTERNAL_TOKEN,
-  openaiApiKey: process.env.OPENAI_API_KEY,
-};
+const nodeEnv = process.env.NODE_ENV || 'development';
+const envFile = `.env.${nodeEnv}`;
+
+dotenv.config({
+  path: path.resolve(process.cwd(), envFile),
+});
+
+const envSchema = z.object({
+  NODE_ENV: z
+    .enum(['development', 'production', 'test'])
+    .default('development'),
+  DATABASE_URL: z.string().url(),
+  REDIS_HOST: z.string().min(1),
+  REDIS_PORT: z.coerce.number().default(6379),
+  OPENAI_API_KEY: z.string().min(1),
+  INTERNAL_TOKEN: z.string().min(10),
+  GOOGLE_CLIENT_ID: z.string().min(1),
+  GOOGLE_CLIENT_SECRET: z.string().min(1),
+  GOOGLE_REFRESH_TOKEN: z.string().min(1),
+  GOOGLE_CREDENTIALS: z.string().min(1),
+  GOOGLE_REDIRECT_URI: z.string().min(1),
+  EVOLUTION_URL: z.string().url(),
+  EVOLUTION_INSTANCE: z.string().min(1),
+  EVOLUTION_API_KEY: z.string().min(10),
+  EVOLUTION_NUMERO_DESTINO: z.string().min(12),
+  EVOLUTION_CORREO_ALERTA: z.string().email(),
+});
+
+const parsed = envSchema.safeParse(process.env);
+
+if (!parsed.success) {
+  console.error(`❌ Variables de entorno inválidas en ${envFile}:`);
+  console.error(parsed.error.flatten().fieldErrors);
+  process.exit(1);
+}
+
+export const envs = parsed.data;
+export const isDev = envs.NODE_ENV === 'development';
+export const isProd = envs.NODE_ENV === 'production';

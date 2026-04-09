@@ -10,8 +10,8 @@ export class RedisConnection {
 
   constructor(private configService: ConfigService) {
     const redisOptions = {
-      host: envs.redisHost,
-      port: envs.redisPort as number,
+      host: envs.REDIS_HOST,
+      port: envs.REDIS_PORT,
       password: this.configService.get<string>('redis.password'),
     };
 
