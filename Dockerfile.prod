@@ -29,6 +29,7 @@ COPY --from=builder --chown=nestjs:nodejs /usr/src/app/dist ./dist
 COPY --from=builder --chown=nestjs:nodejs /usr/src/app/node_modules ./node_modules
 COPY --from=builder --chown=nestjs:nodejs /usr/src/app/prisma ./prisma
 COPY --chown=nestjs:nodejs package*.json ./
+COPY --chown=nestjs:nodejs entrypoint.prod.sh ./
 
 # se elimina devDependencies en producción
 RUN npm prune --omit=dev
