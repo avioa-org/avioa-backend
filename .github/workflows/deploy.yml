@@ -51,7 +51,7 @@ jobs:
           script: |
             set -e
 
-            IMAGE=ghcr.io/${{ github.repository }}/avioa-backend:${{ needs.build-and-push.outputs.image_tag }}
+            IMAGE=ghcr.io/${{ github.repository }}:${{ needs.build-and-push.outputs.image_tag }}
 
             echo "🔐 Login GHCR..."
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
