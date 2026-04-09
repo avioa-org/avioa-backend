@@ -16,6 +16,8 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            set -e
+
             cd /opt/infra/projects/avioa-backend
 
             echo "📥 Pulling changes..."
