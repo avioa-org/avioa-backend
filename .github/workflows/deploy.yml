@@ -34,8 +34,8 @@ jobs:
 
       - name: Push images
         run: |
-          docker push ghcr.io/${{ github.repository }}/avioa-backend:latest
-          docker push ghcr.io/${{ github.repository }}/avioa-backend:${{ steps.meta.outputs.tag }}
+          docker push ghcr.io/${{ github.repository }}:latest
+          docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
 
   deploy:
     needs: build-and-push

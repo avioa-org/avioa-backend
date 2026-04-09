@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/apoyotecnologia02-gif/avioa-backend/avioa-backend:latest
+    image: ghcr.io/apoyotecnologia02-gif/avioa-backend:latest
 
     container_name: avioa-backend
 
