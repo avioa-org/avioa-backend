@@ -51,6 +51,128 @@ model HiloPagoTotal {
   @@map("hilos_pago_total")
 }
 
+// Tablas para la firmas de documentos
+model Signature {
+  signatureId String   @id @default(uuid()) @map("signature_id")
+  name        String   @map("name")
+  position    String?  @map("position")
+  fileUrl     String?  @map("file_url")
+  base64      String?  @map("base64")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  users User[]
+
+  @@map("signatures")
+}
+
+model User {
+  userId String @id @default(uuid()) @map("user_id")
+
+  name     String     @map("name")
+  email    String     @unique @map("email")
+  password String?    @map("password")
+  role     Role       @default(EMPLOYEE)
+  status   UserStatus @default(ACTIVE)
+
+  //Info laboral
+  department String?   @map("department") // Tecnologia, RRHH
+  position   String?   @map("position") // Auxiliar, etc
+  startDate  DateTime? @map("start_date")
+
+  // Jerarquia
+  leaderId  String? @map("leader_id") // a que lider reporta el emplead
+  managerId String? @map("manager_id") // a que manager reporta el lider
+
+  // Perfil
+  avatarUrl String? @map("avatar_url")
+  phone     String? @map("phone")
+
+  // Autenticacion
+  lastLoginAt  DateTime? @map("last_login_at")
+  refreshToken String?   @map("refresh_token")
+
+  // Invitación
+  inviteToken   String?   @unique @map("invite_token")
+  inviteExpires DateTime? @map("invite_expires")
+
+  // Reset contraseña
+  resetToken        String?   @unique @map("reset_token")
+  resetTokenExpires DateTime? @map("reset_token_expires")
+
+  signatureId String? @map("signature_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relaciones
+  signature Signature? @relation(fields: [signatureId], references: [signatureId])
+
+  // Empleado -> lider
+  leader      User?  @relation("EmployeeLeader", fields: [leaderId], references: [userId])
+  teamMembers User[] @relation("EmployeeLeader")
+
+  // Lider -> manager
+  manager User?  @relation("LeaderManager", fields: [managerId], references: [userId])
+  leaders User[] @relation("LeaderManager") // Lideres que reportan al manager
+
+  formSubmissions FormSubmission[]
+  // notifications Notification[]
+
+  @@map("users")
+}
+
+model Template {
+  templateId String   @id @default(uuid()) @map("template_id")
+  name       String   @map("name")
+  fileUrl    String?  @map("file_url")
+  base64     String?  @map("base64")
+  buffer     Bytes?   @map("buffer")
+  fields     Json     @map("fields")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("templates")
+}
+
+model Form {
+  formId      String     @id @default(uuid()) @map("form_id")
+  title       String     @map("title")
+  description String?    @map("description")
+  category    String     @map("category") // RRHH, Tecnologia, etc
+  type        FormType   @default(NATIVE)
+  status      FormStatus @default(DRAFT)
+
+  // Para los formularios de google form
+  embedUrl String? @map("embed_url")
+
+  // Para los formularios nativos
+  schema Json? @map("schema")
+
+  // Autorellenar capos con datos del usuario
+  autofill Json? @map("autofill")
+
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  submissions FormSubmission[]
+
+  @@map("forms")
+}
+
+model FormSubmission {
+  submissionId String               @id @default(uuid()) @map("submission_id")
+  formId       String               @map("form_id")
+  userId       String               @map("user_id")
+  data         Json                 @map("data") // respuesta del formulario
+  status       FormSubmissionStatus @default(PENDING)
+  createdAt    DateTime             @default(now()) @map("created_at")
+
+  form Form  @relation(fields: [formId], references: [formId])
+  user User? @relation(fields: [userId], references: [userId])
+
+  @@map("form_submissions")
+}
+
+// ENUMS
 enum EstadoPT {
   PENDIENTE
   SOLICITUD
@@ -63,4 +185,35 @@ enum EstadoOp {
   PENDIENTE
   ALERTA_ENVIADA
   EMITIDO
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  EMPLOYEE
+  LEADER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING
+}
+
+enum FormType {
+  EMBEDDED
+  NATIVE
+}
+
+enum FormStatus {
+  ACTIVE
+  INACTIVE
+  DRAFT
+}
+
+enum FormSubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

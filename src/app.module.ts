@@ -8,6 +8,9 @@ import { BullModule } from '@nestjs/bullmq';
 import { envs } from './config/env.config';
 import { HealthModule } from './modules/health/health.module';
 import { AlertaReservasModule } from './modules/alerta-reservas/alerta-reservas.module';
+import { DocumentsModule } from './modules/documents/documents.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/admin/users/users.module';
 
 @Module({
   imports: [
@@ -23,6 +26,9 @@ import { AlertaReservasModule } from './modules/alerta-reservas/alerta-reservas.
     }),
     HealthModule,
     AlertaReservasModule,
+    DocumentsModule,
+    AuthModule,
+    UsersModule,
   ],
   controllers: [],
   providers: [],

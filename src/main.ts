@@ -8,11 +8,17 @@ import { Queue } from 'bullmq';
 import { envs, isProd } from './config/env.config';
 import { loggerConfig } from './config/logger.config';
 import { Logger } from '@nestjs/common';
+import { GlobalExceptionFilter } from './common/filters/global-exception-filter.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: false,
     bufferLogs: true,
+  });
+
+  app.useGlobalFilters(new GlobalExceptionFilter());
+  app.enableCors({
+    origin: 'http://localhost:3000',
   });
 
   const logger = isProd ? loggerConfig : new Logger();
@@ -42,7 +48,7 @@ async function bootstrap() {
 
   app.use('/queues', serverAdapter.getRouter());
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3001);
 }
 bootstrap().catch((error) => {
   console.error('Failed to start application', error);
