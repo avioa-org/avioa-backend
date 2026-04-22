@@ -35,13 +35,15 @@ export class EmailService {
 
       if (error) {
         this.logger.error(error);
-        throw error;
+        throw new Error(`Error al enviar email: ${error.message}`);
       }
 
       return data;
     } catch (error) {
       this.logger.error(error);
-      throw error;
+      throw new Error(
+        `Error al enviar email: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+      );
     }
   }
 }

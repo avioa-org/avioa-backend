@@ -11,6 +11,10 @@ import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 import { compare } from 'bcrypt';
 import { randomBytes } from 'node:crypto';
 import { CreateUserDto } from '../admin/users/dto/register.dto';
+import { EmailService } from 'src/infrastructure/email/email.infra';
+import { envs } from 'src/config/env.config';
+import { AcceptInviteDto } from './dto/accept-invite.dto';
+import { hash } from 'bcrypt';
 
 @Injectable()
 export class AuthService {
@@ -19,6 +23,7 @@ export class AuthService {
   constructor(
     private readonly jwt: JwtService,
     private readonly prisma: PrismaService,
+    private readonly mailService: EmailService,
   ) {}
 
   public async inviteUser(registerDto: CreateUserDto) {
@@ -76,17 +81,92 @@ export class AuthService {
     });
 
     // Aca se envia el correo
-    // await this.mailService.sendEmail({
-    //   to: newUser.email,
-    //   name: newUser.name,
-    //   inviteUrl: `${envs.FRONTEND_URL}/auth/invite?token=${inviteToken}`,
-    // });
+    await this.mailService.sendInvite({
+      to: newUser.email,
+      subject: 'Invitación a Avioa',
+      inviteUrl: `${envs.FRONTEND_URL}/auth/invite?token=${inviteToken}`,
+    });
 
     this.logger.log(`Invite sent to ${newUser.email}`);
 
     return {
       message: `Invitación enviada a ${newUser.email}`,
       userId: newUser.userId,
+    };
+  }
+
+  public async acceptInvite(acceptInviteDto: AcceptInviteDto) {
+    const { token, password } = acceptInviteDto;
+
+    const user = await this.prisma.user.findUnique({
+      where: { inviteToken: token },
+    });
+
+    if (!user || !user.inviteExpires) {
+      throw new BadRequestException({
+        message: 'El link de invitación no es válido',
+        error: 'INVALID_INVITE_TOKEN',
+      });
+    }
+
+    if (user.inviteExpires < new Date()) {
+      throw new BadRequestException({
+        message:
+          'El link de invitación ha expirado, contacta con el administrador',
+        error: 'EXPIRED_INVITE_TOKEN',
+      });
+    }
+
+    if (user.status !== 'PENDING') {
+      throw new BadRequestException({
+        message: 'El link de invitación ya fue utilizado',
+        error: 'USED_INVITE_TOKEN',
+      });
+    }
+
+    const passwordHash = await hash(password, 10);
+
+    const updatedUser = await this.prisma.user.update({
+      where: { userId: user.userId },
+      data: {
+        password: passwordHash,
+        status: 'ACTIVE',
+        inviteToken: null,
+        inviteExpires: null,
+      },
+    });
+
+    this.logger.log(
+      `User ${updatedUser.email} accepted the invite and is now active`,
+    );
+
+    return {
+      message: 'Contraseña creada exitosamente, ya puedes iniciar sesión',
+    };
+  }
+
+  public async validateInviteToken(token: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { inviteToken: token },
+    });
+
+    if (!user || !user.inviteExpires || user.inviteExpires < new Date()) {
+      throw new BadRequestException({
+        message: 'El link de invitación no es válido o ha expirado',
+        error: 'INVALID_OR_EXPIRED_INVITE_TOKEN',
+      });
+    }
+
+    if (user.status !== 'PENDING') {
+      throw new BadRequestException({
+        message: 'El link de invitación ya fue utilizado',
+        error: 'INVITE_ALREADY_USED',
+      });
+    }
+
+    return {
+      name: user.name,
+      email: user.email,
     };
   }
 
