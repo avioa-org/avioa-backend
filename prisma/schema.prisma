@@ -116,7 +116,15 @@ model User {
   leaders User[] @relation("LeaderManager") // Lideres que reportan al manager
 
   formSubmissions FormSubmission[]
-  // notifications Notification[]
+
+  // Puntos
+  pointRequestsCreated   PointRequest[] @relation("UserPointRequests")
+  pointRequestsToApprove PointRequest[] @relation("LeaderPointRequests")
+
+  pointTransactions PointTransaction[]
+  pointWallet       PointWallet?
+  notifications     Notification[]
+  rewardRedemptions RewardRedemption[]
 
   @@map("users")
 }
@@ -172,7 +180,128 @@ model FormSubmission {
   @@map("form_submissions")
 }
 
+// Modulo de puntos
+model PointRequest {
+  pointRequestId String @id @default(uuid()) @map("point_request_id")
+
+  userId   String @map("user_id")
+  leaderId String @map("leader_id")
+
+  action String @map("action") // "Organizar actividad..."
+  points Int    @map("points")
+
+  status   PointRequestStatus @default(PENDING)
+  decision String?            @map("decision") // Comentario del lider
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  reviewedAt DateTime? @map("reviewed_at")
+
+  user   User @relation("UserPointRequests", fields: [userId], references: [userId])
+  leader User @relation("LeaderPointRequests", fields: [leaderId], references: [userId])
+
+  pointTransactions PointTransaction[]
+
+  @@index([userId])
+  @@index([leaderId])
+  @@index([status])
+  @@map("point_requests")
+}
+
+model PointTransaction {
+  pointTransactionId String @id @default(uuid()) @map("point_transaction_id")
+
+  userId         String  @map("user_id")
+  pointRequestId String? @map("request_id")
+
+  type   PointTransactionType @map("type") // EARN, REDEEM
+  points Int                  @map("points")
+
+  balanceAfter Int @map("balance_after") // Saldo despues de la transaccion
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User          @relation(fields: [userId], references: [userId])
+  request PointRequest? @relation(fields: [pointRequestId], references: [pointRequestId])
+
+  @@map("point_transactions")
+}
+
+model PointWallet {
+  pointWalletId String @id @default(uuid()) @map("point_wallet_id")
+
+  userId String @unique @map("user_id")
+  total  Int    @default(0) @map("total")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [userId])
+
+  @@map("point_wallets")
+}
+
+// Notificaciones
+model Notification {
+  notificationId String @id @default(uuid()) @map("notification_id")
+
+  userId  String @map("user_id")
+  title   String @map("title")
+  message String @map("message")
+
+  type NotificationType @map("type")
+  read Boolean          @default(false) @map("read")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [userId])
+
+  @@map("notifications")
+}
+
+// Premios
+model Reward {
+  rewardId String @id @default(uuid()) @map("reward_id")
+
+  name        String  @map("name")
+  description String? @map("description")
+  cost        Int     @map("cost")
+
+  stock    Int?    @map("stock")
+  isActive Boolean @default(true) @map("is_active")
+
+  imageUrl String? @map("image_url")
+
+  createdAt         DateTime           @default(now()) @map("created_at")
+  rewardRedemptions RewardRedemption[]
+
+  @@map("rewards")
+}
+
+model RewardRedemption {
+  rewardRedemptionId String @id @default(uuid()) @map("reward_redemption_id")
+
+  userId   String @map("user_id")
+  rewardId String @map("reward_id")
+
+  cost Int @map("cost")
+
+  status RedemptionStatus @default(PENDING)
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  approvedAt DateTime? @map("approved_at")
+
+  user   User   @relation(fields: [userId], references: [userId])
+  reward Reward @relation(fields: [rewardId], references: [rewardId])
+
+  @@map("reward_redemptions")
+}
+
 // ENUMS
+enum RedemptionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum EstadoPT {
   PENDIENTE
   SOLICITUD
@@ -216,4 +345,21 @@ enum FormSubmissionStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum PointRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PointTransactionType {
+  EARN
+  REDEEM
+}
+
+enum NotificationType {
+  POINT_REQUEST
+  APPROVAL
+  REJECTION
 }

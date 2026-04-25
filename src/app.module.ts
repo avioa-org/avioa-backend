@@ -11,6 +11,7 @@ import { AlertaReservasModule } from './modules/alerta-reservas/alerta-reservas.
 import { DocumentsModule } from './modules/documents/documents.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/admin/users/users.module';
+import { PointsModule } from './modules/points/points.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { UsersModule } from './modules/admin/users/users.module';
     DocumentsModule,
     AuthModule,
     UsersModule,
+    PointsModule,
   ],
   controllers: [],
   providers: [],

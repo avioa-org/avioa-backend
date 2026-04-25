@@ -34,6 +34,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(1),
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.string().min(1),
+  FRONTEND_URL: z.string().min(1),
 });
 
 let envs: any;
