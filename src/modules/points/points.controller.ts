@@ -15,7 +15,7 @@ import { PointTransactionService } from './services/point-transaction.service';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { ValidateAdminGuard } from 'src/common/guards/validate-admin.guard';
 import { RewardService } from './services/reward.service';
-import { CreateRewardDto } from './dto/create-reward.dto';
+import { CreateBulkRewardDto, CreateRewardDto } from './dto/create-reward.dto';
 import type { Request } from 'express';
 
 @Controller('points')
@@ -60,6 +60,12 @@ export class PointsController {
   @Post('reward/create')
   public async createReward(@Body() createRewardDto: CreateRewardDto) {
     return await this.rewardService.createReward(createRewardDto);
+  }
+
+  @UseGuards(JwtAuthGuard, ValidateAdminGuard)
+  @Post('reward/create/bulk')
+  public async createBulkRewards(@Body() rewards: CreateBulkRewardDto) {
+    return await this.rewardService.createBulkRewards(rewards);
   }
 
   @UseGuards(JwtAuthGuard)

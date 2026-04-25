@@ -1,4 +1,11 @@
-import { IsInt, IsOptional, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsInt,
+  IsOptional,
+  IsString,
+  Validate,
+  ValidateNested,
+} from 'class-validator';
 
 export class CreateRewardDto {
   @IsString()
@@ -14,4 +21,10 @@ export class CreateRewardDto {
   @IsString()
   @IsOptional()
   imageUrl?: string;
+}
+
+export class CreateBulkRewardDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  data!: CreateRewardDto[];
 }

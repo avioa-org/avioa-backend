@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
-import { CreateRewardDto } from '../dto/create-reward.dto';
+import { CreateBulkRewardDto, CreateRewardDto } from '../dto/create-reward.dto';
 
 @Injectable()
 export class RewardService {
@@ -10,6 +10,10 @@ export class RewardService {
 
   public async createReward(createRewardDto: CreateRewardDto) {
     return this.prisma.reward.create({ data: createRewardDto });
+  }
+
+  public async createBulkRewards(rewards: CreateBulkRewardDto) {
+    return this.prisma.reward.createMany({ data: rewards.data });
   }
 
   public async getRewards() {
