@@ -12,6 +12,7 @@ import { DocumentsModule } from './modules/documents/documents.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/admin/users/users.module';
 import { PointsModule } from './modules/points/points.module';
+import { OvertimeModule } from './modules/overtime/overtime.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { PointsModule } from './modules/points/points.module';
     AuthModule,
     UsersModule,
     PointsModule,
+    OvertimeModule,
   ],
   controllers: [],
   providers: [],

@@ -122,10 +122,12 @@ model User {
   pointRequestsCreated   PointRequest[] @relation("UserPointRequests")
   pointRequestsToApprove PointRequest[] @relation("LeaderPointRequests")
 
-  pointTransactions PointTransaction[]
-  pointWallet       PointWallet?
-  notifications     Notification[]
-  rewardRedemptions RewardRedemption[]
+  pointTransactions        PointTransaction[]
+  pointWallet              PointWallet?
+  notifications            Notification[]
+  rewardRedemptions        RewardRedemption[]
+  overtimeRequests         OvertimeRequest[]  @relation("EmployeeOvertime")
+  overtimeRequestsToReview OvertimeRequest[]  @relation("LeaderOvertime")
 
   @@map("users")
 }
@@ -308,6 +310,35 @@ model RewardRedemption {
   @@map("reward_redemptions")
 }
 
+model OvertimeRequest {
+  overtimeRequestId String @id @default(uuid()) @map("overtime_request_id")
+
+  userId   String @map("user_id") // empleado 
+  leaderId String @map("leader_id") // tomado de user.leaderId al momento de crear
+
+  date       DateTime @map("date") // solo la fecha, sin hora
+  startTime  DateTime @map("start_time") // hora inicio
+  endTime    DateTime @map("end_time") // hora fin
+  totalHours Float    @map("total_hours") // calculado en el backend
+
+  description String
+
+  status  OvertimeStatus @default(PENDING)
+  comment String?        @map("comment") // comentario del lider al rechazar (o aprobar)
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  reviewedAt DateTime? @map("reviewed_at")
+
+  user   User @relation("EmployeeOvertime", fields: [userId], references: [userId])
+  leader User @relation("LeaderOvertime", fields: [leaderId], references: [userId])
+
+  @@index([userId])
+  @@index([leaderId])
+  @@index([status])
+  @@index([date])
+  @@map("overtime_requests")
+}
+
 // ENUMS
 enum RedemptionStatus {
   PENDING // Acaba de redimir, esperando procesamiento
@@ -382,6 +413,9 @@ enum NotificationType {
   REWARD_APPROVED
   REWARD_REJECTED
   REWARD_COMPLETED
+  OVERTIME_REQUEST
+  OVERTIME_APPROVED
+  OVERTIME_REJECTED
   APPROVAL
   REJECTION
 }
@@ -389,4 +423,10 @@ enum NotificationType {
 enum RewardType {
   AUTOMATIC // Cupones, netflix, etc
   MANUAL // Productos fisicos
+}
+
+enum OvertimeStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
