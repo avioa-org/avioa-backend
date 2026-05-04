@@ -77,6 +77,7 @@ model User {
   //Info laboral
   department String?   @map("department") // Tecnologia, RRHH
   position   String?   @map("position") // Auxiliar, etc
+  area       String?   @map("area") // Comercial, Operaciones, etc
   startDate  DateTime? @map("start_date")
 
   // Jerarquia
@@ -265,10 +266,15 @@ model Reward {
   description String? @map("description")
   cost        Int     @map("cost")
 
+  type RewardType @default(MANUAL) @map("type")
+
   stock    Int?    @map("stock")
   isActive Boolean @default(true) @map("is_active")
 
   imageUrl String? @map("image_url")
+
+  deliveryMethod  String? @map("delivery_method") // email, download
+  deliveryContent Json?   @map("delivery_content") // URL de cupón, etc
 
   createdAt         DateTime           @default(now()) @map("created_at")
   rewardRedemptions RewardRedemption[]
@@ -286,6 +292,13 @@ model RewardRedemption {
 
   status RedemptionStatus @default(PENDING)
 
+  processedBy String?   @map("processed_by") // userId de RRHH o sistema
+  processedAt DateTime? @map("processed_at")
+
+  rejectionReason String? @map("rejection_reason")
+
+  deliveryDate DateTime? @map("delivery_date")
+
   createdAt  DateTime  @default(now()) @map("created_at")
   approvedAt DateTime? @map("approved_at")
 
@@ -297,9 +310,12 @@ model RewardRedemption {
 
 // ENUMS
 enum RedemptionStatus {
-  PENDING
-  APPROVED
-  REJECTED
+  PENDING // Acaba de redimir, esperando procesamiento
+  IN_PROCESS // RRHH lo vio, esta en proceso
+  APPROVED // aprobado, listo para entregar
+  COMPLETED // ya entregado/disponible
+  REJECTED // rechazado por el lider, rrhh, etc
+  CANCELLED // cancelado por el usuario
 }
 
 enum EstadoPT {
@@ -360,6 +376,17 @@ enum PointTransactionType {
 
 enum NotificationType {
   POINT_REQUEST
+  POINT_APPROVAL
+  POINT_REJECTION
+  REWARD_REDEMPTION
+  REWARD_APPROVED
+  REWARD_REJECTED
+  REWARD_COMPLETED
   APPROVAL
   REJECTION
+}
+
+enum RewardType {
+  AUTOMATIC // Cupones, netflix, etc
+  MANUAL // Productos fisicos
 }

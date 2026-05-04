@@ -72,6 +72,7 @@ export class AuthService {
         status: 'PENDING',
         password: null,
         department: registerDto.department,
+        area: registerDto.area,
         position: registerDto.position,
         leaderId: registerDto.leaderId,
         managerId: registerDto.managerId,
@@ -204,6 +205,8 @@ export class AuthService {
       email: user.email,
       avatar: user.avatarUrl,
       role: user.role,
+      area: user.area,
+      leaderId: user?.leaderId,
     };
 
     this.logger.log(`User ${user.email} logged in successfully`);

@@ -39,6 +39,10 @@ export class CreateUserDto {
 
   @IsString()
   @IsOptional()
+  area?: string;
+
+  @IsString()
+  @IsOptional()
   position?: string;
 
   @IsUUID()
