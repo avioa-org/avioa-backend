@@ -8,14 +8,16 @@ import {
 import { CreateOvertimeDto } from './dto/create-overtime.dto';
 import { ReviewOvertimeDto } from './dto/review-overtime.dto';
 import { OvertimeQueryDto } from './dto/overtime-query.dto';
-import { OvertimeRequest, OvertimeStatus, Role } from '../../generated/prisma';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
+import { EmailService } from 'src/infrastructure/email/email.infra';
+import { OvertimeStatus, Role } from 'generated/prisma/enums';
+import { OvertimeRequest } from 'generated/prisma/browser';
 
 @Injectable()
 export class OvertimeService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notificationsService: NotificationsService,
+    private readonly emailService: EmailService,
   ) {}
 
   async create(userId: string, dto: CreateOvertimeDto) {
@@ -143,17 +145,17 @@ export class OvertimeService {
     });
 
     // 8. Notificar al líder
-    try {
-      await this.notificationsService.create({
-        userId: user.leaderId,
-        title: 'Nueva solicitud de horas extra',
-        message: `${user.name} ha solicitado ${totalHours}h extra para el ${dto.date}`,
-        type: 'OVERTIME_REQUEST',
-      });
-    } catch (error) {
-      // La notificación no debe revertir la creación
-      console.error('Error al enviar notificación al líder:', error);
-    }
+    // try {
+    //   await this.emailService.sendInvite({
+    //     userId: user.leaderId,
+    //     title: 'Nueva solicitud de horas extra',
+    //     message: `${user.name} ha solicitado ${totalHours}h extra para el ${dto.date}`,
+    //     type: 'OVERTIME_REQUEST',
+    //   });
+    // } catch (error) {
+    //   // La notificación no debe revertir la creación
+    //   console.error('Error al enviar notificación al líder:', error);
+    // }
 
     return overtime;
   }
@@ -256,21 +258,21 @@ export class OvertimeService {
     });
 
     // Notificar al empleado
-    try {
-      const isApproved = dto.status === OvertimeStatus.APPROVED;
-      const dateStr = record.date.toLocaleDateString('es-CO');
+    // try {
+    //   const isApproved = dto.status === OvertimeStatus.APPROVED;
+    //   const dateStr = record.date.toLocaleDateString('es-CO');
 
-      await this.notificationsService.create({
-        userId: record.userId,
-        title: isApproved ? 'Horas extra aprobadas' : 'Horas extra rechazadas',
-        message: isApproved
-          ? `Tus ${record.totalHours}h extra del ${dateStr} fueron aprobadas`
-          : `Tus horas extra del ${dateStr} fueron rechazadas. Motivo: ${dto.comment}`,
-        type: isApproved ? 'OVERTIME_APPROVED' : 'OVERTIME_REJECTED',
-      });
-    } catch (error) {
-      console.error('Error al enviar notificación al empleado:', error);
-    }
+    //   await this.emailService.sendInvite({
+    //     userId: record.userId,
+    //     title: isApproved ? 'Horas extra aprobadas' : 'Horas extra rechazadas',
+    //     message: isApproved
+    //       ? `Tus ${record.totalHours}h extra del ${dateStr} fueron aprobadas`
+    //       : `Tus horas extra del ${dateStr} fueron rechazadas. Motivo: ${dto.comment}`,
+    //     type: isApproved ? 'OVERTIME_APPROVED' : 'OVERTIME_REJECTED',
+    //   });
+    // } catch (error) {
+    //   console.error('Error al enviar notificación al empleado:', error);
+    // }
 
     return updated;
   }

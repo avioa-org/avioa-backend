@@ -14,7 +14,10 @@ import { CreateOvertimeDto } from './dto/create-overtime.dto';
 import { ReviewOvertimeDto } from './dto/review-overtime.dto';
 import { OvertimeQueryDto } from './dto/overtime-query.dto';
 import { Roles } from '../auth/decorator/roles.decorator';
-import { CurrentUser } from 'src/common/decorator/current-user.decorator';
+import {
+  CurrentUser,
+  type ICurrentUser,
+} from 'src/common/decorator/current-user.decorator';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Role } from 'generated/prisma/enums';
@@ -27,36 +30,45 @@ export class OvertimeController {
 
   @Post()
   @Roles(Role.EMPLOYEE)
-  create(@Body() dto: CreateOvertimeDto, @CurrentUser() userId: string) {
-    return this.overtimeService.create(userId, dto);
+  create(@Body() dto: CreateOvertimeDto, @CurrentUser() user: ICurrentUser) {
+    return this.overtimeService.create(user.userId, dto);
   }
 
   @Get('my')
   @Roles(Role.EMPLOYEE)
-  findMyRequests(@Req() req, @Query() query: OvertimeQueryDto) {
-    return this.overtimeService.findMyRequests(req.user.userId, query);
+  findMyRequests(
+    @CurrentUser() user: ICurrentUser,
+    @Query() query: OvertimeQueryDto,
+  ) {
+    return this.overtimeService.findMyRequests(user.userId, query);
   }
 
   @Get('team')
   @Roles(Role.LEADER, Role.MANAGER)
-  findTeamRequests(@Req() req, @Query() query: OvertimeQueryDto) {
-    return this.overtimeService.findTeamRequests(req.user.userId, query);
+  findTeamRequests(
+    @CurrentUser() user: ICurrentUser,
+    @Query() query: OvertimeQueryDto,
+  ) {
+    return this.overtimeService.findTeamRequests(user.userId, query);
   }
 
   @Get('summary')
   @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER)
   getSummary(
-    @Req() req,
     @Query() query: OvertimeQueryDto,
-    @CurrentUser() userId: string,
+    @CurrentUser() user: ICurrentUser,
   ) {
-    return this.overtimeService.getSummary(userId, req.user.role, query);
+    return this.overtimeService.getSummary(
+      user.userId,
+      user.role as Role,
+      query,
+    );
   }
 
   @Get(':id')
   @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER)
-  findOne(@Param('id') id: string, @CurrentUser() userId: string) {
-    return this.overtimeService.findOne(id, userId);
+  findOne(@Param('id') id: string, @CurrentUser() user: ICurrentUser) {
+    return this.overtimeService.findOne(id, user.userId);
   }
 
   @Patch(':id/review')
