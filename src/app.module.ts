@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { QueueModule } from './infrastructure/queue/queue.module';
 import { CronModule } from './jobs/cron.module';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -13,10 +14,19 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/admin/users/users.module';
 import { PointsModule } from './modules/points/points.module';
 import { OvertimeModule } from './modules/overtime/overtime.module';
+import { WebsocketsModule } from './modules/websockets/websockets.module';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { HttpThrottlerGuard } from './common/guards/http-throttler.guard';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60_000,
+        limit: 120,
+      },
+    ]),
     QueueModule,
     CronModule,
     PrismaModule,
@@ -29,12 +39,18 @@ import { OvertimeModule } from './modules/overtime/overtime.module';
     HealthModule,
     AlertaReservasModule,
     DocumentsModule,
+    WebsocketsModule,
     AuthModule,
     UsersModule,
     PointsModule,
     OvertimeModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: HttpThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

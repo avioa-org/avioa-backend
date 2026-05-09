@@ -6,7 +6,6 @@ import { PointWalletService } from './services/point-wallet.service';
 import { PointTransactionService } from './services/point-transaction.service';
 import { RewardService } from './services/reward.service';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
-import { PointsGateway } from './gateway/points.gateway';
 
 @Module({
   controllers: [PointsController],
@@ -17,7 +16,6 @@ import { PointsGateway } from './gateway/points.gateway';
     PointTransactionService,
     RewardService,
     PrismaService,
-    PointsGateway,
   ],
 })
 export class PointsModule {}

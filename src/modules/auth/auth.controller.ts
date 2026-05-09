@@ -23,6 +23,7 @@ export class AuthController {
 
   @Post('login')
   public async login(@Body() loginDto: LoginDto) {
+    console.log('Login attempt:', loginDto);
     return await this.authService.login(loginDto);
   }
 

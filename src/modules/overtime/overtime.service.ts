@@ -1,23 +1,27 @@
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateOvertimeDto } from './dto/create-overtime.dto';
+import {
+  CreateOvertimeDto,
+  OvertimeRequestInputDto,
+} from './dto/create-overtime.dto';
 import { ReviewOvertimeDto } from './dto/review-overtime.dto';
 import { OvertimeQueryDto } from './dto/overtime-query.dto';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 import { EmailService } from 'src/infrastructure/email/email.infra';
-import { OvertimeStatus, Role } from 'generated/prisma/enums';
+import { OvertimeStatus, Role, NotificationType } from 'generated/prisma/enums';
 import { OvertimeRequest } from 'generated/prisma/browser';
+import { PointsGateway } from '../points/gateway/points.gateway';
 
 @Injectable()
 export class OvertimeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
+    private readonly pointsGateway: PointsGateway,
   ) {}
 
   async create(userId: string, dto: CreateOvertimeDto) {
@@ -37,114 +41,208 @@ export class OvertimeService {
       );
     }
 
-    // 2. Parsear fechas y horas
-    const startTime = new Date(`${dto.date}T${dto.startTime}:00`);
-    const endTime = new Date(`${dto.date}T${dto.endTime}:00`);
+    const isBatch = !!(dto.requests && dto.requests.length > 0);
+    const entries: OvertimeRequestInputDto[] = isBatch
+      ? dto.requests!
+      : dto.date && dto.startTime && dto.endTime && dto.description
+        ? [
+            {
+              date: dto.date,
+              startTime: dto.startTime,
+              endTime: dto.endTime,
+              description: dto.description,
+            },
+          ]
+        : [];
 
-    if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
-      throw new BadRequestException('Formato de fecha u hora inválido');
-    }
-
-    if (endTime <= startTime) {
+    if (!entries.length) {
       throw new BadRequestException(
-        'La hora de fin debe ser posterior a la hora de inicio',
+        'Debes enviar al menos una solicitud en requests o el payload individual',
       );
     }
 
-    // 3. Calcular totalHours
-    const totalHours =
-      (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-
-    if (totalHours < 0.5) {
-      throw new BadRequestException('El mínimo registrable es 30 minutos');
-    }
-
-    if (totalHours > 8) {
-      throw new BadRequestException(
-        'No se pueden registrar más de 8 horas extra por día',
-      );
-    }
-
-    // 4. Validar ventana de fechas
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const requestDate = new Date(dto.date);
-    requestDate.setHours(0, 0, 0, 0);
 
-    if (requestDate > today) {
-      throw new BadRequestException(
-        'No puedes registrar horas extra en fechas futuras',
-      );
-    }
+    const preparedEntries = entries.map((entry, idx) => {
+      const requestDate = new Date(entry.date);
+      requestDate.setHours(0, 0, 0, 0);
+      const startTime = new Date(`${entry.date}T${entry.startTime}:00`);
+      const endTime = new Date(`${entry.date}T${entry.endTime}:00`);
 
-    const diffDays =
-      (today.getTime() - requestDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+        throw new BadRequestException(
+          `Formato de fecha u hora inválido en requests[${idx}]`,
+        );
+      }
 
-    if (diffDays > 5) {
-      throw new BadRequestException(
-        'Solo puedes registrar horas extra de los últimos 5 días',
-      );
-    }
+      if (endTime <= startTime) {
+        throw new BadRequestException(
+          `La hora de fin debe ser posterior a la hora de inicio en requests[${idx}]`,
+        );
+      }
 
-    // 5. Verificar duplicado en la misma fecha
-    const duplicate = await this.prisma.overtimeRequest.findFirst({
-      where: {
-        userId,
-        date: requestDate,
-        status: { in: [OvertimeStatus.PENDING, OvertimeStatus.APPROVED] },
-      },
-    });
+      const totalHours =
+        (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
 
-    if (duplicate) {
-      throw new ConflictException(
-        'Ya tienes una solicitud activa para esta fecha',
-      );
-    }
+      if (totalHours < 0.5) {
+        throw new BadRequestException(
+          `El mínimo registrable es 30 minutos en requests[${idx}]`,
+        );
+      }
 
-    // 6. Validar límite mensual de 50h (normativa colombiana)
-    const firstDayOfMonth = new Date(
-      requestDate.getFullYear(),
-      requestDate.getMonth(),
-      1,
-    );
-    const lastDayOfMonth = new Date(
-      requestDate.getFullYear(),
-      requestDate.getMonth() + 1,
-      0,
-    );
+      if (requestDate > today) {
+        throw new BadRequestException(
+          `No puedes registrar horas extra en fechas futuras (requests[${idx}])`,
+        );
+      }
 
-    const monthlySummary = await this.prisma.overtimeRequest.aggregate({
-      where: {
-        userId,
-        status: OvertimeStatus.APPROVED,
-        date: { gte: firstDayOfMonth, lte: lastDayOfMonth },
-      },
-      _sum: { totalHours: true },
-    });
+      const diffDays =
+        (today.getTime() - requestDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (diffDays > 5) {
+        throw new BadRequestException(
+          `Solo puedes registrar horas extra de los últimos 5 días (requests[${idx}])`,
+        );
+      }
 
-    const horasAprobadas = monthlySummary._sum.totalHours ?? 0;
-
-    if (horasAprobadas + totalHours > 50) {
-      throw new BadRequestException(
-        `Excedes el límite legal de 50 horas extra mensuales. Tienes ${horasAprobadas}h aprobadas este mes.`,
-      );
-    }
-
-    // 7. Crear el registro
-    const overtime = await this.prisma.overtimeRequest.create({
-      data: {
-        userId,
-        leaderId: user.leaderId,
-        date: requestDate,
+      return {
+        ...entry,
+        dateKey: entry.date,
+        requestDate,
         startTime,
         endTime,
         totalHours,
-        description: dto.description,
-        status: OvertimeStatus.PENDING,
+      };
+    });
+
+    const dateKeys = Array.from(
+      new Set(preparedEntries.map((entry) => entry.dateKey)),
+    );
+
+    const existingActiveByDate = await Promise.all(
+      dateKeys.map(async (dateKey) => {
+        const [year, month, day] = dateKey.split('-').map(Number);
+        const dayStart = new Date(year, month - 1, day);
+        const dayEnd = new Date(year, month - 1, day, 23, 59, 59, 999);
+        const summary = await this.prisma.overtimeRequest.aggregate({
+          where: {
+            userId,
+            status: { in: [OvertimeStatus.PENDING, OvertimeStatus.APPROVED] },
+            date: { gte: dayStart, lte: dayEnd },
+          },
+          _sum: { totalHours: true },
+        });
+        return [dateKey, summary._sum.totalHours ?? 0] as const;
+      }),
+    );
+
+    const requestedByDate = preparedEntries.reduce(
+      (acc, entry) => {
+        const key = entry.dateKey;
+        acc[key] = (acc[key] ?? 0) + entry.totalHours;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    for (const [dateKey, existingHours] of existingActiveByDate) {
+      const requestedHours = requestedByDate[dateKey] ?? 0;
+      if (existingHours + requestedHours > 8) {
+        throw new BadRequestException(
+          `Excedes el máximo de 8h para ${dateKey}. Ya tienes ${existingHours}h activas y estás solicitando ${requestedHours}h.`,
+        );
+      }
+    }
+
+    const requestedByMonth = preparedEntries.reduce(
+      (acc, entry) => {
+        const monthKey = `${entry.requestDate.getFullYear()}-${entry.requestDate.getMonth()}`;
+        acc[monthKey] = (acc[monthKey] ?? 0) + entry.totalHours;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    for (const monthKey of Object.keys(requestedByMonth)) {
+      const [yearStr, monthIndexStr] = monthKey.split('-');
+      const year = Number(yearStr);
+      const monthIndex = Number(monthIndexStr);
+      const firstDayOfMonth = new Date(year, monthIndex, 1);
+      const lastDayOfMonth = new Date(year, monthIndex + 1, 0);
+
+      const monthlySummary = await this.prisma.overtimeRequest.aggregate({
+        where: {
+          userId,
+          status: OvertimeStatus.APPROVED,
+          date: { gte: firstDayOfMonth, lte: lastDayOfMonth },
+        },
+        _sum: { totalHours: true },
+      });
+
+      const approvedHours = monthlySummary._sum.totalHours ?? 0;
+      const requestedHours = requestedByMonth[monthKey];
+
+      if (approvedHours + requestedHours > 50) {
+        throw new BadRequestException(
+          `Excedes el límite legal de 50 horas extra mensuales. Tienes ${approvedHours}h aprobadas en ${year}-${monthIndex + 1} y estás solicitando ${requestedHours}h.`,
+        );
+      }
+    }
+
+    const overtimes = await this.prisma.$transaction(
+      preparedEntries.map((entry) =>
+        this.prisma.overtimeRequest.create({
+          data: {
+            userId,
+            leaderId: user.leaderId!,
+            date: entry.requestDate,
+            startTime: entry.startTime,
+            endTime: entry.endTime,
+            totalHours: Number(entry.totalHours.toFixed(2)),
+            description: entry.description,
+            status: OvertimeStatus.PENDING,
+          },
+        }),
+      ),
+    );
+
+    const totalHoursRequested = overtimes.reduce(
+      (sum, overtime) => sum + overtime.totalHours,
+      0,
+    );
+
+    const notificationData = {
+      type: NotificationType.OVERTIME_REQUEST,
+      title: 'Nueva solicitud de horas extra',
+      message: `${user.name} solicitó ${totalHoursRequested}h extra en ${overtimes.length} solicitud(es)`,
+      requestsCount: overtimes.length,
+      totalHours: totalHoursRequested,
+      requests: overtimes.map((overtime) => ({
+        overtimeRequestId: overtime.overtimeRequestId,
+        date: overtime.date,
+        startTime: overtime.startTime,
+        endTime: overtime.endTime,
+        totalHours: overtime.totalHours,
+      })),
+      createdAt: new Date(),
+    };
+
+    await this.pointsGateway.notifyLeader(
+      user.leaderId,
+      'overtime_request_received',
+      notificationData,
+    );
+
+    await this.prisma.notification.create({
+      data: {
+        userId: user.leaderId,
+        title: notificationData.title,
+        message: notificationData.message,
+        type: notificationData.type,
       },
     });
 
-    // 8. Notificar al líder
+    // 8. Notificar al líder por email
     // try {
     //   await this.emailService.sendInvite({
     //     userId: user.leaderId,
@@ -157,7 +255,7 @@ export class OvertimeService {
     //   console.error('Error al enviar notificación al líder:', error);
     // }
 
-    return overtime;
+    return isBatch ? overtimes : overtimes[0];
   }
 
   async findMyRequests(userId: string, query: OvertimeQueryDto) {
@@ -257,11 +355,39 @@ export class OvertimeService {
       },
     });
 
-    // Notificar al empleado
-    // try {
-    //   const isApproved = dto.status === OvertimeStatus.APPROVED;
-    //   const dateStr = record.date.toLocaleDateString('es-CO');
+    const isApproved = dto.status === OvertimeStatus.APPROVED;
+    const dateStr = record.date.toLocaleDateString('es-CO');
+    const notificationData = {
+      type: isApproved
+        ? NotificationType.OVERTIME_APPROVED
+        : NotificationType.OVERTIME_REJECTED,
+      title: isApproved ? 'Horas extra aprobadas' : 'Horas extra rechazadas',
+      message: isApproved
+        ? `Tus ${record.totalHours}h extra del ${dateStr} fueron aprobadas`
+        : `Tus horas extra del ${dateStr} fueron rechazadas${dto.comment ? `. Motivo: ${dto.comment}` : ''}`,
+      overtimeRequestId: record.overtimeRequestId,
+      status: dto.status,
+      reviewedAt: updated.reviewedAt,
+      comment: dto.comment ?? null,
+    };
 
+    await this.pointsGateway.notifyEmployee(
+      record.userId,
+      isApproved ? 'overtime_request_approved' : 'overtime_request_rejected',
+      notificationData,
+    );
+
+    await this.prisma.notification.create({
+      data: {
+        userId: record.userId,
+        title: notificationData.title,
+        message: notificationData.message,
+        type: notificationData.type,
+      },
+    });
+
+    // Notificar al empleado por email
+    // try {
     //   await this.emailService.sendInvite({
     //     userId: record.userId,
     //     title: isApproved ? 'Horas extra aprobadas' : 'Horas extra rechazadas',

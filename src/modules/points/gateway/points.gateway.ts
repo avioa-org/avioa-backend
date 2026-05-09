@@ -1,14 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   WebSocketGateway,
   WebSocketServer,
-  SubscribeMessage,
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Redis } from 'ioredis';
 import { Server, Socket } from 'socket.io';
 import { envs } from 'src/config/env.config';
+import { verify } from 'jsonwebtoken';
 
 @Injectable()
 @WebSocketGateway({
@@ -22,32 +22,54 @@ import { envs } from 'src/config/env.config';
 export class PointsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server!: Server;
 
+  private readonly logger = new Logger(PointsGateway.name);
   private redis: Redis;
 
   constructor() {
-    this.redis = new Redis({
-      host: envs.REDIS_HOST || 'localhost',
-      port: parseInt(envs.REDIS_PORT) || 6379,
-    });
+    this.redis = new Redis(envs.REDIS_URL);
   }
 
   async handleConnection(socket: Socket) {
-    console.log('🔥 intento de conexión');
-    console.log(socket.handshake.auth);
-    const userId = socket.handshake.auth.userId;
-    if (!userId) {
+    const authHeader = socket.handshake.auth?.token as string | undefined;
+    const bearerToken = authHeader?.startsWith('Bearer ')
+      ? authHeader.slice(7).trim()
+      : authHeader;
+
+    if (!bearerToken) {
+      this.logger.warn(`Socket ${socket.id} rejected: missing token`);
       socket.disconnect();
       return;
     }
+
+    let userId: string | undefined;
+    try {
+      const decoded = verify(bearerToken, envs.JWT_SECRET) as {
+        userId?: string;
+      };
+      userId = decoded.userId;
+    } catch {
+      this.logger.warn(`Socket ${socket.id} rejected: invalid token`);
+      socket.disconnect();
+      return;
+    }
+
+    if (!userId) {
+      this.logger.warn(`Socket ${socket.id} rejected: token without userId`);
+      socket.disconnect();
+      return;
+    }
+
+    socket.data.userId = userId;
 
     // se va a cachear ne redis con este formato: user:{userId}:socket -> socketId
     await this.redis.set(`user:${userId}:socketId`, socket.id, 'EX', 86400); // 24 horas expira
 
     socket.join(`user:${userId}`);
+    this.logger.debug(`Socket connected for user ${userId}`);
   }
 
   async handleDisconnect(socket: Socket) {
-    const userId = socket.handshake.auth.userId;
+    const userId = socket.data.userId as string | undefined;
     if (userId) {
       await this.redis.del(`user:${userId}:socketId`);
     }

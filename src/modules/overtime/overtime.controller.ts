@@ -29,13 +29,13 @@ export class OvertimeController {
   constructor(private readonly overtimeService: OvertimeService) {}
 
   @Post()
-  @Roles(Role.EMPLOYEE)
+  @Roles(Role.EMPLOYEE, Role.ADMIN)
   create(@Body() dto: CreateOvertimeDto, @CurrentUser() user: ICurrentUser) {
     return this.overtimeService.create(user.userId, dto);
   }
 
   @Get('my')
-  @Roles(Role.EMPLOYEE)
+  @Roles(Role.EMPLOYEE, Role.ADMIN)
   findMyRequests(
     @CurrentUser() user: ICurrentUser,
     @Query() query: OvertimeQueryDto,
@@ -44,7 +44,7 @@ export class OvertimeController {
   }
 
   @Get('team')
-  @Roles(Role.LEADER, Role.MANAGER)
+  @Roles(Role.LEADER, Role.MANAGER, Role.ADMIN)
   findTeamRequests(
     @CurrentUser() user: ICurrentUser,
     @Query() query: OvertimeQueryDto,
@@ -53,11 +53,12 @@ export class OvertimeController {
   }
 
   @Get('summary')
-  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER)
+  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
   getSummary(
     @Query() query: OvertimeQueryDto,
     @CurrentUser() user: ICurrentUser,
   ) {
+    console.log(query);
     return this.overtimeService.getSummary(
       user.userId,
       user.role as Role,
@@ -66,13 +67,13 @@ export class OvertimeController {
   }
 
   @Get(':id')
-  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER)
+  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
   findOne(@Param('id') id: string, @CurrentUser() user: ICurrentUser) {
     return this.overtimeService.findOne(id, user.userId);
   }
 
   @Patch(':id/review')
-  @Roles(Role.LEADER, Role.MANAGER)
+  @Roles(Role.LEADER, Role.MANAGER, Role.ADMIN)
   @UseGuards(OvertimeLeaderGuard)
   review(@Req() req, @Body() dto: ReviewOvertimeDto) {
     // req.overtimeRecord viene del OvertimeLeaderGuard
