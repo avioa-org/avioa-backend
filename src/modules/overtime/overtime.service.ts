@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -18,6 +19,7 @@ import { PointsGateway } from '../points/gateway/points.gateway';
 
 @Injectable()
 export class OvertimeService {
+  private readonly logger = new Logger(OvertimeService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
@@ -65,7 +67,10 @@ export class OvertimeService {
     today.setHours(0, 0, 0, 0);
 
     const preparedEntries = entries.map((entry, idx) => {
-      const requestDate = new Date(entry.date);
+      const [year, month, day] = entry.date.split('-').map(Number);
+
+      const requestDate = new Date(year, month - 1, day);
+
       requestDate.setHours(0, 0, 0, 0);
       const startTime = new Date(`${entry.date}T${entry.startTime}:00`);
       const endTime = new Date(`${entry.date}T${entry.endTime}:00`);
@@ -86,22 +91,20 @@ export class OvertimeService {
         (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
 
       if (totalHours < 0.5) {
-        throw new BadRequestException(
-          `El mínimo registrable es 30 minutos en requests[${idx}]`,
-        );
+        throw new BadRequestException(`El mínimo registrable es 30 minutos`);
       }
 
       if (requestDate > today) {
         throw new BadRequestException(
-          `No puedes registrar horas extra en fechas futuras (requests[${idx}])`,
+          `No puedes registrar horas extra en fechas futuras`,
         );
       }
 
       const diffDays =
         (today.getTime() - requestDate.getTime()) / (1000 * 60 * 60 * 24);
-      if (diffDays > 5) {
+      if (diffDays > 1) {
         throw new BadRequestException(
-          `Solo puedes registrar horas extra de los últimos 5 días (requests[${idx}])`,
+          `Solo puedes registrar horas extra de los últimos 24h`,
         );
       }
 
@@ -416,15 +419,17 @@ export class OvertimeService {
       },
     };
 
-    if (role === Role.EMPLOYEE) {
-      where.userId = userId;
-    } else {
-      // LEADER o MANAGER ven su equipo
-      where.leaderId = userId;
-      if (query.employeeId) {
-        where.userId = query.employeeId;
-      }
-    }
+    where.userId = userId;
+
+    // if (role === Role.EMPLOYEE) {
+    //   where.userId = userId;
+    // } else {
+    //   // LEADER o MANAGER ven su equipo
+    //   where.leaderId = userId;
+    //   if (query.employeeId) {
+    //     where.userId = query.employeeId;
+    //   }
+    // }
 
     const records = await this.prisma.overtimeRequest.findMany({
       where,
@@ -469,12 +474,15 @@ export class OvertimeService {
       .filter((r) => r.status === OvertimeStatus.REJECTED)
       .reduce((s, r) => s + r.totalHours, 0);
 
+    const totalHours = records.reduce((s, r) => s + r.totalHours, 0);
+
     return {
       year,
       month,
       totalApproved,
       totalPending,
       totalRejected,
+      totalHours,
       days: Object.values(grouped),
     };
   }

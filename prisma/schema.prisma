@@ -146,12 +146,12 @@ model Template {
 }
 
 model Form {
-  formId      String     @id @default(uuid()) @map("form_id")
-  title       String     @map("title")
-  description String?    @map("description")
-  category    String     @map("category") // RRHH, Tecnologia, etc
-  type        FormType   @default(NATIVE)
-  status      FormStatus @default(DRAFT)
+  formId      String  @id @default(uuid()) @map("form_id")
+  title       String  @map("title")
+  description String? @map("description")
+  category    String  @map("category") // RRHH, Tecnologia, etc
+  type        String? @map("type") // EMBEDDED, NATIVE
+  status      String? @map("status")
 
   // Para los formularios de google form
   embedUrl String? @map("embed_url")
@@ -170,12 +170,12 @@ model Form {
 }
 
 model FormSubmission {
-  submissionId String               @id @default(uuid()) @map("submission_id")
-  formId       String               @map("form_id")
-  userId       String               @map("user_id")
-  data         Json                 @map("data") // respuesta del formulario
-  status       FormSubmissionStatus @default(PENDING)
-  createdAt    DateTime             @default(now()) @map("created_at")
+  submissionId String   @id @default(uuid()) @map("submission_id")
+  formId       String   @map("form_id")
+  userId       String   @map("user_id")
+  data         Json     @map("data") // respuesta del formulario
+  status       String?  @map("status")
+  createdAt    DateTime @default(now()) @map("created_at")
 
   form Form  @relation(fields: [formId], references: [formId])
   user User? @relation(fields: [userId], references: [userId])
