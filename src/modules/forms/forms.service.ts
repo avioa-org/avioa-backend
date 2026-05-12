@@ -570,8 +570,7 @@ export class FormsService {
             select: {
               userId: true,
               email: true,
-              firstName: true,
-              lastName: true,
+              name: true,
             },
           },
         },
@@ -602,8 +601,7 @@ export class FormsService {
             select: {
               userId: true,
               email: true,
-              firstName: true,
-              lastName: true,
+              name: true,
             },
           },
         },
