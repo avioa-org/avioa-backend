@@ -31,6 +31,10 @@ const envSchema = z.object({
   EVOLUTION_API_KEY: z.string().min(10),
   EVOLUTION_NUMERO_DESTINO: z.string().min(12),
   EVOLUTION_CORREO_ALERTA: z.string().email(),
+  JWT_SECRET: z.string().min(1),
+  RESEND_API_KEY: z.string().min(1),
+  RESEND_FROM_EMAIL: z.string().min(1),
+  FRONTEND_URL: z.string().min(1),
 });
 
 let envs: any;

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { QueueModule } from './infrastructure/queue/queue.module';
 import { CronModule } from './jobs/cron.module';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -8,10 +9,25 @@ import { BullModule } from '@nestjs/bullmq';
 import { envs } from './config/env.config';
 import { HealthModule } from './modules/health/health.module';
 import { AlertaReservasModule } from './modules/alerta-reservas/alerta-reservas.module';
+import { DocumentsModule } from './modules/documents/documents.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/admin/users/users.module';
+import { PointsModule } from './modules/points/points.module';
+import { OvertimeModule } from './modules/overtime/overtime.module';
+import { WebsocketsModule } from './modules/websockets/websockets.module';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { HttpThrottlerGuard } from './common/guards/http-throttler.guard';
+import { FormsModule } from './modules/forms/forms.module';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60_000,
+        limit: 120,
+      },
+    ]),
     QueueModule,
     CronModule,
     PrismaModule,
@@ -23,8 +39,20 @@ import { AlertaReservasModule } from './modules/alerta-reservas/alerta-reservas.
     }),
     HealthModule,
     AlertaReservasModule,
+    DocumentsModule,
+    WebsocketsModule,
+    AuthModule,
+    UsersModule,
+    PointsModule,
+    OvertimeModule,
+    FormsModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: HttpThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

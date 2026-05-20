@@ -51,6 +51,304 @@ model HiloPagoTotal {
   @@map("hilos_pago_total")
 }
 
+// Tablas para la firmas de documentos
+model Signature {
+  signatureId String   @id @default(uuid()) @map("signature_id")
+  name        String   @map("name")
+  position    String?  @map("position")
+  fileUrl     String?  @map("file_url")
+  base64      String?  @map("base64")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  users User[]
+
+  @@map("signatures")
+}
+
+model User {
+  userId String @id @default(uuid()) @map("user_id")
+
+  name     String     @map("name")
+  email    String     @unique @map("email")
+  password String?    @map("password")
+  role     Role       @default(EMPLOYEE)
+  status   UserStatus @default(ACTIVE)
+
+  //Info laboral
+  department String?   @map("department") // Tecnologia, RRHH
+  position   String?   @map("position") // Auxiliar, etc
+  area       String?   @map("area") // Comercial, Operaciones, etc
+  startDate  DateTime? @map("start_date")
+
+  // Jerarquia
+  leaderId  String? @map("leader_id") // a que lider reporta el emplead
+  managerId String? @map("manager_id") // a que manager reporta el lider
+
+  // Perfil
+  avatarUrl String? @map("avatar_url")
+  phone     String? @map("phone")
+
+  // Autenticacion
+  lastLoginAt  DateTime? @map("last_login_at")
+  refreshToken String?   @map("refresh_token")
+
+  // Invitación
+  inviteToken   String?   @unique @map("invite_token")
+  inviteExpires DateTime? @map("invite_expires")
+
+  // Reset contraseña
+  resetToken        String?   @unique @map("reset_token")
+  resetTokenExpires DateTime? @map("reset_token_expires")
+
+  signatureId String? @map("signature_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relaciones
+  signature Signature? @relation(fields: [signatureId], references: [signatureId])
+
+  // Empleado -> lider
+  leader      User?  @relation("EmployeeLeader", fields: [leaderId], references: [userId])
+  teamMembers User[] @relation("EmployeeLeader")
+
+  // Lider -> manager
+  manager User?  @relation("LeaderManager", fields: [managerId], references: [userId])
+  leaders User[] @relation("LeaderManager") // Lideres que reportan al manager
+
+  formSubmissions FormSubmission[]
+
+  // Puntos
+  pointRequestsCreated   PointRequest[] @relation("UserPointRequests")
+  pointRequestsToApprove PointRequest[] @relation("LeaderPointRequests")
+
+  pointTransactions        PointTransaction[]
+  pointWallet              PointWallet?
+  notifications            Notification[]
+  rewardRedemptions        RewardRedemption[]
+  overtimeRequests         OvertimeRequest[]  @relation("EmployeeOvertime")
+  overtimeRequestsToReview OvertimeRequest[]  @relation("LeaderOvertime")
+
+  @@map("users")
+}
+
+model Template {
+  templateId String   @id @default(uuid()) @map("template_id")
+  name       String   @map("name")
+  fileUrl    String?  @map("file_url")
+  base64     String?  @map("base64")
+  buffer     Bytes?   @map("buffer")
+  fields     Json     @map("fields")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("templates")
+}
+
+model Form {
+  formId      String  @id @default(uuid()) @map("form_id")
+  title       String  @map("title")
+  description String? @map("description")
+  category    String  @map("category") // RRHH, Tecnologia, etc
+  type        String? @map("type") // EMBEDDED, NATIVE
+  status      String? @map("status")
+
+  // Para los formularios de google form
+  embedUrl String? @map("embed_url")
+
+  // Para los formularios nativos
+  schema Json? @map("schema")
+
+  // Autorellenar capos con datos del usuario
+  autofill Json? @map("autofill")
+
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  submissions FormSubmission[]
+
+  @@map("forms")
+}
+
+model FormSubmission {
+  submissionId String   @id @default(uuid()) @map("submission_id")
+  formId       String   @map("form_id")
+  userId       String   @map("user_id")
+  data         Json     @map("data") // respuesta del formulario
+  status       String?  @map("status")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  form Form  @relation(fields: [formId], references: [formId])
+  user User? @relation(fields: [userId], references: [userId])
+
+  @@map("form_submissions")
+}
+
+// Modulo de puntos
+model PointRequest {
+  pointRequestId String @id @default(uuid()) @map("point_request_id")
+
+  userId   String @map("user_id")
+  leaderId String @map("leader_id")
+
+  action String @map("action") // "Organizar actividad..."
+  points Int    @map("points")
+
+  status   PointRequestStatus @default(PENDING)
+  decision String?            @map("decision") // Comentario del lider
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  reviewedAt DateTime? @map("reviewed_at")
+
+  user   User @relation("UserPointRequests", fields: [userId], references: [userId])
+  leader User @relation("LeaderPointRequests", fields: [leaderId], references: [userId])
+
+  pointTransactions PointTransaction[]
+
+  @@index([userId])
+  @@index([leaderId])
+  @@index([status])
+  @@map("point_requests")
+}
+
+model PointTransaction {
+  pointTransactionId String @id @default(uuid()) @map("point_transaction_id")
+
+  userId         String  @map("user_id")
+  pointRequestId String? @map("request_id")
+
+  type   PointTransactionType @map("type") // EARN, REDEEM
+  points Int                  @map("points")
+
+  balanceAfter Int @map("balance_after") // Saldo despues de la transaccion
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User          @relation(fields: [userId], references: [userId])
+  request PointRequest? @relation(fields: [pointRequestId], references: [pointRequestId])
+
+  @@map("point_transactions")
+}
+
+model PointWallet {
+  pointWalletId String @id @default(uuid()) @map("point_wallet_id")
+
+  userId String @unique @map("user_id")
+  total  Int    @default(0) @map("total")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [userId])
+
+  @@map("point_wallets")
+}
+
+// Notificaciones
+model Notification {
+  notificationId String @id @default(uuid()) @map("notification_id")
+
+  userId  String @map("user_id")
+  title   String @map("title")
+  message String @map("message")
+
+  type NotificationType @map("type")
+  read Boolean          @default(false) @map("read")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [userId])
+
+  @@map("notifications")
+}
+
+// Premios
+model Reward {
+  rewardId String @id @default(uuid()) @map("reward_id")
+
+  name        String  @map("name")
+  description String? @map("description")
+  cost        Int     @map("cost")
+
+  type RewardType @default(MANUAL) @map("type")
+
+  stock    Int?    @map("stock")
+  isActive Boolean @default(true) @map("is_active")
+
+  imageUrl String? @map("image_url")
+
+  deliveryMethod  String? @map("delivery_method") // email, download
+  deliveryContent Json?   @map("delivery_content") // URL de cupón, etc
+
+  createdAt         DateTime           @default(now()) @map("created_at")
+  rewardRedemptions RewardRedemption[]
+
+  @@map("rewards")
+}
+
+model RewardRedemption {
+  rewardRedemptionId String @id @default(uuid()) @map("reward_redemption_id")
+
+  userId   String @map("user_id")
+  rewardId String @map("reward_id")
+
+  cost Int @map("cost")
+
+  status RedemptionStatus @default(PENDING)
+
+  processedBy String?   @map("processed_by") // userId de RRHH o sistema
+  processedAt DateTime? @map("processed_at")
+
+  rejectionReason String? @map("rejection_reason")
+
+  deliveryDate DateTime? @map("delivery_date")
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  approvedAt DateTime? @map("approved_at")
+
+  user   User   @relation(fields: [userId], references: [userId])
+  reward Reward @relation(fields: [rewardId], references: [rewardId])
+
+  @@map("reward_redemptions")
+}
+
+model OvertimeRequest {
+  overtimeRequestId String @id @default(uuid()) @map("overtime_request_id")
+
+  userId   String @map("user_id") // empleado 
+  leaderId String @map("leader_id") // tomado de user.leaderId al momento de crear
+
+  date       DateTime @map("date") // solo la fecha, sin hora
+  startTime  DateTime @map("start_time") // hora inicio
+  endTime    DateTime @map("end_time") // hora fin
+  totalHours Float    @map("total_hours") // calculado en el backend
+
+  description String
+
+  status  OvertimeStatus @default(PENDING)
+  comment String?        @map("comment") // comentario del lider al rechazar (o aprobar)
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  reviewedAt DateTime? @map("reviewed_at")
+
+  user   User @relation("EmployeeOvertime", fields: [userId], references: [userId])
+  leader User @relation("LeaderOvertime", fields: [leaderId], references: [userId])
+
+  @@index([userId])
+  @@index([leaderId])
+  @@index([status])
+  @@index([date])
+  @@map("overtime_requests")
+}
+
+// ENUMS
+enum RedemptionStatus {
+  PENDING // Acaba de redimir, esperando procesamiento
+  IN_PROCESS // RRHH lo vio, esta en proceso
+  APPROVED // aprobado, listo para entregar
+  COMPLETED // ya entregado/disponible
+  REJECTED // rechazado por el lider, rrhh, etc
+  CANCELLED // cancelado por el usuario
+}
+
 enum EstadoPT {
   PENDIENTE
   SOLICITUD
@@ -63,4 +361,72 @@ enum EstadoOp {
   PENDIENTE
   ALERTA_ENVIADA
   EMITIDO
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  EMPLOYEE
+  LEADER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING
+}
+
+enum FormType {
+  EMBEDDED
+  NATIVE
+}
+
+enum FormStatus {
+  ACTIVE
+  INACTIVE
+  DRAFT
+}
+
+enum FormSubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PointRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PointTransactionType {
+  EARN
+  REDEEM
+}
+
+enum NotificationType {
+  POINT_REQUEST
+  POINT_APPROVAL
+  POINT_REJECTION
+  REWARD_REDEMPTION
+  REWARD_APPROVED
+  REWARD_REJECTED
+  REWARD_COMPLETED
+  OVERTIME_REQUEST
+  OVERTIME_APPROVED
+  OVERTIME_REJECTED
+  APPROVAL
+  REJECTION
+}
+
+enum RewardType {
+  AUTOMATIC // Cupones, netflix, etc
+  MANUAL // Productos fisicos
+}
+
+enum OvertimeStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
