@@ -97,7 +97,14 @@ export class AuthService {
   }
 
   public async acceptInvite(acceptInviteDto: AcceptInviteDto) {
-    const { token, password } = acceptInviteDto;
+    const { token, password, confirmPassword } = acceptInviteDto;
+
+    if (password !== confirmPassword) {
+      throw new BadRequestException({
+        message: 'Las contraseñas no coinciden',
+        error: 'PASSWORDS_DO_NOT_MATCH',
+      });
+    }
 
     const user = await this.prisma.user.findUnique({
       where: { inviteToken: token },
