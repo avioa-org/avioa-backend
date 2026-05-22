@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -23,6 +24,7 @@ import {
 import { RequestPointsDto } from './dto/request-points';
 import { ApprovePointRequestDto } from './dto/approve-point-request.dto';
 import { RejectPointRequestDto } from './dto/reject-point-request.dto';
+import { FormDataRequest } from 'nestjs-form-data';
 
 @Controller('points')
 export class PointsController {
@@ -95,8 +97,26 @@ export class PointsController {
   }
 
   @UseGuards(JwtAuthGuard, ValidateAdminGuard)
-  @Post('reward/create/bulk')
+  @FormDataRequest()
+  @Post('rewards/create/bulk')
   public async createBulkRewards(@Body() rewards: CreateBulkRewardDto) {
+    let parsedData: CreateRewardDto[];
+    try {
+      parsedData =
+        typeof rewards.data === 'string'
+          ? JSON.parse(rewards.data)
+          : rewards.data;
+    } catch {
+      throw new BadRequestException('El campo data no es un JSON válido');
+    }
+
+    const files = !rewards.files
+      ? []
+      : Array.isArray(rewards.files)
+        ? rewards.files
+        : [rewards.files];
+
+    console.log('Received files:', parsedData, files);
     return await this.rewardService.createBulkRewards(rewards);
   }
 

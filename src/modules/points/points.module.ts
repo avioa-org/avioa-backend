@@ -6,6 +6,7 @@ import { PointWalletService } from './services/point-wallet.service';
 import { PointTransactionService } from './services/point-transaction.service';
 import { RewardService } from './services/reward.service';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
+import { NestjsFormDataModule } from 'nestjs-form-data';
 
 @Module({
   controllers: [PointsController],
@@ -17,5 +18,6 @@ import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
     RewardService,
     PrismaService,
   ],
+  imports: [NestjsFormDataModule],
 })
 export class PointsModule {}

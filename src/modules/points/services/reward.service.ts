@@ -13,7 +13,8 @@ export class RewardService {
   }
 
   public async createBulkRewards(rewards: CreateBulkRewardDto) {
-    return this.prisma.reward.createMany({ data: rewards.data });
+    // return this.prisma.reward.createMany({ data: rewards.data });
+    return 'hola';
   }
 
   public async getRewards() {
