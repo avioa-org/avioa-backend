@@ -71,4 +71,8 @@ export class CreateOvertimeDto {
   @ValidateNested({ each: true })
   @Type(() => OvertimeRequestInputDto)
   requests?: OvertimeRequestInputDto[];
+
+  @IsOptional()
+  @IsString()
+  leaderId?: string;
 }

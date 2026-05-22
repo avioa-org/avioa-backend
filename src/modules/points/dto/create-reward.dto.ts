@@ -1,4 +1,6 @@
+import { Transform, Type } from 'class-transformer';
 import {
+  Allow,
   IsArray,
   IsInt,
   IsOptional,
@@ -6,6 +8,13 @@ import {
   Validate,
   ValidateNested,
 } from 'class-validator';
+
+import {
+  HasMimeType,
+  IsFile,
+  MaxFileSize,
+  MemoryStoredFile,
+} from 'nestjs-form-data';
 
 export class CreateRewardDto {
   @IsString()
@@ -24,7 +33,22 @@ export class CreateRewardDto {
 }
 
 export class CreateBulkRewardDto {
-  @IsArray()
-  @ValidateNested({ each: true })
-  data!: CreateRewardDto[];
+  // @Transform(({ value }) => {
+  //   try {
+  //     return typeof value === 'string' ? JSON.parse(value) : value;
+  //   } catch {
+  //     return value;
+  //   }
+  // })
+  // @IsArray()
+  // @ValidateNested({ each: true })
+  // @Type(() => CreateRewardDto)
+  @Allow()
+  data!: any;
+
+  @IsOptional()
+  @IsFile()
+  @MaxFileSize(5 * 1024 * 1024, { each: true })
+  @HasMimeType(['image/jpeg', 'image/png', 'image/webp'], { each: true })
+  files?: MemoryStoredFile | MemoryStoredFile[];
 }

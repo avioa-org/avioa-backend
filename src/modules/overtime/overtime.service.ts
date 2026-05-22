@@ -37,11 +37,16 @@ export class OvertimeService {
       throw new NotFoundException('Usuario no encontrado');
     }
 
-    if (!user.leaderId) {
+    console.log(dto, user.leaderId);
+    console.log(!user.leaderId || !dto.leaderId);
+
+    if (!user.leaderId && !dto.leaderId) {
       throw new BadRequestException(
-        'No tienes un líder asignado. Contacta a RRHH.',
+        'No tienes un líder asignado o no has seleccionado uno, Contacta a RRHH.',
       );
     }
+
+    const leaderId = user.leaderId || (dto.leaderId as string);
 
     const isBatch = !!(dto.requests && dto.requests.length > 0);
     const entries: OvertimeRequestInputDto[] = isBatch
@@ -197,7 +202,7 @@ export class OvertimeService {
         this.prisma.overtimeRequest.create({
           data: {
             userId,
-            leaderId: user.leaderId!,
+            leaderId,
             date: entry.requestDate,
             startTime: entry.startTime,
             endTime: entry.endTime,
@@ -231,14 +236,14 @@ export class OvertimeService {
     };
 
     await this.pointsGateway.notifyLeader(
-      user.leaderId,
+      leaderId,
       'overtime_request_received',
       notificationData,
     );
 
     await this.prisma.notification.create({
       data: {
-        userId: user.leaderId,
+        userId: leaderId,
         title: notificationData.title,
         message: notificationData.message,
         type: notificationData.type,

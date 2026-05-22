@@ -177,4 +177,17 @@ export class UsersService {
       },
     });
   }
+
+  public async getLeaders() {
+    return await this.prisma.user.findMany({
+      where: {
+        role: { in: ['LEADER', 'MANAGER'] },
+        status: 'ACTIVE',
+      },
+      select: {
+        userId: true,
+        name: true,
+      },
+    });
+  }
 }

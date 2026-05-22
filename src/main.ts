@@ -13,10 +13,14 @@ import helmet from 'helmet';
 import { requestIdMiddleware } from './common/middleware/request-id.middleware';
 
 async function bootstrap() {
+  console.log('Starting application...');
+
   const app = await NestFactory.create(AppModule, {
-    logger: false,
+    logger: ['log', 'error', 'warn', 'debug', 'verbose'],
     bufferLogs: true,
   });
+
+  console.log('Application created successfully');
 
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.use(requestIdMiddleware);
@@ -81,7 +85,11 @@ async function bootstrap() {
   });
   app.use('/queues', serverAdapter.getRouter());
 
+  console.log('Before listen...');
+
   await app.listen(process.env.PORT ?? 3001);
+
+  console.log('Listeeennnn');
 }
 bootstrap().catch((error) => {
   console.error('Failed to start application', error);

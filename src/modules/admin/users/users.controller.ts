@@ -30,6 +30,12 @@ export class UsersController {
     return await this.usersService.getAllUsers();
   }
 
+  @Get('leaders')
+  @UseGuards(JwtAuthGuard)
+  public async getLeaders() {
+    return await this.usersService.getLeaders();
+  }
+
   @Patch('/:userId')
   @UseGuards(JwtAuthGuard, ValidateAdminGuard)
   public async updateUser(
