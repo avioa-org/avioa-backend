@@ -15,6 +15,7 @@ import { EmailService } from 'src/infrastructure/email/email.infra';
 import { envs } from 'src/config/env.config';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { hash } from 'bcrypt';
+import { ForgotPasswordDto } from './dto/forgot-password';
 
 @Injectable()
 export class AuthService {
@@ -221,6 +222,43 @@ export class AuthService {
     return {
       access_token: this.jwt.sign(payload),
       ...payload,
+    };
+  }
+
+  public async forgotPassword(forgotPassword: ForgotPasswordDto) {
+    const { email, password, confirmPassword } = forgotPassword;
+
+    if (password !== confirmPassword) {
+      throw new BadRequestException({
+        message: 'Las contraseñas no coinciden',
+        error: 'PASSWORDS_DO_NOT_MATCH',
+      });
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { email, status: 'ACTIVE' },
+    });
+
+    if (!user) {
+      throw new NotFoundException({
+        message: `El usuario con el correo: ${email} no existe`,
+        error: 'USER_NOT_FOUND',
+      });
+    }
+
+    const passwordHash = await hash(password, 10);
+
+    const updatedUser = await this.prisma.user.update({
+      where: { userId: user.userId },
+      data: {
+        password: passwordHash,
+      },
+    });
+
+    this.logger.log(`User ${user.email} updated password successfully`);
+
+    return {
+      message: 'Contraseña actualizada exitosamente',
     };
   }
 }

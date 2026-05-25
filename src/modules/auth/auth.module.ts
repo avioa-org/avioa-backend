@@ -12,7 +12,7 @@ import { EmailService } from 'src/infrastructure/email/email.infra';
   imports: [
     JwtModule.register({
       secret: envs.JWT_SECRET,
-      signOptions: { expiresIn: '1d' },
+      signOptions: { expiresIn: '7d' },
     }),
   ],
 })

@@ -99,7 +99,11 @@ export class PointsController {
   @UseGuards(JwtAuthGuard, ValidateAdminGuard)
   @FormDataRequest()
   @Post('rewards/create/bulk')
-  public async createBulkRewards(@Body() rewards: CreateBulkRewardDto) {
+  public async createBulkRewards(
+    @Body() rewards: CreateBulkRewardDto,
+    @Req() req: any,
+  ) {
+    console.log(req);
     let parsedData: CreateRewardDto[];
     try {
       parsedData =
