@@ -10,3 +10,8 @@ export class ForgotPasswordDto {
   @IsString()
   confirmPassword!: string;
 }
+
+export class ForgotPasswordSendDto {
+  @IsEmail()
+  email!: string;
+}

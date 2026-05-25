@@ -13,7 +13,10 @@ import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { ValidateAdminGuard } from 'src/common/guards/validate-admin.guard';
 import { CreateUserDto } from '../admin/users/dto/register.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
-import { ForgotPasswordDto } from './dto/forgot-password';
+import {
+  ForgotPasswordDto,
+  ForgotPasswordSendDto,
+} from './dto/forgot-password';
 
 @Controller('auth')
 export class AuthController {
@@ -38,6 +41,13 @@ export class AuthController {
   @Post('invite/accept')
   public async acceptInvite(@Body() acceptInviteDto: AcceptInviteDto) {
     return await this.authService.acceptInvite(acceptInviteDto);
+  }
+
+  @Post('forgot-password/send')
+  public async forgotPasswordSend(
+    @Body() forgotPasswordSendDto: ForgotPasswordSendDto,
+  ) {
+    return await this.authService.forgotPasswordSend(forgotPasswordSendDto);
   }
 
   @Patch('forgot-password')

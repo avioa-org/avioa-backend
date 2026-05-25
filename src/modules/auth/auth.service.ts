@@ -15,7 +15,10 @@ import { EmailService } from 'src/infrastructure/email/email.infra';
 import { envs } from 'src/config/env.config';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { hash } from 'bcrypt';
-import { ForgotPasswordDto } from './dto/forgot-password';
+import {
+  ForgotPasswordDto,
+  ForgotPasswordSendDto,
+} from './dto/forgot-password';
 
 @Injectable()
 export class AuthService {
@@ -260,5 +263,32 @@ export class AuthService {
     return {
       message: 'Contraseña actualizada exitosamente',
     };
+  }
+
+  public async forgotPasswordSend(
+    forgotPasswordSendDto: ForgotPasswordSendDto,
+  ) {
+    const { email } = forgotPasswordSendDto;
+
+    const user = await this.prisma.user.findUnique({
+      where: { email, status: 'ACTIVE' },
+    });
+
+    if (!user) {
+      throw new NotFoundException({
+        message: `El usuario con el correo: ${email} no existe`,
+        error: 'USER_NOT_FOUND',
+      });
+    }
+
+    const linkToSend = `${envs.FRONTEND_URL}/forgot-password?email=${user.email}`;
+
+    await this.mailService.sendInvite({
+      to: user.email,
+      subject: 'Recuperación de contraseña',
+      inviteUrl: linkToSend,
+    });
+
+    return { message: 'Link enviado exitosamente' };
   }
 }
