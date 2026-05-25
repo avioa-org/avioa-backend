@@ -1,10 +1,19 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { ValidateAdminGuard } from 'src/common/guards/validate-admin.guard';
 import { CreateUserDto } from '../admin/users/dto/register.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
+import { ForgotPasswordDto } from './dto/forgot-password';
 
 @Controller('auth')
 export class AuthController {
@@ -29,5 +38,10 @@ export class AuthController {
   @Post('invite/accept')
   public async acceptInvite(@Body() acceptInviteDto: AcceptInviteDto) {
     return await this.authService.acceptInvite(acceptInviteDto);
+  }
+
+  @Patch('forgot-password')
+  public async forgotPassword(@Body() forgotPassword: ForgotPasswordDto) {
+    return await this.authService.forgotPassword(forgotPassword);
   }
 }
