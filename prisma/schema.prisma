@@ -102,6 +102,8 @@ model User {
 
   signatureId String? @map("signature_id")
 
+  birthDate DateTime? @map("birth_date")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -128,6 +130,7 @@ model User {
   rewardRedemptions        RewardRedemption[]
   overtimeRequests         OvertimeRequest[]  @relation("EmployeeOvertime")
   overtimeRequestsToReview OvertimeRequest[]  @relation("LeaderOvertime")
+  auditLogs                AuditLog[]
 
   @@map("users")
 }
@@ -339,6 +342,36 @@ model OvertimeRequest {
   @@map("overtime_requests")
 }
 
+model AuditLog {
+  auditLogId String @id @default(uuid()) @map("audit_log_id")
+
+  userId String? @map("user_id") // quien hizo la accion
+
+  // que hizo
+  action     AuditAction @map("action")
+  entityType String      @map("entity_type") // "User" "PointRequest", "Reward" ...
+  entityId   String      @map("entity_id") // ID del registro afectado
+
+  // Detalle del cambio
+  description String? @map("description") // detalle del cambio
+  changes     Json?   @map("changes") // { before: {...}, after: {...} }
+  metadata    Json?   @map("metadata") // contexto extra arbitrario
+
+  // Contexto de la petición
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [userId])
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
 // ENUMS
 enum RedemptionStatus {
   PENDING // Acaba de redimir, esperando procesamiento
@@ -429,4 +462,22 @@ enum OvertimeStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  STATUS_CHANGE
+  INVITE_SENT
+  INVITE_RESENT
+  PASSWORD_RESET
+  APPROVE
+  REJECT
+  REDEEM
+  SEE_PASSWORD
+  CHANGE_PASSWORD
+  DOWNLOAD_DOCUMENT
 }

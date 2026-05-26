@@ -1,4 +1,5 @@
 import {
+  IsDate,
   IsEmail,
   IsEnum,
   IsNotEmpty,
@@ -44,6 +45,10 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   position?: string;
+
+  @IsDate()
+  @IsOptional()
+  birthDate?: Date;
 
   @IsUUID()
   @IsOptional()

@@ -8,7 +8,7 @@ import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 // import { RegisterDto } from './dto/register.dto';
 import { hash } from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { envs } from 'src/config/env.config';
 import { CreateUserDto } from './dto/register.dto';
 import { EmailService } from 'src/infrastructure/email/email.infra';
@@ -74,6 +74,7 @@ export class UsersService {
         managerId: registerDto.managerId,
         inviteToken,
         inviteExpires,
+        birthDate: registerDto.birthDate,
       },
     });
 
@@ -189,5 +190,57 @@ export class UsersService {
         name: true,
       },
     });
+  }
+
+  public async resendInvite(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { userId } });
+
+    if (!user) {
+      this.logger.error(`User with id ${userId} not found`);
+      throw new NotFoundException({
+        message: `El usuario con el id: ${userId} no existe`,
+        error: 'USER_NOT_FOUND',
+      });
+    }
+
+    const inviteToken = randomUUID();
+    const inviteExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 1 day
+
+    await this.prisma.user.update({
+      where: { userId },
+      data: {
+        inviteToken,
+        inviteExpires,
+      },
+    });
+
+    await this.mailService.sendInvite({
+      to: user.email,
+      subject: 'Invitación a Avioa',
+      inviteUrl: `${envs.FRONTEND_URL}/invite?token=${inviteToken}`,
+    });
+
+    this.logger.log(`Invite resent to ${user.email}`);
+
+    return {
+      message: `Invitación enviada a ${user.email}`,
+      userId: user.userId,
+    };
+  }
+
+  public async deleteUser(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { userId } });
+
+    if (!user) {
+      this.logger.error(`User with id ${userId} not found`);
+      throw new NotFoundException({
+        message: `El usuario con el id: ${userId} no existe`,
+        error: 'USER_NOT_FOUND',
+      });
+    }
+
+    this.logger.log(`User ${user.email} deleted successfully`);
+
+    return await this.prisma.user.delete({ where: { userId } });
   }
 }
