@@ -187,6 +187,7 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { email, status: 'ACTIVE' },
+      include: { leader: { select: { name: true, userId: true } } },
     });
 
     if (!user) {
@@ -218,6 +219,7 @@ export class AuthService {
       role: user.role,
       area: user.area,
       leaderId: user?.leaderId,
+      leaderName: user.leader?.name,
     };
 
     this.logger.log(`User ${user.email} logged in successfully`);

@@ -12,6 +12,7 @@ import {
 import {
   HasMimeType,
   IsFile,
+  IsFiles,
   MaxFileSize,
   MemoryStoredFile,
 } from 'nestjs-form-data';
@@ -47,7 +48,7 @@ export class CreateBulkRewardDto {
   data!: any;
 
   @IsOptional()
-  @IsFile()
+  @IsFiles()
   @MaxFileSize(5 * 1024 * 1024, { each: true })
   @HasMimeType(['image/jpeg', 'image/png', 'image/webp'], { each: true })
   files?: MemoryStoredFile | MemoryStoredFile[];
