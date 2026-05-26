@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -103,7 +104,6 @@ export class PointsController {
     @Body() rewards: CreateBulkRewardDto,
     @Req() req: any,
   ) {
-    console.log(req);
     let parsedData: CreateRewardDto[];
     try {
       parsedData =
@@ -120,8 +120,7 @@ export class PointsController {
         ? rewards.files
         : [rewards.files];
 
-    console.log('Received files:', parsedData, files);
-    return await this.rewardService.createBulkRewards(rewards);
+    return await this.rewardService.createBulkRewards(parsedData, files);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -150,5 +149,11 @@ export class PointsController {
       pointRequestId,
       rejectPointRequestDto,
     );
+  }
+
+  @UseGuards(JwtAuthGuard, ValidateAdminGuard)
+  @Delete('rewards/delete/:rewardId')
+  public async deleteReward(@Param('rewardId') rewardId: string) {
+    return await this.rewardService.deleteReward(rewardId);
   }
 }

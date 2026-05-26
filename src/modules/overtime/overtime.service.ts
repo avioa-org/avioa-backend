@@ -37,16 +37,13 @@ export class OvertimeService {
       throw new NotFoundException('Usuario no encontrado');
     }
 
-    console.log(dto, user.leaderId);
-    console.log(!user.leaderId || !dto.leaderId);
+    const leaderId = dto.leaderId ? dto.leaderId : user?.leaderId;
 
-    if (!user.leaderId && !dto.leaderId) {
+    if (!leaderId) {
       throw new BadRequestException(
-        'No tienes un líder asignado o no has seleccionado uno, Contacta a RRHH.',
+        'No tienes un lider asignado o no has seleccionado uno.',
       );
     }
-
-    const leaderId = user.leaderId || (dto.leaderId as string);
 
     const isBatch = !!(dto.requests && dto.requests.length > 0);
     const entries: OvertimeRequestInputDto[] = isBatch
