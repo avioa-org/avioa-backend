@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -24,6 +25,12 @@ export class UsersController {
     return await this.usersService.inviteUser(createUserDto);
   }
 
+  @Post(':userId/resend-invite')
+  @UseGuards(JwtAuthGuard, ValidateAdminGuard)
+  public async resendInvite(@Param('userId') userId: string) {
+    return await this.usersService.resendInvite(userId);
+  }
+
   @Get()
   @UseGuards(JwtAuthGuard, ValidateAdminGuard)
   public async getAllUsers() {
@@ -43,5 +50,11 @@ export class UsersController {
     @Body() updateUserDto: UpdateUserDto,
   ) {
     return await this.usersService.updateUser(userId, updateUserDto);
+  }
+
+  @Delete(':userId')
+  @UseGuards(JwtAuthGuard, ValidateAdminGuard)
+  public async deleteUser(@Param('userId') userId: string) {
+    return await this.usersService.deleteUser(userId);
   }
 }
