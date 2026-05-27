@@ -12,6 +12,8 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { envs } from 'src/config/env.config';
 import { CreateUserDto } from './dto/register.dto';
 import { EmailService } from 'src/infrastructure/email/email.infra';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.infra';
 
 @Injectable()
 export class UsersService {
@@ -20,6 +22,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailService: EmailService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   public async inviteUser(registerDto: CreateUserDto) {
@@ -242,5 +245,68 @@ export class UsersService {
     this.logger.log(`User ${user.email} deleted successfully`);
 
     return await this.prisma.user.delete({ where: { userId } });
+  }
+
+  public async updateProfile(
+    updateProfileDto: UpdateProfileDto,
+    userId: string,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { userId } });
+
+    if (!user) {
+      this.logger.error(`User with id ${userId} not found`);
+      throw new NotFoundException({
+        message: `El usuario con el id: ${userId} no existe`,
+        error: 'USER_NOT_FOUND',
+      });
+    }
+
+    const { file, ...profileData } = updateProfileDto;
+
+    const selectedFields = Object.keys(profileData).reduce(
+      (acc, k) => {
+        acc[k] = true;
+        return acc;
+      },
+      { avatarUrl: true } as Record<string, boolean>,
+    );
+
+    let publicId: string | null = null;
+
+    try {
+      let avatarUrl: string | undefined;
+
+      if (file) {
+        const uploaded = await this.cloudinaryService.uploadBufferToCloudinary(
+          file[0].buffer,
+        );
+        avatarUrl = uploaded.secure_url;
+        publicId = uploaded.public_id;
+      }
+
+      const updatedUser = await this.prisma.user.update({
+        where: { userId },
+        data: {
+          ...profileData,
+          ...(avatarUrl && { avatarUrl }),
+        },
+        select: selectedFields,
+      });
+
+      return updatedUser;
+    } catch (err) {
+      this.logger.error(err);
+
+      if (publicId) {
+        try {
+          await this.cloudinaryService.deleteImage(publicId);
+        } catch (deleteErr) {
+          this.logger.error(
+            `No se pudo eliminar la imagen de Cloudinary: ${deleteErr}`,
+            deleteErr,
+          );
+        }
+      }
+    }
   }
 }

@@ -14,6 +14,12 @@ import { ValidateAdminGuard } from 'src/common/guards/validate-admin.guard';
 // import { RegisterDto } from './dto/register.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/register.dto';
+import { FormDataRequest } from 'nestjs-form-data';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import {
+  CurrentUser,
+  type ICurrentUser,
+} from 'src/common/decorator/current-user.decorator';
 
 @Controller('admin/users')
 export class UsersController {
@@ -41,6 +47,16 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   public async getLeaders() {
     return await this.usersService.getLeaders();
+  }
+
+  @Patch('update-profile')
+  @UseGuards(JwtAuthGuard)
+  @FormDataRequest()
+  public async updateProfile(
+    @Body() updateProfileDto: UpdateProfileDto,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    return await this.usersService.updateProfile(updateProfileDto, user.userId);
   }
 
   @Patch('/:userId')
