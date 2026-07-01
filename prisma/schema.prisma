@@ -131,6 +131,7 @@ model User {
   overtimeRequests         OvertimeRequest[]  @relation("EmployeeOvertime")
   overtimeRequestsToReview OvertimeRequest[]  @relation("LeaderOvertime")
   auditLogs                AuditLog[]
+  googleCredentials        GoogleCredentials?
 
   @@map("users")
 }
@@ -370,6 +371,27 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+model GoogleCredentials {
+  googleCredentialsId String @id @default(uuid()) @map("google_credentials_id")
+
+  userId String @unique @map("user_id")
+
+  accessToken  String @map("access_token")
+  refreshToken String @map("refresh_token")
+
+  expiryDate DateTime @map("expiry_date") // timestamp en milisegundos
+
+  driveEnabled    Boolean @default(false) @map("drive_enabled")
+  calendarEnabled Boolean @default(false) @map("calendar_enabled")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [userId])
+
+  @@map("google_credentials")
 }
 
 // ENUMS
