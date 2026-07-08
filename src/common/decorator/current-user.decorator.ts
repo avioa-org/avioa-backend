@@ -1,18 +1,23 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import { Role, UserStatus } from 'generated/prisma/enums';
 
 export interface ICurrentUser {
   userId: string;
   name: string;
   email: string;
-  avatar: string;
-  role: string;
-  area: string;
-  leaderId: string;
+  avatar: string | null;
+  role: Role;
+  status: UserStatus;
+  area: string | null;
+  department: string | null;
+  leaderId: string | null;
+  managerId: string | null;
 }
 
 export const CurrentUser = createParamDecorator(
-  (data: unknown, ctx: ExecutionContext) => {
+  (data: keyof ICurrentUser | undefined, ctx: ExecutionContext) => {
     const request = ctx.switchToHttp().getRequest();
-    return request.user as ICurrentUser;
+    const user = request.user as ICurrentUser;
+    return data ? user?.[data] : user;
   },
 );
