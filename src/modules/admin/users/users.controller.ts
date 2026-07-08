@@ -26,7 +26,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard, ValidateAdminGuard)
+  //@UseGuards(JwtAuthGuard, ValidateAdminGuard)//
   public async register(@Body() createUserDto: CreateUserDto) {
     return await this.usersService.inviteUser(createUserDto);
   }
