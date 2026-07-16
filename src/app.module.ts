@@ -18,7 +18,6 @@ import { WebsocketsModule } from './modules/websockets/websockets.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { HttpThrottlerGuard } from './common/guards/http-throttler.guard';
 import { FormsModule } from './modules/forms/forms.module';
-import { GoogleAuthModule } from './modules/auth/google/google.module';
 
 @Module({
   imports: [
@@ -47,7 +46,6 @@ import { GoogleAuthModule } from './modules/auth/google/google.module';
     PointsModule,
     OvertimeModule,
     FormsModule,
-    GoogleAuthModule,
   ],
   controllers: [],
   providers: [
