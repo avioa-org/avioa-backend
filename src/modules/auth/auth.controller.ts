@@ -17,6 +17,9 @@ import {
   ForgotPasswordDto,
   ForgotPasswordSendDto,
 } from './dto/forgot-password';
+import { Public } from 'src/common/decorator/public.decorator';
+import { Throttle } from '@nestjs/throttler';
+import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -33,9 +36,24 @@ export class AuthController {
     return await this.authService.inviteUser(createUserDto);
   }
 
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('login')
   public async login(@Body() loginDto: LoginDto) {
     return await this.authService.login(loginDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  logout(@CurrentUser('userId') userId: string) {
+    return this.authService.logout(userId);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('refresh')
+  refresh(@Body('refreshToken') refreshToken: string) {
+    return this.authService.refresh(refreshToken);
   }
 
   @Post('invite/accept')
