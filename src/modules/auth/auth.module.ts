@@ -5,6 +5,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { envs } from 'src/config/env.config';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 import { EmailService } from 'src/infrastructure/email/email.infra';
+import type { StringValue } from 'ms';
 
 @Module({
   controllers: [AuthController],
@@ -12,7 +13,7 @@ import { EmailService } from 'src/infrastructure/email/email.infra';
   imports: [
     JwtModule.register({
       secret: envs.JWT_SECRET,
-      signOptions: { expiresIn: '7d' },
+      signOptions: { expiresIn: (envs.JWT_EXPIRES_IN as StringValue) ?? '30m' },
     }),
   ],
 })

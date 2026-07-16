@@ -30,6 +30,9 @@ const envSchema = z.object({
   EVOLUTION_NUMERO_DESTINO: z.string().min(12),
   EVOLUTION_CORREO_ALERTA: z.string().email(),
   JWT_SECRET: z.string().min(1),
+  JWT_EXPIRES_IN: z.string().default('30m'),
+  JWT_REFRESH_SECRET: z.string(),
+  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.string().min(1),
   FRONTEND_URL: z.string().min(1),
@@ -38,7 +41,7 @@ const envSchema = z.object({
   CLOUDINARY_API_SECRET: z.string().optional(),
 });
 
-let envs: any;
+let envs: z.infer<typeof envSchema>;
 
 if (isBuild) {
   envs = process.env as unknown as z.infer<typeof envSchema>;
