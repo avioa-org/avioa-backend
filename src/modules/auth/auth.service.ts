@@ -215,7 +215,7 @@ export class AuthService {
 
     this.logger.log(`User ${user.email} logged in successfully`);
 
-    return this.issueTokens({
+    const tokens = await this.issueTokens({
       userId: user.userId,
       name: user.name,
       email: user.email,
@@ -225,6 +225,8 @@ export class AuthService {
       leaderId: user.leaderId,
       leaderName: user.leader?.name,
     });
+
+    return tokens;
   }
 
   public async forgotPassword(forgotPassword: ForgotPasswordDto) {
@@ -331,7 +333,11 @@ export class AuthService {
       },
     });
 
-    return { access_token, refresh_token, ...payload };
+    return {
+      accessToken: access_token,
+      refreshToken: refresh_token,
+      user: payload,
+    };
   }
 
   public async refresh(refreshToken: string) {
