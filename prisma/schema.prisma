@@ -80,6 +80,27 @@ model User {
   area       String?   @map("area") // Comercial, Operaciones, etc
   startDate  DateTime? @map("start_date")
 
+  // Identificación (solo dueño/ADMIN via serializer)
+  documentType   DocumentType? @map("document_type")
+  documentNumber String?       @unique @map("document_number")
+
+  // Ubicacion / contrato
+  office       String?       @map("office") // Avenida, San antonio, Industrial
+  contractType ContractType? @map("contract_type")
+
+  // seguridad social (sensible)
+  eps String? @map("eps")
+  afp String? @map("afp") // fondo de pensiones
+  arl String? @map("arl") // riesgos laborales
+
+  // salario (solo dueño/ADMIN)
+  salary Decimal? @map("salary") @db.Decimal(12, 2)
+
+  // contacto de emergencia
+  emergencyContactName  String? @map("emergency_contact_name")
+  emergencyContactPhone String? @map("emergency_contact_phone")
+  emergencyContactRel   String? @map("emergency_contact_rel") // parentesco del contacto de emergencia
+
   // Jerarquia
   leaderId  String? @map("leader_id") // a que lider reporta el emplead
   managerId String? @map("manager_id") // a que manager reporta el lider
@@ -131,6 +152,7 @@ model User {
   overtimeRequests         OvertimeRequest[]  @relation("EmployeeOvertime")
   overtimeRequestsToReview OvertimeRequest[]  @relation("LeaderOvertime")
   auditLogs                AuditLog[]
+  googleCredentials        GoogleCredentials?
 
   @@map("users")
 }
@@ -372,6 +394,27 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+model GoogleCredentials {
+  googleCredentialsId String @id @default(uuid()) @map("google_credentials_id")
+
+  userId String @unique @map("user_id")
+
+  accessToken  String @map("access_token")
+  refreshToken String @map("refresh_token")
+
+  expiryDate DateTime @map("expiry_date") // timestamp en milisegundos
+
+  driveEnabled    Boolean @default(false) @map("drive_enabled")
+  calendarEnabled Boolean @default(false) @map("calendar_enabled")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [userId])
+
+  @@map("google_credentials")
+}
+
 // ENUMS
 enum RedemptionStatus {
   PENDING // Acaba de redimir, esperando procesamiento
@@ -480,4 +523,24 @@ enum AuditAction {
   SEE_PASSWORD
   CHANGE_PASSWORD
   DOWNLOAD_DOCUMENT
+  VIEW_SENSITIVE
+  VIEW_SALARY
+  VIEW_PAYSLIP
+  EXPORT
+}
+
+enum DocumentType {
+  CC // Cedula de ciudadania
+  CE // Cedula de extranjeria
+  PA // Pasaporte
+  PEP // Permiso especial de permanencia
+  TI // Tarjeta de identidad
+}
+
+enum ContractType {
+  INDEFINIDO // Termino indefinido
+  FIJO // Termini fijo
+  OBRA_LABOR // Por obra labor
+  APRENDIZAJE // Contrato de aprendizaje (SENA)
+  PRESTACION // Prestacion de servicios
 }

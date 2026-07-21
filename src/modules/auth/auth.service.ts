@@ -19,6 +19,8 @@ import {
   ForgotPasswordDto,
   ForgotPasswordSendDto,
 } from './dto/forgot-password';
+import { sign, verify } from 'jsonwebtoken';
+import type { StringValue } from 'ms';
 
 @Injectable()
 export class AuthService {
@@ -211,23 +213,20 @@ export class AuthService {
       });
     }
 
-    const payload = {
+    this.logger.log(`User ${user.email} logged in successfully`);
+
+    const tokens = await this.issueTokens({
       userId: user.userId,
       name: user.name,
       email: user.email,
-      avatar: user.avatarUrl,
+      avatarUrl: user.avatarUrl,
       role: user.role,
       area: user.area,
-      leaderId: user?.leaderId,
+      leaderId: user.leaderId,
       leaderName: user.leader?.name,
-    };
+    });
 
-    this.logger.log(`User ${user.email} logged in successfully`);
-
-    return {
-      access_token: this.jwt.sign(payload),
-      ...payload,
-    };
+    return tokens;
   }
 
   public async forgotPassword(forgotPassword: ForgotPasswordDto) {
@@ -292,5 +291,107 @@ export class AuthService {
     });
 
     return { message: 'Link enviado exitosamente' };
+  }
+
+  private async issueTokens(user: {
+    userId: string;
+    name: string;
+    email: string;
+    avatarUrl: string | null;
+    role: string;
+    area: string | null;
+    leaderId: string | null;
+    leaderName: string | null | undefined;
+  }) {
+    const payload = {
+      userId: user.userId,
+      name: user.name,
+      avatar: user.avatarUrl,
+      role: user.role,
+      area: user.area,
+      leaderId: user.leaderId,
+      leaderName: user.leaderName,
+    };
+
+    const access_token = this.jwt.sign(payload);
+
+    const refresh_token = sign(
+      { userId: user.userId },
+      envs.JWT_REFRESH_SECRET,
+      {
+        expiresIn: (envs.JWT_REFRESH_EXPIRES_IN as StringValue) ?? '7d',
+      },
+    );
+
+    const hashedRefresh = await hash(refresh_token, 10);
+
+    await this.prisma.user.update({
+      where: { userId: user.userId },
+      data: {
+        refreshToken: hashedRefresh,
+        lastLoginAt: new Date(),
+      },
+    });
+
+    return {
+      accessToken: access_token,
+      refreshToken: refresh_token,
+      user: payload,
+    };
+  }
+
+  public async refresh(refreshToken: string) {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token not found');
+    }
+
+    let decoded: { userId?: string };
+
+    try {
+      decoded = verify(refreshToken, envs.JWT_REFRESH_SECRET) as {
+        userId?: string;
+      };
+    } catch {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    if (!decoded?.userId) {
+      throw new UnauthorizedException('Invalid refresh token payload');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { userId: decoded.userId, status: 'ACTIVE' },
+      include: { leader: { select: { name: true } } },
+    });
+
+    if (!user || !user.refreshToken) {
+      throw new UnauthorizedException('Invalid sesion');
+    }
+
+    const matches = await compare(refreshToken, user.refreshToken);
+
+    if (!matches) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    return this.issueTokens({
+      userId: user.userId,
+      name: user.name,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+      role: user.role,
+      area: user.area,
+      leaderId: user.leaderId,
+      leaderName: user.leader?.name,
+    });
+  }
+
+  public async logout(userId: string) {
+    await this.prisma.user.update({
+      where: { userId },
+      data: { refreshToken: null },
+    });
+
+    return { message: 'logout successfully' };
   }
 }
