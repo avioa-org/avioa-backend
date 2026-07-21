@@ -80,6 +80,27 @@ model User {
   area       String?   @map("area") // Comercial, Operaciones, etc
   startDate  DateTime? @map("start_date")
 
+  // Identificación (solo dueño/ADMIN via serializer)
+  documentType   DocumentType? @map("document_type")
+  documentNumber String?       @unique @map("document_number")
+
+  // Ubicacion / contrato
+  office       String?       @map("office") // Avenida, San antonio, Industrial
+  contractType ContractType? @map("contract_type")
+
+  // seguridad social (sensible)
+  eps String? @map("eps")
+  afp String? @map("afp") // fondo de pensiones
+  arl String? @map("arl") // riesgos laborales
+
+  // salario (solo dueño/ADMIN)
+  salary Decimal? @map("salary") @db.Decimal(12, 2)
+
+  // contacto de emergencia
+  emergencyContactName  String? @map("emergency_contact_name")
+  emergencyContactPhone String? @map("emergency_contact_phone")
+  emergencyContactRel   String? @map("emergency_contact_rel") // parentesco del contacto de emergencia
+
   // Jerarquia
   leaderId  String? @map("leader_id") // a que lider reporta el emplead
   managerId String? @map("manager_id") // a que manager reporta el lider
@@ -506,4 +527,20 @@ enum AuditAction {
   VIEW_SALARY
   VIEW_PAYSLIP
   EXPORT
+}
+
+enum DocumentType {
+  CC // Cedula de ciudadania
+  CE // Cedula de extranjeria
+  PA // Pasaporte
+  PEP // Permiso especial de permanencia
+  TI // Tarjeta de identidad
+}
+
+enum ContractType {
+  INDEFINIDO // Termino indefinido
+  FIJO // Termini fijo
+  OBRA_LABOR // Por obra labor
+  APRENDIZAJE // Contrato de aprendizaje (SENA)
+  PRESTACION // Prestacion de servicios
 }

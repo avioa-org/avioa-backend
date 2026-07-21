@@ -78,6 +78,18 @@ export class UsersService {
         inviteToken,
         inviteExpires,
         birthDate: registerDto.birthDate,
+        startDate: registerDto?.startDate,
+        documentType: registerDto?.documentType,
+        documentNumber: registerDto?.documentNumber,
+        office: registerDto?.office,
+        contractType: registerDto?.contractType,
+        eps: registerDto?.eps,
+        afp: registerDto?.afp,
+        arl: registerDto?.arl,
+        salary: registerDto?.salary,
+        emergencyContactName: registerDto?.emergencyContactName,
+        emergencyContactPhone: registerDto?.emergencyContactPhone,
+        emergencyContactRel: registerDto?.emergencyContactRel,
       },
     });
 
