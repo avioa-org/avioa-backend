@@ -1,13 +1,15 @@
 import {
   IsDate,
+  IsDecimal,
   IsEmail,
   IsEnum,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
 } from 'class-validator';
-import { Role } from 'generated/prisma/enums';
+import { ContractType, DocumentType, Role } from 'generated/prisma/enums';
 
 export class CreateUserDto {
   @IsEmail()
@@ -48,7 +50,67 @@ export class CreateUserDto {
 
   @IsDate()
   @IsOptional()
+  startDate?: Date;
+
+  @IsDate()
+  @IsOptional()
   birthDate?: Date;
+
+  @IsEnum([
+    DocumentType.CC,
+    DocumentType.CE,
+    DocumentType.PA,
+    DocumentType.PEP,
+    DocumentType.TI,
+  ])
+  @IsOptional()
+  documentType?: DocumentType;
+
+  @IsString()
+  @IsOptional()
+  documentNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  office?: string;
+
+  @IsEnum([
+    ContractType.APRENDIZAJE,
+    ContractType.FIJO,
+    ContractType.INDEFINIDO,
+    ContractType.OBRA_LABOR,
+    ContractType.PRESTACION,
+  ])
+  @IsOptional()
+  contractType?: ContractType;
+
+  @IsString()
+  @IsOptional()
+  eps?: string;
+
+  @IsString()
+  @IsOptional()
+  afp?: string;
+
+  @IsString()
+  @IsOptional()
+  arl?: string;
+
+  @IsNumber()
+  @IsOptional()
+  salary?: number;
+
+  @IsString()
+  @IsOptional()
+  emergencyContactName?: string;
+
+  @IsString()
+  @IsOptional()
+  emergencyContactPhone?: string;
+
+  @IsString()
+  @IsOptional()
+  emergencyContactRel?: string;
 
   @IsUUID()
   @IsOptional()
