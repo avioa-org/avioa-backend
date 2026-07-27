@@ -24,6 +24,7 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().min(1),
   GOOGLE_CLIENT_SECRET: z.string().min(1),
   GOOGLE_REDIRECT_URI: z.string().min(1),
+  GOOGLE_REFRESH_TOKEN: z.string().min(1),
   EVOLUTION_URL: z.string().url(),
   EVOLUTION_INSTANCE: z.string().min(1),
   EVOLUTION_API_KEY: z.string().min(10),

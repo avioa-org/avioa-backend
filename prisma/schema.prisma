@@ -153,6 +153,8 @@ model User {
   overtimeRequestsToReview OvertimeRequest[]  @relation("LeaderOvertime")
   auditLogs                AuditLog[]
   googleCredentials        GoogleCredentials?
+  leaveRequestsCreated     LeaveRequest[]     @relation("EmployeeLeave")
+  leaveRequestsToApprove   LeaveRequest[]     @relation("LeaderLeave")
 
   @@map("users")
 }
@@ -415,6 +417,57 @@ model GoogleCredentials {
   @@map("google_credentials")
 }
 
+model LeaveRequest {
+  leaveRequestId String @id @default(uuid()) @map("leave_request_id")
+
+  userId   String @map("user_id")
+  leaderId String @map("leader_id")
+
+  type LeaveType @map("type")
+
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+
+  businessDays Int @map("business_days")
+
+  reason String @map("reason") // motivo del empleado
+
+  // para incapacidades/licencias que requieran soporte (PDF/imagen)
+  attachmentUrl String? @map("attachment_url")
+
+  status  LeaveStatus @default(PENDING)
+  comment String?     @map("comment")
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  reviewedAt DateTime? @map("reviewed_at")
+
+  user   User @relation("EmployeeLeave", fields: [userId], references: [userId])
+  leader User @relation("LeaderLeave", fields: [leaderId], references: [userId])
+
+  @@index([userId])
+  @@index([leaderId])
+  @@index([status])
+  @@index([type])
+  @@index([startDate])
+  @@map("leave_requests")
+}
+
+/// Notificación HOTEL PAGO INMEDIATO
+model HotelImmediatePayment {
+  id                String    @id @default(cuid())
+  threadId          String    @unique @map("thread_id")
+  subject           String?
+  notificationLevel Int       @default(0) @map("notification_level")
+  answered          Boolean   @default(false)
+  emailReceivedAt   DateTime  @map("email_received_at")
+  lastNotifiedAt    DateTime? @map("last_notified_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([answered, notificationLevel])
+  @@map("hotel_immediate_payment")
+}
+
 // ENUMS
 enum RedemptionStatus {
   PENDING // Acaba de redimir, esperando procesamiento
@@ -543,4 +596,25 @@ enum ContractType {
   OBRA_LABOR // Por obra labor
   APRENDIZAJE // Contrato de aprendizaje (SENA)
   PRESTACION // Prestacion de servicios
+}
+
+enum LeaveType {
+  VACACIONES
+  INCAPACIDAD_EPS
+  INCAPACIDAD_ARL
+  LICENCIA_MATERNIDAD
+  LICENCIA_PATERNIDAD
+  LICENCIA_LUTO
+  LICENCIA_MATRIMONIO
+  PERMISO_REMUNERADO
+  PERMISO_NO_REMUNERADO
+  CALAMIDAD_DOMESTICA
+  OTRO
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
 }
