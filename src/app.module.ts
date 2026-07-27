@@ -18,6 +18,7 @@ import { WebsocketsModule } from './modules/websockets/websockets.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { HttpThrottlerGuard } from './common/guards/http-throttler.guard';
 import { FormsModule } from './modules/forms/forms.module';
+import { LeavesModule } from './modules/leaves/leaves.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { FormsModule } from './modules/forms/forms.module';
     PointsModule,
     OvertimeModule,
     FormsModule,
+    LeavesModule,
   ],
   controllers: [],
   providers: [
