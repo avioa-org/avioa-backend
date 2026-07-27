@@ -14,7 +14,7 @@ export class CronService {
       await this.gmailService.scan();
     } catch (err) {
       this.logger.error(
-        'Error en cron de escaneo de correos',
+        `Error en cron de escaneo de correos: ${(err as Error).message}`,
         (err as Error).stack,
       );
     }
