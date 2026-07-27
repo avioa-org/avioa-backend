@@ -8,13 +8,11 @@ import { envs } from 'src/config/env.config';
 export class EvolutionApiService {
   private readonly logger = new Logger(EvolutionApiService.name);
 
-  constructor(
-    private config: ConfigService,
-    private http: HttpService,
-  ) {}
+  constructor(private http: HttpService) {}
 
   private get baseUrl() {
-    return this.config.get<string>('EVOLUTION_URL');
+    // return this.config.get<string>('EVOLUTION_URL');
+    return envs.EVOLUTION_URL;
   }
   private get instance() {
     return envs.EVOLUTION_INSTANCE;
@@ -24,9 +22,6 @@ export class EvolutionApiService {
   }
   private get numero() {
     return envs.EVOLUTION_NUMERO_DESTINO;
-  }
-  private get correo() {
-    return this.config.get<string>('CORREO_ALERTA');
   }
 
   async instanciaActiva(): Promise<boolean> {
