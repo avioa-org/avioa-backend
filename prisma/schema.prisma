@@ -452,6 +452,22 @@ model LeaveRequest {
   @@map("leave_requests")
 }
 
+/// Notificación HOTEL PAGO INMEDIATO
+model HotelImmediatePayment {
+  id                String    @id @default(cuid())
+  threadId          String    @unique @map("thread_id")
+  subject           String?
+  notificationLevel Int       @default(0) @map("notification_level")
+  answered          Boolean   @default(false)
+  emailReceivedAt   DateTime  @map("email_received_at")
+  lastNotifiedAt    DateTime? @map("last_notified_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([answered, notificationLevel])
+  @@map("hotel_immediate_payment")
+}
+
 // ENUMS
 enum RedemptionStatus {
   PENDING // Acaba de redimir, esperando procesamiento
