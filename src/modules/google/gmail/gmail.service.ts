@@ -51,13 +51,24 @@ export class GmailService {
     });
   }
 
+  private readonly VALID_SUBJECT_PATTERNS: RegExp[] = [
+    /HOTEL\s+PAGO\s+INMEDIATO/i,
+    /PAGO\s+HOTEL\s+INMEDIATO/i,
+    /INMEDIATO\s+PAGO\s+HOTEL/i,
+    /PAGO\s+INMEDIATO\s+HOTEL/i,
+  ];
+
+  private isValidSubject(subject: string): boolean {
+    return this.VALID_SUBJECT_PATTERNS.some((pattern) => pattern.test(subject));
+  }
+
   async scan() {
     this.logger.log('Escaneandoo correos PAGO/HOTEL/INMEDIATO...');
 
     const res = await this.gmail.users.messages.list({
       userId: 'me',
       maxResults: 20,
-      q: 'is:unread in:inbox subject:"HOTEL PAGO INMEDIATO"',
+      q: 'is:unread in:inbox subject:("HOTEL PAGO INMEDIATO" OR "PAGO HOTEL INMEDIATO" OR "INMEDIATO PAGO HOTEL" OR "PAGO INMEDIATO HOTEL")',
     });
 
     const messages = res.data.messages ?? [];
@@ -89,6 +100,13 @@ export class GmailService {
     const subject =
       firstMessage.payload?.headers?.find((h) => h.name === 'Subject')?.value ??
       '(sin asunto)';
+
+    if (!this.isValidSubject(subject as string)) {
+      this.logger.debug(
+        `Subject no cumple el patrón exacto, se descarta: "${subject}"`,
+      );
+      return;
+    }
 
     const emailReceivedAt = new Date(Number(firstMessage.internalDate));
 
