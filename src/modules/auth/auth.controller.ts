@@ -68,6 +68,37 @@ export class AuthController {
     return await this.authService.forgotPasswordSend(forgotPasswordSendDto);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('2fa/setup')
+  public async generate2FA(@CurrentUser('userId') userId: string) {
+    return await this.authService.generate2FA(userId);
+  }
+
+  @Public()
+  @Post('2fa/verify')
+  public async verify2FA(
+    @Body() data: { temporaryToken: string; code: string },
+  ) {
+    return await this.authService.verify2FA(data);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/enable')
+  public async enable2FA(
+    @CurrentUser('userId') userId: string,
+    @Body() data: { secret: string },
+  ) {
+    return await this.authService.save2FA(userId, data);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('2fa/disable')
+  public async disabled2FA(@CurrentUser('userId') userId: string) {
+    return await this.authService.disabled2FA(userId);
+  }
+
   @Patch('forgot-password')
   public async forgotPassword(@Body() forgotPassword: ForgotPasswordDto) {
     return await this.authService.forgotPassword(forgotPassword);
