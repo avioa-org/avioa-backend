@@ -22,6 +22,7 @@ import {
 import { sign, verify } from 'jsonwebtoken';
 import type { StringValue } from 'ms';
 import { OTP } from 'otplib';
+import { Enable2faDto, Verify2faDto } from './dto/2fa.dto';
 
 @Injectable()
 export class AuthService {
@@ -435,7 +436,7 @@ export class AuthService {
     return { otpauthUrl: qr, secret, enabled: false };
   }
 
-  public async save2FA(userId: string, data: { secret: string }) {
+  public async save2FA(userId: string, data: Enable2faDto) {
     const { secret } = data;
 
     const user = await this.prisma.user.findUnique({ where: { userId } });
@@ -456,7 +457,7 @@ export class AuthService {
     return { message: '2FA guardado exitosamente', enabled: true };
   }
 
-  public async verify2FA(data: { temporaryToken: string; code: string }) {
+  public async verify2FA(data: Verify2faDto) {
     const { temporaryToken, code } = data;
 
     if (!temporaryToken || !code) {
