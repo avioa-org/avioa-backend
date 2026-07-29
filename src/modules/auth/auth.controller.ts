@@ -20,6 +20,7 @@ import {
 import { Public } from 'src/common/decorator/public.decorator';
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
+import { Enable2faDto, Verify2faDto } from './dto/2fa.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -77,9 +78,7 @@ export class AuthController {
 
   @Public()
   @Post('2fa/verify')
-  public async verify2FA(
-    @Body() data: { temporaryToken: string; code: string },
-  ) {
+  public async verify2FA(@Body() data: Verify2faDto) {
     return await this.authService.verify2FA(data);
   }
 
@@ -87,7 +86,7 @@ export class AuthController {
   @Post('2fa/enable')
   public async enable2FA(
     @CurrentUser('userId') userId: string,
-    @Body() data: { secret: string },
+    @Body() data: Enable2faDto,
   ) {
     return await this.authService.save2FA(userId, data);
   }
