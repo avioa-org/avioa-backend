@@ -21,10 +21,12 @@ import {
 } from './dto/forgot-password';
 import { sign, verify } from 'jsonwebtoken';
 import type { StringValue } from 'ms';
+import { OTP } from 'otplib';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly otp = new OTP();
 
   constructor(
     private readonly jwt: JwtService,
@@ -213,6 +215,12 @@ export class AuthService {
       });
     }
 
+    // if (user.twoFactorEnabled) {
+    //   this.logger.log(`2FA enabled for user ${user.email}`);
+    //   const temporaryToken = this.generateTemporaryToken(user.userId);
+    //   return { temporaryToken, twoFactorEnabled: true };
+    // }
+
     this.logger.log(`User ${user.email} logged in successfully`);
 
     const tokens = await this.issueTokens({
@@ -224,6 +232,7 @@ export class AuthService {
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leader?.name,
+      twoFactorEnabled: user.twoFactorEnabled,
     });
 
     return tokens;
@@ -302,6 +311,7 @@ export class AuthService {
     area: string | null;
     leaderId: string | null;
     leaderName: string | null | undefined;
+    twoFactorEnabled?: boolean;
   }) {
     const payload = {
       userId: user.userId,
@@ -311,6 +321,7 @@ export class AuthService {
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leaderName,
+      twoFactorEnabled: user.twoFactorEnabled,
     };
 
     const access_token = this.jwt.sign(payload);
@@ -393,5 +404,145 @@ export class AuthService {
     });
 
     return { message: 'logout successfully' };
+  }
+
+  public async generate2FA(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { userId } });
+
+    if (user?.twoFactorEnabled) {
+      this.logger.error(`2FA already enabled for user ${userId}`);
+      throw new BadRequestException('2FA already enabled');
+    }
+
+    const secret = this.otp.generateSecret();
+
+    // await this.prisma.user.update({
+    //   where: { userId },
+    //   data: {
+    //     twoFactorSecret: secret,
+    //     twoFactorEnabled: true,
+    //   },
+    // });
+
+    this.logger.log(`2FA enabled for user ${userId}`);
+
+    const qr = this.otp.generateURI({
+      issuer: `Portal Avioa`,
+      label: user?.email as string,
+      secret: secret,
+    });
+
+    return { otpauthUrl: qr, secret, enabled: false };
+  }
+
+  public async save2FA(userId: string, data: { secret: string }) {
+    const { secret } = data;
+
+    const user = await this.prisma.user.findUnique({ where: { userId } });
+
+    if (!user) {
+      this.logger.error(`User ${userId} not found`);
+      throw new NotFoundException(`User ${userId} not found`);
+    }
+
+    await this.prisma.user.update({
+      where: { userId },
+      data: {
+        twoFactorSecret: secret,
+        twoFactorEnabled: true,
+      },
+    });
+
+    return { message: '2FA guardado exitosamente', enabled: true };
+  }
+
+  public async verify2FA(data: { temporaryToken: string; code: string }) {
+    const { temporaryToken, code } = data;
+
+    const verifyToken = verify(temporaryToken, envs.JWT_SECRET);
+
+    if (!verifyToken) {
+      this.logger.error(`Invalid temporary token`);
+      throw new UnauthorizedException('Invalid temporary token');
+    }
+
+    const { userId } = verifyToken as { userId?: string };
+
+    if (!userId) {
+      this.logger.error(`User id not found in temporary token payload`);
+      throw new UnauthorizedException(
+        'User id not found in temporary token payload',
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { userId, status: 'ACTIVE' },
+      include: { leader: { select: { name: true, userId: true } } },
+    });
+
+    if (!user?.twoFactorEnabled) {
+      this.logger.error(`2FA not enabled for user ${userId}`);
+      throw new BadRequestException('2FA not enabled');
+    }
+
+    if (!user.twoFactorSecret) {
+      this.logger.error(`2FA secret not found for user ${userId}`);
+      throw new BadRequestException('2FA secret not found');
+    }
+
+    if (user.temporyToken !== temporaryToken) {
+      this.logger.error(`Invalid temporary token for user ${userId}`);
+      throw new BadRequestException('Invalid temporary token');
+    }
+
+    const verifyCode = await this.otp.verify({
+      secret: user.twoFactorSecret,
+      token: code,
+    });
+
+    if (!verifyCode.valid) {
+      this.logger.error(`Invalid 2FA code for user ${userId}`);
+      throw new BadRequestException('Invalid 2FA code');
+    }
+
+    await this.prisma.user.update({
+      where: { userId },
+      data: {
+        twoFactorEnabled: true,
+        temporyToken: null,
+      },
+    });
+
+    const tokens = await this.issueTokens({
+      userId,
+      name: user.name,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+      role: user.role,
+      area: user.area,
+      leaderId: user.leaderId,
+      leaderName: user.leader?.name,
+      twoFactorEnabled: user.twoFactorEnabled,
+    });
+
+    return tokens;
+  }
+
+  public async disabled2FA(userId: string) {
+    await this.prisma.user.update({
+      where: { userId },
+      data: {
+        twoFactorEnabled: false,
+        twoFactorSecret: null,
+      },
+    });
+  }
+
+  private generateTemporaryToken(userId: string) {
+    const token = sign({ userId }, envs.JWT_SECRET, {
+      expiresIn: '5m',
+    });
+
+    return token;
   }
 }

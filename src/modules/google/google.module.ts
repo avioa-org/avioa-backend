@@ -6,10 +6,17 @@ import { EvolutionApiService } from 'src/infrastructure/evolution-api/evolution-
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 import { BullModule } from '@nestjs/bullmq';
 import { HttpModule } from '@nestjs/axios';
+import { PagoHotelInmediatoProcessor } from './gmail/processors/pago-hotel.processor';
 
 @Module({
   controllers: [GoogleController],
-  providers: [GoogleService, GmailService, EvolutionApiService, PrismaService],
+  providers: [
+    GoogleService,
+    GmailService,
+    EvolutionApiService,
+    PrismaService,
+    PagoHotelInmediatoProcessor,
+  ],
   imports: [
     BullModule.registerQueue({ name: 'hotel-payment-alerts' }),
     HttpModule,
