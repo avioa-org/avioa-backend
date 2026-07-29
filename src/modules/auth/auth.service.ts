@@ -459,6 +459,11 @@ export class AuthService {
   public async verify2FA(data: { temporaryToken: string; code: string }) {
     const { temporaryToken, code } = data;
 
+    if (!temporaryToken || !code) {
+      this.logger.error(`Missing temporary token or code`);
+      throw new BadRequestException('Missing temporary token or code');
+    }
+
     const verifyToken = verify(temporaryToken, envs.JWT_SECRET);
 
     if (!verifyToken) {
