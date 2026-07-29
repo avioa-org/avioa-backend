@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { envs } from 'src/config/env.config';
 import { GmailService } from 'src/modules/google/gmail/gmail.service';
 
 @Injectable()
@@ -11,6 +12,7 @@ export class CronService {
   @Cron(CronExpression.EVERY_5_MINUTES)
   async handleCron() {
     try {
+      if (envs.CRON_ACTIVE && envs.CRON_ACTIVE === 'false') return;
       await this.gmailService.scan();
     } catch (err) {
       this.logger.error(
