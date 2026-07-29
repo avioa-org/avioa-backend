@@ -8,7 +8,7 @@ export class CronService {
 
   constructor(private readonly gmailService: GmailService) {}
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_MINUTE)
   async handleCron() {
     try {
       await this.gmailService.scan();
