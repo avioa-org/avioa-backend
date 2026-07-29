@@ -6,6 +6,24 @@ import { envs } from 'src/config/env.config';
 import { EvolutionApiService } from 'src/infrastructure/evolution-api/evolution-api.service';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 
+interface ITrheadMessages {
+  id: string;
+  threadId: string;
+  labelIds: string[];
+  snippet: string;
+  payload: {
+    partId: string;
+    mimeType: string;
+    filename: string;
+    headers: Array<{ name: string; value: string }>;
+    body: { data: string };
+    parts: Array<{ partId: string; mimeType: string; filename: string }>;
+  };
+  sizeEstimate: number;
+  historyId: string;
+  internalDate: string;
+}
+
 @Injectable()
 export class GmailService {
   private readonly logger = new Logger(GmailService.name);
@@ -39,7 +57,7 @@ export class GmailService {
     const res = await this.gmail.users.messages.list({
       userId: 'me',
       maxResults: 20,
-      q: 'is:unread in:inbox subject:PAGO subject:HOTEL subject:INMEDIATO',
+      q: 'is:unread in:inbox subject:"HOTEL PAGO INMEDIATO"',
     });
 
     const messages = res.data.messages ?? [];
@@ -94,7 +112,7 @@ export class GmailService {
 
     if (record.answered) return;
 
-    if (this.isThreadAnswered(threadMessages)) {
+    if (this.isThreadAnswered(threadMessages as ITrheadMessages[])) {
       await this.prisma.hotelImmediatePayment.update({
         where: { threadId },
         data: { answered: true },
@@ -103,22 +121,22 @@ export class GmailService {
     }
 
     const dueLevel = this.getDueLevel(
-      record.emailReceivedAt as Date,
-      record.notificationLevel as number,
+      record.emailReceivedAt,
+      record.notificationLevel,
     );
+
+    console.log('dueLevel', dueLevel);
 
     if (dueLevel) {
       await this.enqueueAlert(
-        record.threadId as string,
+        record.threadId,
         dueLevel,
         record.subject as string,
       );
     }
   }
 
-  private isThreadAnswered(
-    messages: { labelIds?: string[] | null }[],
-  ): boolean {
+  private isThreadAnswered(messages: ITrheadMessages[]): boolean {
     return messages.some((m) => m.labelIds?.includes('SENT'));
   }
 
@@ -202,30 +220,30 @@ export class GmailService {
     this.logger.log(`Alerta nivel ${level} encolada para ${threadId}`);
   }
 
-  async notifyHotelsWithInmediatePayments() {
-    if (!this.evolutionApi.instanciaActiva) {
-      this.logger.warn('Evolution API no disponible');
-      return;
-    }
+  // async notifyHotelsWithInmediatePayments() {
+  //   if (!this.evolutionApi.instanciaActiva) {
+  //     this.logger.warn('Evolution API no disponible');
+  //     return;
+  //   }
 
-    const noAtendidos = await this.getHotelsWithInmediatePayments();
+  //   const noAtendidos = await this.getHotelsWithInmediatePayments();
 
-    for (const noAtendido of noAtendidos) {
-      const dbMessage = await this.prisma.hotelImmediatePayment.findFirst({
-        where: { threadId: noAtendido.threadId },
-      });
+  //   for (const noAtendido of noAtendidos) {
+  //     const dbMessage = await this.prisma.hotelImmediatePayment.findFirst({
+  //       where: { threadId: noAtendido.threadId },
+  //     });
 
-      if (!dbMessage) {
-        // await this.prisma.hotelImmediatePayment.create({
-        //   data: {
-        //     threadId: noAtendido.threadId,
-        //     notificationLevel: 0,
-        //     createdAt: fechaC,
-        //   },
-        // });
-      }
-    }
-  }
+  //     if (!dbMessage) {
+  //       // await this.prisma.hotelImmediatePayment.create({
+  //       //   data: {
+  //       //     threadId: noAtendido.threadId,
+  //       //     notificationLevel: 0,
+  //       //     createdAt: fechaC,
+  //       //   },
+  //       // });
+  //     }
+  //   }
+  // }
 
-  private buildMessage(subject) {}
+  // private buildMessage(subject) {}
 }
