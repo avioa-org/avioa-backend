@@ -125,6 +125,11 @@ model User {
 
   birthDate DateTime? @map("birth_date")
 
+  // 2FA
+  twoFactorEnabled Boolean @default(false) @map("two_factor_enabled")
+  twoFactorSecret  String? @map("two_factor_secret")
+  temporyToken     String? @map("temporary_token")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
