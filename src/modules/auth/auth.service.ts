@@ -216,11 +216,17 @@ export class AuthService {
       });
     }
 
-    // if (user.twoFactorEnabled) {
-    //   this.logger.log(`2FA enabled for user ${user.email}`);
-    //   const temporaryToken = this.generateTemporaryToken(user.userId);
-    //   return { temporaryToken, twoFactorEnabled: true };
-    // }
+    if (user.twoFactorEnabled) {
+      this.logger.log(`2FA enabled for user ${user.email}`);
+      const temporaryToken = this.generateTemporaryToken(user.userId);
+      await this.prisma.user.update({
+        where: { userId: user.userId },
+        data: {
+          temporyToken: temporaryToken,
+        },
+      });
+      return { temporaryToken, twoFactorEnabled: true };
+    }
 
     this.logger.log(`User ${user.email} logged in successfully`);
 
