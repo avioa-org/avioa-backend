@@ -11,7 +11,7 @@ interface AlertJobData {
   level: number;
 }
 
-@Processor('pago-hotel-inmediato')
+@Processor('hotel-payment-alerts')
 export class PagoHotelInmediatoProcessor extends WorkerHost {
   private readonly logger = new Logger(PagoHotelInmediatoProcessor.name);
   constructor(
@@ -71,10 +71,10 @@ export class PagoHotelInmediatoProcessor extends WorkerHost {
 
   private buildMessage(subject: string, level: number): string {
     const prefixes: Record<number, string> = {
-      1: '🔔 Primer aviso',
-      2: '⚠️ Segundo aviso',
-      3: '🚨 Tercer aviso (urgente)',
+      1: '🔔 Primer aviso [HOTEL REQUIERE PAGO INMEDIATO] ',
+      2: '⚠️ Segundo aviso [HOTEL REQUIERE PAGO INMEDIATO] ',
+      3: '🚨 Tercer aviso [HOTEL REQUIERE PAGO INMEDIATO] (urgente)',
     };
-    return `${prefixes[level]}: correo sin responder\nAsunto: ${subject}`;
+    return `${prefixes[level]}:correo sin responder\nAsunto: ${subject}`;
   }
 }
