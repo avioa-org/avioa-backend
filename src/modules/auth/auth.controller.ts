@@ -98,6 +98,13 @@ export class AuthController {
     return await this.authService.disabled2FA(userId);
   }
 
+  // @UseGuards(JwtAuthGuard)
+  // @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Get('2fa/recovery-codes')
+  public async generateRecoveryCodes() {
+    return await this.authService.generateRecoveryCodes();
+  }
+
   @Patch('forgot-password')
   public async forgotPassword(@Body() forgotPassword: ForgotPasswordDto) {
     return await this.authService.forgotPassword(forgotPassword);

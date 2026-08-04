@@ -160,6 +160,7 @@ model User {
   googleCredentials        GoogleCredentials?
   leaveRequestsCreated     LeaveRequest[]     @relation("EmployeeLeave")
   leaveRequestsToApprove   LeaveRequest[]     @relation("LeaderLeave")
+  recoveryCodes            RecoveryCode[]
 
   @@map("users")
 }
@@ -348,7 +349,7 @@ model OvertimeRequest {
   userId   String @map("user_id") // empleado 
   leaderId String @map("leader_id") // tomado de user.leaderId al momento de crear
 
-  date       DateTime @map("date") // solo la fecha, sin hora
+  date       DateTime @map("date") @db.Date // solo la fecha, sin hora
   startTime  DateTime @map("start_time") // hora inicio
   endTime    DateTime @map("end_time") // hora fin
   totalHours Float    @map("total_hours") // calculado en el backend
@@ -455,6 +456,19 @@ model LeaveRequest {
   @@index([type])
   @@index([startDate])
   @@map("leave_requests")
+}
+
+model RecoveryCode {
+  recoveryCodeId String    @id @default(uuid()) @map("recovery_code_id")
+  userId         String    @map("user_id")
+  hash           String    @unique
+  usedAt         DateTime? @map("used_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [userId])
+
+  @@index([userId, hash])
+  @@map("recovery_code")
 }
 
 /// Notificación HOTEL PAGO INMEDIATO

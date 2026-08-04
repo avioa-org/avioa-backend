@@ -23,6 +23,7 @@ import { sign, verify } from 'jsonwebtoken';
 import type { StringValue } from 'ms';
 import { OTP } from 'otplib';
 import { Enable2faDto, Verify2faDto } from './dto/2fa.dto';
+import { customAlphabet } from 'nanoid';
 
 @Injectable()
 export class AuthService {
@@ -548,6 +549,20 @@ export class AuthService {
         twoFactorSecret: null,
       },
     });
+  }
+
+  public async generateRecoveryCodes() {
+    const alphabet =
+      '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+
+    const recoveryCodes: string[] = [];
+
+    for (let i = 0; i <= 6; i++) {
+      const recoveryCode = customAlphabet(alphabet, 8)();
+      recoveryCodes.push(recoveryCode);
+    }
+
+    return { recoveryCodes };
   }
 
   private generateTemporaryToken(userId: string) {
