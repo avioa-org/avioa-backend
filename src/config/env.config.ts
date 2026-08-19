@@ -41,6 +41,9 @@ const envSchema = z.object({
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
   CRON_ACTIVE: z.string().optional(),
+  PASSWORD_MASTER_KEY: z.string(),
+  PASSWORD_PEPPER_KEY: z.string(),
+  EVOLUTION_NUMERO_DESTINO_SECUNDARIO: z.string(),
 });
 
 let envs: z.infer<typeof envSchema>;

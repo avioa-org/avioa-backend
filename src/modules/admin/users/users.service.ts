@@ -168,6 +168,7 @@ export class UsersService {
         updatedAt: true,
         signature: true,
         manager: true,
+        birthDate: true,
         // subordinates: true,
         status: true,
       },
@@ -257,6 +258,21 @@ export class UsersService {
     this.logger.log(`User ${user.email} deleted successfully`);
 
     return await this.prisma.user.delete({ where: { userId } });
+  }
+
+  public async getUserDirectory(userId: string) {
+    return this.prisma.user.findMany({
+      where: { status: 'ACTIVE', userId: { not: userId } },
+      select: {
+        userId: true,
+        name: true,
+        email: true,
+        avatarUrl: true,
+        department: true,
+        area: true,
+      },
+      orderBy: { name: 'asc' },
+    });
   }
 
   public async updateProfile(

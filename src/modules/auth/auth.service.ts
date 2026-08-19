@@ -243,6 +243,8 @@ export class AuthService {
       twoFactorEnabled: user.twoFactorEnabled,
     });
 
+    console.log('tokens', tokens);
+
     return tokens;
   }
 

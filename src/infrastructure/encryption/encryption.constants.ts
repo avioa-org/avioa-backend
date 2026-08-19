@@ -1,0 +1,1 @@
+export const ENCRYPTION_KEY = 'PASSWORD_MASTER_KEY';

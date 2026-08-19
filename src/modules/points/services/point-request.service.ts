@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 import { RequestPointsDto } from '../dto/request-points';
-import { PointsGateway } from '../gateway/points.gateway';
+import { SocketGateway } from '../gateway/points.gateway';
 import {
   NotificationType,
   PointRequestStatus,
@@ -22,7 +22,7 @@ export class PointRequestService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly pointsGateway: PointsGateway,
+    private readonly socketGateway: SocketGateway,
   ) {}
 
   public async request(userId: string, requestPointsDto: RequestPointsDto) {
@@ -93,7 +93,7 @@ export class PointRequestService {
     };
 
     // Se emite por ws
-    this.pointsGateway.notifyLeader(
+    this.socketGateway.notifyLeader(
       requestPointsDto.leaderId,
       'point_request_received',
       notificationData,
@@ -247,7 +247,7 @@ export class PointRequestService {
       newBalance,
     };
 
-    this.pointsGateway.notifyEmployee(
+    this.socketGateway.notifyEmployee(
       pointRequest.userId,
       'point_request_approved',
       notificationData,
@@ -326,7 +326,7 @@ export class PointRequestService {
       reason,
     };
 
-    this.pointsGateway.notifyEmployee(
+    this.socketGateway.notifyEmployee(
       pointRequest.userId,
       'point_request_rejected',
       notificationData,

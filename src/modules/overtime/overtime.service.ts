@@ -15,7 +15,7 @@ import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 import { EmailService } from 'src/infrastructure/email/email.infra';
 import { OvertimeStatus, Role, NotificationType } from 'generated/prisma/enums';
 import { OvertimeRequest } from 'generated/prisma/browser';
-import { PointsGateway } from '../points/gateway/points.gateway';
+import { SocketGateway } from '../points/gateway/points.gateway';
 
 @Injectable()
 export class OvertimeService {
@@ -23,7 +23,7 @@ export class OvertimeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
-    private readonly pointsGateway: PointsGateway,
+    private readonly socketGateway: SocketGateway,
   ) {}
 
   async create(userId: string, dto: CreateOvertimeDto) {
@@ -268,7 +268,7 @@ export class OvertimeService {
       createdAt: new Date(),
     };
 
-    await this.pointsGateway.notifyLeader(
+    await this.socketGateway.notifyLeader(
       leaderId,
       'overtime_request_received',
       notificationData,
@@ -412,7 +412,7 @@ export class OvertimeService {
       comment: dto.comment ?? null,
     };
 
-    await this.pointsGateway.notifyEmployee(
+    await this.socketGateway.notifyEmployee(
       record.userId,
       isApproved ? 'overtime_request_approved' : 'overtime_request_rejected',
       notificationData,

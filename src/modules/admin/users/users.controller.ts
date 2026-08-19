@@ -38,9 +38,16 @@ export class UsersController {
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard, ValidateAdminGuard)
+  // @UseGuards(JwtAuthGuard, ValidateAdminGuard)
+  @UseGuards(JwtAuthGuard)
   public async getAllUsers() {
     return await this.usersService.getAllUsers();
+  }
+
+  @Get('directory')
+  @UseGuards(JwtAuthGuard)
+  public async getUserDirectory(@CurrentUser('userId') userId: string) {
+    return await this.usersService.getUserDirectory(userId);
   }
 
   @Get('leaders')

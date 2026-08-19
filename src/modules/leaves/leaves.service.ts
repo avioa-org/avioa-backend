@@ -5,7 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { PointsGateway } from '../points/gateway/points.gateway';
+import { SocketGateway } from '../points/gateway/points.gateway';
 import { EmailService } from 'src/infrastructure/email/email.infra';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 import { CreateLeaveDto } from './dto/create-leave.dto';
@@ -28,7 +28,7 @@ export class LeavesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
-    private readonly pointsGateway: PointsGateway,
+    private readonly socketGateway: SocketGateway,
   ) {}
 
   public async create(userId: string, dto: CreateLeaveDto) {
@@ -128,7 +128,7 @@ export class LeavesService {
       createdAt: new Date(),
     };
 
-    await this.pointsGateway.notifyLeader(
+    await this.socketGateway.notifyLeader(
       leaderId,
       'leave_request_received',
       notificationData,
@@ -303,7 +303,7 @@ export class LeavesService {
       comment: dto.comment ?? null,
     };
 
-    await this.pointsGateway.notifyEmployee(
+    await this.socketGateway.notifyEmployee(
       record.userId,
       isApproved ? 'leave_request_approved' : 'leave_request_rejected',
       notificationData,
