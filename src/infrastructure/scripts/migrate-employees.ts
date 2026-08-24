@@ -18,9 +18,18 @@ const adapter = new PrismaPg({ connectionString });
 
 const prisma = new PrismaClient({ adapter });
 
-const EXCEL_PATH = path.join(__dirname, './data/Base_datos_empleados.xlsx');
-const REPORT_CREATED_PATH = path.join(__dirname, './data/reporte-creados.csv');
-const REPORT_SKIPPED_PATH = path.join(__dirname, './data/reporte-omitidos.csv');
+// const EXCEL_PATH = path.join(__dirname, './data/Base_datos_empleados.xlsx');
+// const REPORT_CREATED_PATH = path.join(__dirname, './data/reporte-creados.csv');
+// const REPORT_SKIPPED_PATH = path.join(__dirname, './data/reporte-omitidos.csv');
+
+const EXCEL_PATH = process.argv[2];
+const REPORT_CREATED_PATH = process.argv[3] ?? '/tmp/reporte-creados.csv';
+const REPORT_SKIPPED_PATH = process.argv[4] ?? '/tmp/reporte-omitidos.csv';
+
+if (!EXCEL_PATH) {
+  console.error('❌ Debes proporcionar la ruta del archivo Excel.');
+  process.exit(1);
+}
 
 interface ExcelRow {
   'N°'?: number;
