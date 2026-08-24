@@ -63,7 +63,6 @@ export class PasswordVaultController {
     @Param('vaultId') vaultId: string,
     @CurrentUser('userId') userId: string,
   ) {
-    console.log('vaultId', vaultId);
     return await this.passwordVaultService.softDelete(userId, vaultId);
   }
 
@@ -185,8 +184,6 @@ export class PasswordVaultController {
       ip,
       userAgent,
     };
-
-    console.log('meta', meta);
 
     return await this.passwordVaultService.logCopy(
       userId,

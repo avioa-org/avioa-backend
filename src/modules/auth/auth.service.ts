@@ -24,6 +24,7 @@ import type { StringValue } from 'ms';
 import { OTP } from 'otplib';
 import { Enable2faDto, Verify2faDto } from './dto/2fa.dto';
 import { customAlphabet } from 'nanoid';
+import { ChangeTemporaryPasswordDto } from './dto/change-temporary-password';
 
 @Injectable()
 export class AuthService {
@@ -92,11 +93,11 @@ export class AuthService {
     });
 
     // Aca se envia el correo
-    await this.mailService.sendInvite({
-      to: newUser.email,
-      subject: 'Invitación a Avioa',
-      inviteUrl: `${envs.FRONTEND_URL}/auth/invite?token=${inviteToken}`,
-    });
+    // await this.mailService.sendInvite({
+    //   to: newUser.email,
+    //   subject: 'Invitación a Avioa',
+    //   inviteUrl: `${envs.FRONTEND_URL}/auth/invite?token=${inviteToken}`,
+    // });
 
     this.logger.log(`Invite sent to ${newUser.email}`);
 
@@ -189,17 +190,20 @@ export class AuthService {
   }
 
   public async login(loginDto: LoginDto) {
-    const { email, password } = loginDto;
+    const { email, password, documentNumber } = loginDto;
 
     const user = await this.prisma.user.findUnique({
-      where: { email, status: 'ACTIVE' },
+      // where: { email, status: 'ACTIVE' },
+      where: { documentNumber, status: 'ACTIVE' },
       include: { leader: { select: { name: true, userId: true } } },
     });
 
     if (!user) {
-      this.logger.error(`User with email ${email} not found`);
+      this.logger.error(
+        `User with document number ${documentNumber} not found`,
+      );
       throw new NotFoundException({
-        message: `El usuario con el correo: ${email} no existe`,
+        message: `El usuario con el documento: ${documentNumber} no existe`,
         error: 'USER_NOT_FOUND',
       });
     }
@@ -217,9 +221,21 @@ export class AuthService {
       });
     }
 
+    if (user.mustChangePassword) {
+      this.logger.log(`User ${user.documentNumber} must change password`);
+      return {
+        temporaryToken: this.generateTemporaryToken(
+          user.userId,
+          'PASSWORD_CHANGE',
+        ),
+        twoFactorEnabled: user.twoFactorEnabled,
+        mustChangePassword: true,
+      };
+    }
+
     if (user.twoFactorEnabled) {
-      this.logger.log(`2FA enabled for user ${user.email}`);
-      const temporaryToken = this.generateTemporaryToken(user.userId);
+      this.logger.log(`2FA enabled for user ${user.documentNumber}`);
+      const temporaryToken = this.generateTemporaryToken(user.userId, '2FA');
       await this.prisma.user.update({
         where: { userId: user.userId },
         data: {
@@ -229,23 +245,91 @@ export class AuthService {
       return { temporaryToken, twoFactorEnabled: true };
     }
 
-    this.logger.log(`User ${user.email} logged in successfully`);
+    this.logger.log(`User ${user.documentNumber} logged in successfully`);
 
     const tokens = await this.issueTokens({
       userId: user.userId,
       name: user.name,
-      email: user.email,
+      email: user?.email || undefined,
       avatarUrl: user.avatarUrl,
       role: user.role,
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leader?.name,
       twoFactorEnabled: user.twoFactorEnabled,
+      documentNumber: user.documentNumber as string,
     });
 
-    console.log('tokens', tokens);
-
     return tokens;
+  }
+
+  public async changeTemporaryPassword(dto: ChangeTemporaryPasswordDto) {
+    let payload: {
+      userId: string;
+      purpose?: string;
+    };
+
+    try {
+      payload = verify(dto.temporaryToken, envs.JWT_SECRET) as typeof payload;
+    } catch {
+      throw new UnauthorizedException(
+        'El token temporal es inválido o ha expirado',
+      );
+    }
+
+    if (payload.purpose !== 'PASSWORD_CHANGE') {
+      throw new UnauthorizedException(
+        'El token no es válido para cambiar la contraseña',
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: {
+        userId: payload.userId,
+      },
+      include: { leader: { select: { name: true } } },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    if (!user.mustChangePassword) {
+      throw new BadRequestException(
+        'El usuario no tiene una contraseña temporal pendiente de cambio',
+      );
+    }
+
+    const hashedPassword = await hash(dto.newPassword, 12);
+
+    await this.prisma.user.update({
+      where: {
+        userId: user.userId,
+      },
+      data: {
+        password: hashedPassword,
+        mustChangePassword: false,
+      },
+    });
+
+    const tokens = await this.issueTokens({
+      userId: user.userId,
+      name: user.name,
+      email: user?.email || undefined,
+      avatarUrl: user.avatarUrl,
+      role: user.role,
+      area: user.area,
+      leaderId: user.leaderId,
+      leaderName: user.leader?.name,
+      twoFactorEnabled: user.twoFactorEnabled,
+      documentNumber: user.documentNumber as string,
+    });
+
+    return {
+      message: 'Contraseña actualizada correctamente',
+      ...tokens,
+      twoFactorEnabled: user.twoFactorEnabled,
+    };
   }
 
   public async forgotPassword(forgotPassword: ForgotPasswordDto) {
@@ -303,11 +387,11 @@ export class AuthService {
 
     const linkToSend = `${envs.FRONTEND_URL}/forgot-password?email=${user.email}`;
 
-    await this.mailService.sendInvite({
-      to: user.email,
-      subject: 'Recuperación de contraseña',
-      inviteUrl: linkToSend,
-    });
+    // await this.mailService.sendInvite({
+    //   to: user.email,
+    //   subject: 'Recuperación de contraseña',
+    //   inviteUrl: linkToSend,
+    // });
 
     return { message: 'Link enviado exitosamente' };
   }
@@ -315,13 +399,14 @@ export class AuthService {
   private async issueTokens(user: {
     userId: string;
     name: string;
-    email: string;
+    email?: string;
     avatarUrl: string | null;
     role: string;
     area: string | null;
     leaderId: string | null;
     leaderName: string | null | undefined;
     twoFactorEnabled?: boolean;
+    documentNumber: string;
   }) {
     const payload = {
       userId: user.userId,
@@ -332,6 +417,7 @@ export class AuthService {
       leaderId: user.leaderId,
       leaderName: user.leaderName,
       twoFactorEnabled: user.twoFactorEnabled,
+      documentNumber: user.documentNumber,
     };
 
     const access_token = this.jwt.sign(payload);
@@ -398,12 +484,13 @@ export class AuthService {
     return this.issueTokens({
       userId: user.userId,
       name: user.name,
-      email: user.email,
+      email: user.email || undefined,
       avatarUrl: user.avatarUrl,
       role: user.role,
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leader?.name,
+      documentNumber: user.documentNumber as string,
     });
   }
 
@@ -531,13 +618,14 @@ export class AuthService {
     const tokens = await this.issueTokens({
       userId,
       name: user.name,
-      email: user.email,
+      email: user.email || undefined,
       avatarUrl: user.avatarUrl,
       role: user.role,
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leader?.name,
       twoFactorEnabled: user.twoFactorEnabled,
+      documentNumber: user.documentNumber as string,
     });
 
     return tokens;
@@ -567,8 +655,11 @@ export class AuthService {
     return { recoveryCodes };
   }
 
-  private generateTemporaryToken(userId: string) {
-    const token = sign({ userId }, envs.JWT_SECRET, {
+  private generateTemporaryToken(
+    userId: string,
+    purpose: '2FA' | 'PASSWORD_CHANGE',
+  ) {
+    const token = sign({ userId, purpose }, envs.JWT_SECRET, {
       expiresIn: '5m',
     });
 

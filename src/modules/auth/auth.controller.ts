@@ -21,6 +21,7 @@ import { Public } from 'src/common/decorator/public.decorator';
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { Enable2faDto, Verify2faDto } from './dto/2fa.dto';
+import { ChangeTemporaryPasswordDto } from './dto/change-temporary-password';
 
 @Controller('auth')
 export class AuthController {
@@ -41,7 +42,14 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('login')
   public async login(@Body() loginDto: LoginDto) {
-    return await this.authService.login(loginDto);
+    const data = await this.authService.login(loginDto);
+    return data;
+  }
+
+  @Public()
+  @Post('change-temporary-password')
+  async changeTemporaryPassword(@Body() dto: ChangeTemporaryPasswordDto) {
+    return await this.authService.changeTemporaryPassword(dto);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -10,7 +10,6 @@ export class GoogleController {
     @Query('code') code: string,
     @Query('state') state?: string,
   ) {
-    console.log(code);
     return await this.googleService.getToken(code);
   }
 

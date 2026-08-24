@@ -68,11 +68,13 @@ model Signature {
 model User {
   userId String @id @default(uuid()) @map("user_id")
 
-  name     String     @map("name")
-  email    String     @unique @map("email")
-  password String?    @map("password")
-  role     Role       @default(EMPLOYEE)
-  status   UserStatus @default(ACTIVE)
+  name               String     @map("name")
+  email              String?    @unique @map("email")
+  password           String?    @map("password")
+  role               Role       @default(EMPLOYEE)
+  status             UserStatus @default(ACTIVE)
+  address            String?    @map("address")
+  mustChangePassword Boolean    @default(true) @map("must_change_password")
 
   //Info laboral
   department String?   @map("department") // Tecnologia, RRHH
@@ -87,6 +89,7 @@ model User {
   // Ubicacion / contrato
   office       String?       @map("office") // Avenida, San antonio, Industrial
   contractType ContractType? @map("contract_type")
+  legalEntity  String?       @map("legal_entity") // RAZÓN SOCIAL
 
   // seguridad social (sensible)
   eps String? @map("eps")

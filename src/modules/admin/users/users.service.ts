@@ -94,11 +94,11 @@ export class UsersService {
     });
 
     // Aca se envia el correo
-    await this.mailService.sendInvite({
-      to: newUser.email,
-      subject: 'Invitación a Avioa',
-      inviteUrl: `${envs.FRONTEND_URL}/invite?token=${inviteToken}`,
-    });
+    // await this.mailService.sendInvite({
+    //   to: newUser.email,
+    //   subject: 'Invitación a Avioa',
+    //   inviteUrl: `${envs.FRONTEND_URL}/invite?token=${inviteToken}`,
+    // });
 
     this.logger.log(`Invite sent to ${newUser.email}`);
 
@@ -230,11 +230,11 @@ export class UsersService {
       },
     });
 
-    await this.mailService.sendInvite({
-      to: user.email,
-      subject: 'Invitación a Avioa',
-      inviteUrl: `${envs.FRONTEND_URL}/invite?token=${inviteToken}`,
-    });
+    // await this.mailService.sendInvite({
+    //   to: user.email,
+    //   subject: 'Invitación a Avioa',
+    //   inviteUrl: `${envs.FRONTEND_URL}/invite?token=${inviteToken}`,
+    // });
 
     this.logger.log(`Invite resent to ${user.email}`);
 
