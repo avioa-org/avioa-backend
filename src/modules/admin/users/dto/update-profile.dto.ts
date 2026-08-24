@@ -31,7 +31,6 @@ export class UpdateProfileDto {
   area?: string;
 
   @ValidateIf((_, value) => {
-    console.log(value);
     return value !== 'undefined';
   })
   @IsOptional()

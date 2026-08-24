@@ -12,17 +12,17 @@ import { verify } from 'jsonwebtoken';
 
 @Injectable()
 @WebSocketGateway({
-  namespace: '/points',
+  namespace: '/portal',
   cors: {
     origin: envs.FRONTEND_URL,
     credentials: true,
   },
   transports: ['websocket', 'polling'],
 })
-export class PointsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server!: Server;
 
-  private readonly logger = new Logger(PointsGateway.name);
+  private readonly logger = new Logger(SocketGateway.name);
   private redis: Redis;
 
   constructor() {

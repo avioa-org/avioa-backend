@@ -68,11 +68,13 @@ model Signature {
 model User {
   userId String @id @default(uuid()) @map("user_id")
 
-  name     String     @map("name")
-  email    String     @unique @map("email")
-  password String?    @map("password")
-  role     Role       @default(EMPLOYEE)
-  status   UserStatus @default(ACTIVE)
+  name               String     @map("name")
+  email              String?    @unique @map("email")
+  password           String?    @map("password")
+  role               Role       @default(EMPLOYEE)
+  status             UserStatus @default(ACTIVE)
+  address            String?    @map("address")
+  mustChangePassword Boolean    @default(true) @map("must_change_password")
 
   //Info laboral
   department String?   @map("department") // Tecnologia, RRHH
@@ -87,6 +89,7 @@ model User {
   // Ubicacion / contrato
   office       String?       @map("office") // Avenida, San antonio, Industrial
   contractType ContractType? @map("contract_type")
+  legalEntity  String?       @map("legal_entity") // RAZÓN SOCIAL
 
   // seguridad social (sensible)
   eps String? @map("eps")
@@ -154,12 +157,16 @@ model User {
   pointWallet              PointWallet?
   notifications            Notification[]
   rewardRedemptions        RewardRedemption[]
-  overtimeRequests         OvertimeRequest[]  @relation("EmployeeOvertime")
-  overtimeRequestsToReview OvertimeRequest[]  @relation("LeaderOvertime")
+  overtimeRequests         OvertimeRequest[]    @relation("EmployeeOvertime")
+  overtimeRequestsToReview OvertimeRequest[]    @relation("LeaderOvertime")
   auditLogs                AuditLog[]
   googleCredentials        GoogleCredentials?
-  leaveRequestsCreated     LeaveRequest[]     @relation("EmployeeLeave")
-  leaveRequestsToApprove   LeaveRequest[]     @relation("LeaderLeave")
+  leaveRequestsCreated     LeaveRequest[]       @relation("EmployeeLeave")
+  leaveRequestsToApprove   LeaveRequest[]       @relation("LeaderLeave")
+  recoveryCodes            RecoveryCode[]
+  passwordVaults           PasswordVault[]
+  passwordPermissions      PasswordPermission[]
+  passwordAudits           PasswordAudit[]
 
   @@map("users")
 }
@@ -348,7 +355,7 @@ model OvertimeRequest {
   userId   String @map("user_id") // empleado 
   leaderId String @map("leader_id") // tomado de user.leaderId al momento de crear
 
-  date       DateTime @map("date") // solo la fecha, sin hora
+  date       DateTime @map("date") @db.Date // solo la fecha, sin hora
   startTime  DateTime @map("start_time") // hora inicio
   endTime    DateTime @map("end_time") // hora fin
   totalHours Float    @map("total_hours") // calculado en el backend
@@ -455,6 +462,159 @@ model LeaveRequest {
   @@index([type])
   @@index([startDate])
   @@map("leave_requests")
+}
+
+model RecoveryCode {
+  recoveryCodeId String    @id @default(uuid()) @map("recovery_code_id")
+  userId         String    @map("user_id")
+  hash           String    @unique
+  usedAt         DateTime? @map("used_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [userId])
+
+  @@index([userId, hash])
+  @@map("recovery_code")
+}
+
+// PASSWORD VAULT
+model PasswordVault {
+  passwordVaultId   String                 @id @default(uuid()) @map("password_vault_id")
+  title             String
+  username          String?
+  email             String?
+  passwordEncrypted String                 @map("password_encrypted")
+  passwordIv        String                 @map("password_iv")
+  passwordAuthTag   String                 @map("password_auth_tag")
+  passwordHash      String?                @map("password_hash")
+  website           String?
+  notes             String?
+  categoryId        String?                @map("category_id")
+  ownerId           String                 @map("owner_id")
+  favorite          Boolean                @default(false)
+  expiresAt         DateTime?              @map("expires_at")
+  rotationDays      Int?                   @map("rotation_days")
+  strengthLevel     PasswordStrengthLevel? @map("strength_level")
+
+  deletedAt DateTime? @map("deleted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  owner User @relation(fields: [ownerId], references: [userId])
+
+  category            PasswordCategory?    @relation(fields: [categoryId], references: [passwordCategoryId])
+  permissions         PasswordPermission[]
+  audits              PasswordAudit[]
+  tags                PasswordTagOnVault[]
+  passwordVersions    PasswordVersion[]
+  passwordAttachments PasswordAttachment[]
+
+  @@index([ownerId])
+  @@index([categoryId])
+  @@map("password_vault")
+}
+
+model PasswordCategory {
+  passwordCategoryId String          @id @default(uuid()) @map("password_category_id")
+  name               String
+  color              String?
+  icon               String?
+  vaults             PasswordVault[]
+
+  @@map("password_category")
+}
+
+model PasswordTag {
+  passwordTagId String               @id @default(uuid()) @map("password_tag_id")
+  name          String               @unique
+  vaults        PasswordTagOnVault[]
+
+  @@map("password_tags")
+}
+
+model PasswordTagOnVault {
+  vaultId String @map("vault_id")
+  tagId   String @map("tag_id")
+
+  vault PasswordVault @relation(fields: [vaultId], references: [passwordVaultId])
+  tag   PasswordTag   @relation(fields: [tagId], references: [passwordTagId])
+
+  @@id([vaultId, tagId])
+  @@map("passsword_tag_on_vault")
+}
+
+model PasswordPermission {
+  passwordPermissionId String  @id @default(uuid()) @map("password_permission_id")
+  vaultId              String  @map("vault_id")
+  userId               String? @map("user_id")
+  department           String? @map("department")
+  canView              Boolean @default(true) @map("can_view")
+  canEdit              Boolean @default(false) @map("can_edit")
+  canDelete            Boolean @default(false) @map("can_delete")
+  canAdmin             Boolean @default(false) @map("can_admin") // administrar
+
+  vault PasswordVault @relation(fields: [vaultId], references: [passwordVaultId])
+  user  User?         @relation(fields: [userId], references: [userId])
+
+  @@index([vaultId])
+  @@index([userId])
+  @@index([department])
+  @@map("password_permission")
+}
+
+model PasswordAudit {
+  passwordAuditId String @id @default(uuid()) @map("password_audit_id")
+
+  vaultId String              @map("vault_id")
+  userId  String              @map("user_id")
+  action  PasswordAuditAction
+
+  ip        String?
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now())
+
+  vault PasswordVault @relation(fields: [vaultId], references: [passwordVaultId])
+  user  User          @relation(fields: [userId], references: [userId])
+
+  @@index([vaultId])
+  @@index([userId])
+  @@map("password_audit")
+}
+
+model PasswordVersion {
+  passwordVersionId String @id @default(uuid()) @map("password_version_id")
+  vaultId           String @map("vault_id")
+  changedById       String @map("changed_by_id")
+  versionNumber     Int    @map("version_number")
+
+  passwordEncrypted String @map("password_encrypted")
+  passwordIv        String @map("password_iv")
+  passwordAuthTag   String @map("password_auth_tag")
+
+  changedFields String[] @map("changed_fields") // ej: ["password", "username"]
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  vault PasswordVault @relation(fields: [vaultId], references: [passwordVaultId])
+
+  @@index([vaultId])
+  @@map("password_version")
+}
+
+model PasswordAttachment {
+  passwordAttachmentId String   @id @default(uuid()) @map("password_attachment_id")
+  vaultId              String   @map("vault_id")
+  fileName             String   @map("file_name")
+  fileUrl              String   @map("file_url")
+  fileType             String?  @map("file_type")
+  fileSizeBytes        Int?     @map("file_size_bytes")
+  uploadedById         String   @map("uploaded_by_id")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  vault PasswordVault @relation(fields: [vaultId], references: [passwordVaultId])
+
+  @@index([vaultId])
+  @@map("password_attachment")
 }
 
 /// Notificación HOTEL PAGO INMEDIATO
@@ -622,4 +782,24 @@ enum LeaveStatus {
   APPROVED
   REJECTED
   CANCELLED
+}
+
+enum PasswordAuditAction {
+  CREATED
+  UPDATED
+  VIEWED
+  COPIED_USERNAME
+  COPIED_PASSWORD
+  DELETED
+  RESTORED
+  SHARED
+  PERMISSION_CHANGED
+}
+
+enum PasswordStrengthLevel {
+  VERY_WEAK
+  WEAK
+  MEDIUM
+  STRONG
+  VERY_STRONG
 }

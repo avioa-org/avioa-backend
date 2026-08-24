@@ -143,8 +143,6 @@ export class GmailService {
       record.notificationLevel,
     );
 
-    console.log('dueLevel', dueLevel);
-
     if (dueLevel) {
       await this.enqueueAlert(
         record.threadId,

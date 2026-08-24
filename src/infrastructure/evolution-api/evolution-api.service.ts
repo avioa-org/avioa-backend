@@ -38,7 +38,7 @@ export class EvolutionApiService {
     }
   }
 
-  public async enviarMensaje(texto: string): Promise<void> {
+  public async enviarMensaje(texto: string, numero?: string): Promise<void> {
     const activa = await this.instanciaActiva();
 
     if (!activa) {
@@ -55,7 +55,7 @@ export class EvolutionApiService {
       await firstValueFrom(
         this.http.post(
           `${this.baseUrl}/message/sendText/${this.instance}`,
-          { number: this.numero, text: texto },
+          { number: numero || this.numero, text: texto },
           { headers: { apiKey: this.apiKey } },
         ),
       );

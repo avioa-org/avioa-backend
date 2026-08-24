@@ -16,13 +16,6 @@ export class OvertimeLeaderGuard implements CanActivate {
     const userId = request.user?.userId;
     const overtimeRequestId = request.params?.id;
 
-    console.log(
-      'OvertimeLeaderGuard: userId=',
-      userId,
-      'overtimeRequestId=',
-      overtimeRequestId,
-    );
-
     const record = await this.prisma.overtimeRequest.findUnique({
       where: { overtimeRequestId },
     });

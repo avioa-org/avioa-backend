@@ -16,6 +16,8 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/register.dto';
 import { FormDataRequest } from 'nestjs-form-data';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { BirthdayPostsResponseDto } from './dto/birthday-posts.dto';
+import { Public } from 'src/common/decorator/public.decorator';
 import {
   CurrentUser,
   type ICurrentUser,
@@ -26,7 +28,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard, ValidateAdminGuard)
+  // @UseGuards(JwtAuthGuard, ValidateAdminGuard)
   public async register(@Body() createUserDto: CreateUserDto) {
     return await this.usersService.inviteUser(createUserDto);
   }
@@ -41,6 +43,12 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, ValidateAdminGuard)
   public async getAllUsers() {
     return await this.usersService.getAllUsers();
+  }
+
+  @Get('directory')
+  @UseGuards(JwtAuthGuard)
+  public async getUserDirectory(@CurrentUser('userId') userId: string) {
+    return await this.usersService.getUserDirectory(userId);
   }
 
   @Get('leaders')
@@ -72,5 +80,33 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, ValidateAdminGuard)
   public async deleteUser(@Param('userId') userId: string) {
     return await this.usersService.deleteUser(userId);
+  }
+}
+
+@Controller('users')
+// @UseGuards(JwtAuthGuard)
+export class UsersBirthdayController {
+  constructor(private readonly usersService: UsersService) {}
+
+  @Get('birthday-posts')
+  async getBirthdayPosts() {
+    try {
+      const data = await this.usersService.getBirthdayPosts();
+
+      return {
+        success: true,
+        data: data,
+        message: 'Publicaciones de cumpleaños obtenidas correctamente',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Error al obtener publicaciones de cumpleaños',
+        data: null,
+      };
+    }
   }
 }

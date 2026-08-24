@@ -5,7 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { PointsGateway } from '../points/gateway/points.gateway';
+import { SocketGateway } from '../points/gateway/points.gateway';
 import { EmailService } from 'src/infrastructure/email/email.infra';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 import { CreateLeaveDto } from './dto/create-leave.dto';
@@ -21,6 +21,8 @@ import { LeaveRequest } from 'generated/prisma/browser';
 import { ReviewLeaveDto } from './dto/review-leave.dto';
 
 const VACATIONS_DAYS_PER_YEAR = 15;
+const MIN_VACATIONS_DAYS_PER_YEAR = -15;
+
 @Injectable()
 export class LeavesService {
   private readonly logger = new Logger(LeavesService.name);
@@ -28,7 +30,7 @@ export class LeavesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
-    private readonly pointsGateway: PointsGateway,
+    private readonly socketGateway: SocketGateway,
   ) {}
 
   public async create(userId: string, dto: CreateLeaveDto) {
@@ -95,9 +97,22 @@ export class LeavesService {
         user.startDate,
       );
 
-      if (businessDays > balance.available) {
+      // calculamos como quedaria el saldo
+      // despues de esta nueva solicitud
+      //ejemplo
+      // saldo proyectado = -10
+      // solicitud = 4
+      // nuevo saldo = -14
+      // se permite porque no supera -15
+      const projectedBalance = balance.projectedAvailable - businessDays;
+
+      if (projectedBalance < MIN_VACATIONS_DAYS_PER_YEAR) {
         throw new BadRequestException(
-          `No tienes saldo suficiente. Disponibles: ${balance.available} días hábiles, solicitados: ${businessDays}.`,
+          `La solicitud supera el límite permitido de ${MIN_VACATIONS_DAYS_PER_YEAR} días de vacaciones. ` +
+            `Saldo actual: ${balance.available} días, ` +
+            `solicitudes pendientes: ${balance.pending} días, ` +
+            `saldo proyectado: ${balance.projectedAvailable} días, ` +
+            `solicitudes: ${businessDays} días.`,
         );
       }
     }
@@ -128,7 +143,7 @@ export class LeavesService {
       createdAt: new Date(),
     };
 
-    await this.pointsGateway.notifyLeader(
+    await this.socketGateway.notifyLeader(
       leaderId,
       'leave_request_received',
       notificationData,
@@ -152,21 +167,106 @@ export class LeavesService {
    * Devengados = 15 dias habiles por año completo trabajando, proporcional a
    * los meses. Fuente de verdad: se calcula, no se guarda
    */
+  // public async calculateVacationBalance(
+  //   userId: string,
+  //   startDate: Date | null,
+  // ) {
+  //   if (!startDate) {
+  //     return { accrued: 0, taken: 0, available: 0, pending: 0 };
+  //   }
+
+  //   const now = new Date();
+  //   const monthsWorked =
+  //     (now.getFullYear() - startDate.getFullYear()) * 12 +
+  //     (now.getMonth() - startDate.getMonth());
+
+  //   const accrued = Math.floor((monthsWorked * VACATIONS_DAYS_PER_YEAR) / 12);
+
+  //   const approvedAgg = await this.prisma.leaveRequest.aggregate({
+  //     where: {
+  //       userId,
+  //       type: LeaveType.VACACIONES,
+  //       status: LeaveStatus.APPROVED,
+  //     },
+  //     _sum: { businessDays: true },
+  //   });
+
+  //   const taken = approvedAgg._sum.businessDays ?? 0;
+
+  //   const pendingAgg = await this.prisma.leaveRequest.aggregate({
+  //     where: {
+  //       userId,
+  //       type: LeaveType.VACACIONES,
+  //       status: LeaveStatus.PENDING,
+  //     },
+  //     _sum: { businessDays: true },
+  //   });
+
+  //   const pending = pendingAgg._sum.businessDays ?? 0;
+
+  //   return {
+  //     accrued,
+  //     taken,
+  //     pending,
+  //     available: accrued - taken,
+  //   };
+  // }
   public async calculateVacationBalance(
     userId: string,
     startDate: Date | null,
   ) {
     if (!startDate) {
-      return { accrued: 0, taken: 0, available: 0, pending: 0 };
+      return {
+        accrued: 0,
+        taken: 0,
+        pending: 0,
+        available: 0,
+        projectedAvailable: 0,
+      };
     }
 
     const now = new Date();
-    const monthsWorked =
-      (now.getFullYear() - startDate.getFullYear()) * 12 +
-      (now.getMonth() - startDate.getMonth());
 
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+
+    const current = new Date(now);
+    current.setHours(0, 0, 0, 0);
+
+    if (start > current) {
+      return {
+        accrued: 0,
+        taken: 0,
+        pending: 0,
+        available: 0,
+        projectedAvailable: 0,
+      };
+    }
+
+    // calculo de los meses completos trabajados
+    // ejemplo:
+    // fecha ingreso: 2025-01-15
+    // fecha actual: 2026-08-19
+    // monthsWorked = 19
+    let monthsWorked =
+      (current.getFullYear() - start.getFullYear()) * 12 +
+      (current.getMonth() - start.getMonth());
+
+    // si todavia no ha llegado al mismo dia del mes
+    // todavia no contamos ese ultimo mes
+    if (current.getDate() < start.getDate()) {
+      monthsWorked--;
+    }
+
+    monthsWorked = Math.max(0, monthsWorked);
+
+    // 15 dias habiles por año
+    // se acumulan proporcionalmente por meses.
     const accrued = Math.floor((monthsWorked * VACATIONS_DAYS_PER_YEAR) / 12);
 
+    // vacaciones aprobadas
+    // se consideran todas las vacaciones aprobadas
+    // historicamente desde la fecha de ingreso
     const approvedAgg = await this.prisma.leaveRequest.aggregate({
       where: {
         userId,
@@ -178,6 +278,10 @@ export class LeavesService {
 
     const taken = approvedAgg._sum.businessDays ?? 0;
 
+    // vacaciones pendientes
+    // no han sido descontadas definitivamente
+    // pero debemos reservarlas para evitar
+    // que el empleado puede solicitar de mas
     const pendingAgg = await this.prisma.leaveRequest.aggregate({
       where: {
         userId,
@@ -189,11 +293,29 @@ export class LeavesService {
 
     const pending = pendingAgg._sum.businessDays ?? 0;
 
+    // saldo real
+    // lo generado menos lo aprobado
+    // puede ser positivo o negativo
+    // ejemplo:
+    // accrued = 30
+    // taken = 35
+    // available = -5
+    const available = accrued - taken;
+
+    // saldo proyectado
+    // se tienen en cuenta las solicitudes pendientes
+    // ejemplo
+    // available = -5
+    // pending = 3
+    // projectedAvailable = - 8
+    const projectedAvailable = available - pending;
+
     return {
       accrued,
       taken,
       pending,
-      available: accrued - taken,
+      available,
+      projectedAvailable,
     };
   }
 
@@ -203,7 +325,11 @@ export class LeavesService {
       select: { startDate: true },
     });
 
-    return this.calculateVacationBalance(userId, user?.startDate ?? null);
+    const balance = await this.calculateVacationBalance(
+      userId,
+      user?.startDate ?? null,
+    );
+    return balance;
   }
 
   public async findMyRequests(userId: string, query: LeaveQueryDto) {
@@ -303,7 +429,7 @@ export class LeavesService {
       comment: dto.comment ?? null,
     };
 
-    await this.pointsGateway.notifyEmployee(
+    await this.socketGateway.notifyEmployee(
       record.userId,
       isApproved ? 'leave_request_approved' : 'leave_request_rejected',
       notificationData,

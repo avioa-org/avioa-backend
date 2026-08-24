@@ -20,6 +20,7 @@ import { HttpThrottlerGuard } from './common/guards/http-throttler.guard';
 import { FormsModule } from './modules/forms/forms.module';
 import { LeavesModule } from './modules/leaves/leaves.module';
 import { GoogleModule } from './modules/google/google.module';
+import { PasswordVaultModule } from './modules/password-vault/password-vault.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { GoogleModule } from './modules/google/google.module';
     FormsModule,
     LeavesModule,
     GoogleModule,
+    PasswordVaultModule,
   ],
   controllers: [],
   providers: [
