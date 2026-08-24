@@ -15,7 +15,7 @@ import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 import { EmailService } from 'src/infrastructure/email/email.infra';
 import { OvertimeStatus, Role, NotificationType } from 'generated/prisma/enums';
 import { OvertimeRequest } from 'generated/prisma/browser';
-import { PointsGateway } from '../points/gateway/points.gateway';
+import { SocketGateway } from '../points/gateway/points.gateway';
 
 @Injectable()
 export class OvertimeService {
@@ -23,10 +23,12 @@ export class OvertimeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
-    private readonly pointsGateway: PointsGateway,
+    private readonly socketGateway: SocketGateway,
   ) {}
 
   async create(userId: string, dto: CreateOvertimeDto) {
+    this.logger.debug(dto, 'create-overtime-dto');
+
     // 1. Cargar usuario y verificar que tiene líder asignado
     const user = await this.prisma.user.findUnique({
       where: { userId },
@@ -69,13 +71,9 @@ export class OvertimeService {
     today.setHours(0, 0, 0, 0);
 
     const preparedEntries = entries.map((entry, idx) => {
-      const [year, month, day] = entry.date.split('-').map(Number);
-
-      const requestDate = new Date(year, month - 1, day);
-
-      requestDate.setHours(0, 0, 0, 0);
-      const startTime = new Date(`${entry.date}T${entry.startTime}:00`);
-      const endTime = new Date(`${entry.date}T${entry.endTime}:00`);
+      const requestDate = new Date(`${entry.date}T00:00:00-05:00`);
+      const startTime = new Date(`${entry.date}T${entry.startTime}:00-05:00`);
+      const endTime = new Date(`${entry.date}T${entry.endTime}:00-05:00`);
 
       if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
         throw new BadRequestException(
@@ -96,17 +94,9 @@ export class OvertimeService {
         throw new BadRequestException(`El mínimo registrable es 30 minutos`);
       }
 
-      if (requestDate > today) {
+      if (requestDate.getTime() !== today.getTime()) {
         throw new BadRequestException(
-          `No puedes registrar horas extra en fechas futuras`,
-        );
-      }
-
-      const diffDays =
-        (today.getTime() - requestDate.getTime()) / (1000 * 60 * 60 * 24);
-      if (diffDays > 1) {
-        throw new BadRequestException(
-          `Solo puedes registrar horas extra de los últimos 24h`,
+          `Solo puedes registrar horas extra del día actual.`,
         );
       }
 
@@ -119,6 +109,48 @@ export class OvertimeService {
         totalHours,
       };
     });
+
+    // verificar solapamiento
+
+    for (let i = 0; i < preparedEntries.length; i++) {
+      for (let j = i + 1; j < preparedEntries.length; j++) {
+        const a = preparedEntries[i];
+        const b = preparedEntries[j];
+
+        if (
+          a.dateKey === b.dateKey &&
+          this.hasOverlap(a.startTime, a.endTime, b.startTime, b.endTime)
+        ) {
+          throw new BadRequestException(
+            `Las solicitudes ${i + 1} y ${j + 1} tienen horarios solapados.`,
+          );
+        }
+      }
+    }
+
+    for (const entry of preparedEntries) {
+      const overlap = await this.prisma.overtimeRequest.findFirst({
+        where: {
+          userId,
+          status: {
+            in: [OvertimeStatus.PENDING, OvertimeStatus.APPROVED],
+          },
+          date: entry.requestDate,
+          startTime: {
+            lt: entry.endTime,
+          },
+          endTime: {
+            gt: entry.startTime,
+          },
+        },
+      });
+
+      if (overlap) {
+        throw new BadRequestException(
+          `Ya tienes una solicitud que se cruza con el horario ${entry.startTime.toLocaleTimeString()} - ${entry.endTime.toLocaleTimeString()}.`,
+        );
+      }
+    }
 
     const dateKeys = Array.from(
       new Set(preparedEntries.map((entry) => entry.dateKey)),
@@ -207,6 +239,16 @@ export class OvertimeService {
             description: entry.description,
             status: OvertimeStatus.PENDING,
           },
+          include: {
+            user: {
+              select: {
+                name: true,
+                avatarUrl: true,
+                position: true,
+                department: true,
+              },
+            },
+          },
         }),
       ),
     );
@@ -222,17 +264,11 @@ export class OvertimeService {
       message: `${user.name} solicitó ${totalHoursRequested}h extra en ${overtimes.length} solicitud(es)`,
       requestsCount: overtimes.length,
       totalHours: totalHoursRequested,
-      requests: overtimes.map((overtime) => ({
-        overtimeRequestId: overtime.overtimeRequestId,
-        date: overtime.date,
-        startTime: overtime.startTime,
-        endTime: overtime.endTime,
-        totalHours: overtime.totalHours,
-      })),
+      requests: overtimes,
       createdAt: new Date(),
     };
 
-    await this.pointsGateway.notifyLeader(
+    await this.socketGateway.notifyLeader(
       leaderId,
       'overtime_request_received',
       notificationData,
@@ -376,7 +412,7 @@ export class OvertimeService {
       comment: dto.comment ?? null,
     };
 
-    await this.pointsGateway.notifyEmployee(
+    await this.socketGateway.notifyEmployee(
       record.userId,
       isApproved ? 'overtime_request_approved' : 'overtime_request_rejected',
       notificationData,
@@ -439,6 +475,9 @@ export class OvertimeService {
         overtimeRequestId: true,
         date: true,
         totalHours: true,
+        startTime: true,
+        endTime: true,
+        comment: true,
         status: true,
         userId: true,
         description: true,
@@ -487,5 +526,9 @@ export class OvertimeService {
       totalHours,
       days: Object.values(grouped),
     };
+  }
+
+  private hasOverlap(startA: Date, endA: Date, startB: Date, endB: Date) {
+    return startA < endB && endA > startB;
   }
 }

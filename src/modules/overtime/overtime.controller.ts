@@ -58,12 +58,7 @@ export class OvertimeController {
     @Query() query: OvertimeQueryDto,
     @CurrentUser() user: ICurrentUser,
   ) {
-    console.log(query);
-    return this.overtimeService.getSummary(
-      user.userId,
-      user.role as Role,
-      query,
-    );
+    return this.overtimeService.getSummary(user.userId, user.role, query);
   }
 
   @Get(':id')

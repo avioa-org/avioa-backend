@@ -40,9 +40,15 @@ export class UsersController {
   }
 
   @Get()
-  // @UseGuards(JwtAuthGuard, ValidateAdminGuard)
+  @UseGuards(JwtAuthGuard, ValidateAdminGuard)
   public async getAllUsers() {
     return await this.usersService.getAllUsers();
+  }
+
+  @Get('directory')
+  @UseGuards(JwtAuthGuard)
+  public async getUserDirectory(@CurrentUser('userId') userId: string) {
+    return await this.usersService.getUserDirectory(userId);
   }
 
   @Get('leaders')
@@ -86,12 +92,11 @@ export class UsersBirthdayController {
   async getBirthdayPosts() {
     try {
       const data = await this.usersService.getBirthdayPosts();
-      
-   
+
       return {
         success: true,
         data: data,
-        message: 'Publicaciones de cumpleaños obtenidas correctamente'
+        message: 'Publicaciones de cumpleaños obtenidas correctamente',
       };
     } catch (error) {
       return {
@@ -100,9 +105,8 @@ export class UsersBirthdayController {
           error instanceof Error
             ? error.message
             : 'Error al obtener publicaciones de cumpleaños',
-        data: null
+        data: null,
       };
     }
   }
 }
-

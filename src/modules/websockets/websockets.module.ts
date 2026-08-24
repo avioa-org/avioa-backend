@@ -1,9 +1,9 @@
 import { Global, Module } from '@nestjs/common';
-import { PointsGateway } from '../points/gateway/points.gateway';
+import { SocketGateway } from '../points/gateway/points.gateway';
 
 @Global()
 @Module({
-  providers: [PointsGateway],
-  exports: [PointsGateway],
+  providers: [SocketGateway],
+  exports: [SocketGateway],
 })
 export class WebsocketsModule {}

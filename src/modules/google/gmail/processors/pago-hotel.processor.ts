@@ -4,6 +4,7 @@ import { Job } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 import { EvolutionApiService } from 'src/infrastructure/evolution-api/evolution-api.service';
+import { envs } from 'src/config/env.config';
 
 interface AlertJobData {
   threadId: string;
@@ -47,7 +48,15 @@ export class PagoHotelInmediatoProcessor extends WorkerHost {
 
     const text = this.buildMessage(subject, level);
 
-    await this.evolutionApi.enviarMensaje(text);
+    const envio1 = this.evolutionApi.enviarMensaje(text);
+    const envio2 = this.evolutionApi.enviarMensaje(
+      text,
+      envs.EVOLUTION_NUMERO_DESTINO_SECUNDARIO,
+    );
+
+    await Promise.all([envio1, envio2]);
+
+    this.logger.debug('Se procesaron los envíos de alerta a ambos celulares');
 
     await this.prisma.hotelImmediatePayment.update({
       where: { threadId },

@@ -14,6 +14,7 @@ import { CreateUserDto } from './dto/register.dto';
 import { EmailService } from 'src/infrastructure/email/email.infra';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.infra';
+import { BirthdayPostsResponseDto } from './dto/birthday-posts.dto';
 
 @Injectable()
 export class UsersService {
@@ -94,11 +95,11 @@ export class UsersService {
     });
 
     // Aca se envia el correo
-    await this.mailService.sendInvite({
-      to: newUser.email,
-      subject: 'Invitación a Avioa',
-      inviteUrl: `${envs.FRONTEND_URL}/invite?token=${inviteToken}`,
-    });
+    // await this.mailService.sendInvite({
+    //   to: newUser.email,
+    //   subject: 'Invitación a Avioa',
+    //   inviteUrl: `${envs.FRONTEND_URL}/invite?token=${inviteToken}`,
+    // });
 
     this.logger.log(`Invite sent to ${newUser.email}`);
 
@@ -168,6 +169,7 @@ export class UsersService {
         updatedAt: true,
         signature: true,
         manager: true,
+        birthDate: true,
         // subordinates: true,
         status: true,
       },
@@ -229,11 +231,11 @@ export class UsersService {
       },
     });
 
-    await this.mailService.sendInvite({
-      to: user.email,
-      subject: 'Invitación a Avioa',
-      inviteUrl: `${envs.FRONTEND_URL}/invite?token=${inviteToken}`,
-    });
+    // await this.mailService.sendInvite({
+    //   to: user.email,
+    //   subject: 'Invitación a Avioa',
+    //   inviteUrl: `${envs.FRONTEND_URL}/invite?token=${inviteToken}`,
+    // });
 
     this.logger.log(`Invite resent to ${user.email}`);
 
@@ -257,6 +259,21 @@ export class UsersService {
     this.logger.log(`User ${user.email} deleted successfully`);
 
     return await this.prisma.user.delete({ where: { userId } });
+  }
+
+  public async getUserDirectory(userId: string) {
+    return this.prisma.user.findMany({
+      where: { status: 'ACTIVE', userId: { not: userId } },
+      select: {
+        userId: true,
+        name: true,
+        email: true,
+        avatarUrl: true,
+        department: true,
+        area: true,
+      },
+      orderBy: { name: 'asc' },
+    });
   }
 
   public async updateProfile(
@@ -322,9 +339,9 @@ export class UsersService {
     }
   }
 
-   private getInitials(name: string | null | undefined): string {
-    if (!name) return "U";
-    const parts = name.trim().split(" ");
+  private getInitials(name: string | null | undefined): string {
+    if (!name) return 'U';
+    const parts = name.trim().split(' ');
     if (parts.length === 1) {
       return parts[0].charAt(0).toUpperCase();
     }
@@ -359,14 +376,15 @@ export class UsersService {
 
     return birthdayUsers.map((user) => {
       const birthDate = new Date(user.birthDate);
-      const day = birthDate.getDate().toString().padStart(2, "0");
-      const month = birthDate.toLocaleString("es", { month: "long" });
+      const day = birthDate.getDate().toString().padStart(2, '0');
+      const month = birthDate.toLocaleString('es', { month: 'long' });
       const dateThisYear = new Date(
         currentYear,
         birthDate.getMonth(),
-        birthDate.getDate()
+        birthDate.getDate(),
       );
-      const isWeekend = dateThisYear.getDay() === 0 || dateThisYear.getDay() === 6;
+      const isWeekend =
+        dateThisYear.getDay() === 0 || dateThisYear.getDay() === 6;
 
       return {
         id: user.userId,
@@ -377,7 +395,7 @@ export class UsersService {
         employee: {
           id: user.userId,
           name: user.name,
-          role: user.position || user.role || "Empleado",
+          role: user.position || user.role || 'Empleado',
           initials: this.getInitials(user.name),
           avatarUrl: user.avatarUrl,
         },
@@ -410,13 +428,13 @@ export class UsersService {
       return {
         id: user.userId,
         name: user.name,
-        day: birthDate.getDate().toString().padStart(2, "0"),
-        month: birthDate.toLocaleString("es", { month: "long" }),
+        day: birthDate.getDate().toString().padStart(2, '0'),
+        month: birthDate.toLocaleString('es', { month: 'long' }),
         isWeekend: false,
         employee: {
           id: user.userId,
           name: user.name,
-          role: user.position || user.role || "Empleado",
+          role: user.position || user.role || 'Empleado',
           initials: this.getInitials(user.name),
           avatarUrl: user.avatarUrl,
         },
@@ -429,15 +447,15 @@ export class UsersService {
     const todayBirthdays = this.getTodayBirthdays(users);
     if (todayBirthdays.length === 0) return [];
 
-    const companyName = "Avioa";
-    const companyInitials = "AV";
+    const companyName = 'Avioa';
+    const companyInitials = 'AV';
 
     return todayBirthdays.map((birthday) => {
       const message = `¡Feliz Cumpleaños ${birthday.name}!
 
-${birthday.employee.role ? `Cargo: ${birthday.employee.role}` : ""}
+${birthday.employee.role ? `Cargo: ${birthday.employee.role}` : ''}
 
-${birthday.day && birthday.month ? `Fecha: ${birthday.day} de ${birthday.month}` : ""}
+${birthday.day && birthday.month ? `Fecha: ${birthday.day} de ${birthday.month}` : ''}
 
 Todo el equipo de ${companyName} te desea un día lleno de alegría, éxitos y momentos inolvidables. ¡Gracias por ser parte de nuestra gran familia!
 
@@ -447,7 +465,7 @@ Todo el equipo de ${companyName} te desea un día lleno de alegría, éxitos y m
         id: `birthday-${Date.now()}-${birthday.id}`,
         author: companyName,
         authorAvatar: companyInitials,
-        authorRole: "Recursos Humanos",
+        authorRole: 'Recursos Humanos',
         content: message,
         timestamp: new Date().toISOString(),
         likes: 0,
@@ -497,14 +515,4 @@ Todo el equipo de ${companyName} te desea un día lleno de alegría, éxitos y m
       },
     };
   }
-
 }
-
-
-
-
-
-
-
-import { BirthdayPostsResponseDto } from './dto/birthday-posts.dto';
-
