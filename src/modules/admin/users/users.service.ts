@@ -14,6 +14,7 @@ import { CreateUserDto } from './dto/register.dto';
 import { EmailService } from 'src/infrastructure/email/email.infra';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.infra';
+import { BirthdayPostsResponseDto } from './dto/birthday-posts.dto';
 
 @Injectable()
 export class UsersService {
@@ -336,5 +337,182 @@ export class UsersService {
         }
       }
     }
+  }
+
+  private getInitials(name: string | null | undefined): string {
+    if (!name) return 'U';
+    const parts = name.trim().split(' ');
+    if (parts.length === 1) {
+      return parts[0].charAt(0).toUpperCase();
+    }
+    const first = parts[0].charAt(0);
+    const last = parts[parts.length - 1].charAt(0);
+    return (first + last).toUpperCase();
+  }
+
+  // Obtener todos los usuarios (puedes reutilizar el método existente)
+  async getUsers() {
+    return this.prisma.user.findMany();
+  }
+
+  // Obtener cumpleaños del mes actual
+  private getCurrentMonthBirthdays(users: any[]): any[] {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    const birthdayUsers = users.filter((user) => {
+      if (!user.birthDate) return false;
+      try {
+        const birthDate = new Date(user.birthDate);
+        if (isNaN(birthDate.getTime())) return false;
+        return birthDate.getMonth() === currentMonth;
+      } catch {
+        return false;
+      }
+    });
+
+    if (birthdayUsers.length === 0) return [];
+
+    return birthdayUsers.map((user) => {
+      const birthDate = new Date(user.birthDate);
+      const day = birthDate.getDate().toString().padStart(2, '0');
+      const month = birthDate.toLocaleString('es', { month: 'long' });
+      const dateThisYear = new Date(
+        currentYear,
+        birthDate.getMonth(),
+        birthDate.getDate(),
+      );
+      const isWeekend =
+        dateThisYear.getDay() === 0 || dateThisYear.getDay() === 6;
+
+      return {
+        id: user.userId,
+        name: user.name,
+        day,
+        month,
+        isWeekend,
+        employee: {
+          id: user.userId,
+          name: user.name,
+          role: user.position || user.role || 'Empleado',
+          initials: this.getInitials(user.name),
+          avatarUrl: user.avatarUrl,
+        },
+      };
+    });
+  }
+
+  // Obtener cumpleaños de hoy
+  private getTodayBirthdays(users: any[]): any[] {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentDay = today.getDate();
+
+    const birthdayUsers = users.filter((user) => {
+      if (!user.birthDate) return false;
+      try {
+        const birthDate = new Date(user.birthDate);
+        if (isNaN(birthDate.getTime())) return false;
+        return (
+          birthDate.getMonth() === currentMonth &&
+          birthDate.getDate() === currentDay
+        );
+      } catch {
+        return false;
+      }
+    });
+
+    return birthdayUsers.map((user) => {
+      const birthDate = new Date(user.birthDate);
+      return {
+        id: user.userId,
+        name: user.name,
+        day: birthDate.getDate().toString().padStart(2, '0'),
+        month: birthDate.toLocaleString('es', { month: 'long' }),
+        isWeekend: false,
+        employee: {
+          id: user.userId,
+          name: user.name,
+          role: user.position || user.role || 'Empleado',
+          initials: this.getInitials(user.name),
+          avatarUrl: user.avatarUrl,
+        },
+      };
+    });
+  }
+
+  // Generar publicaciones de cumpleaños
+  private generateBirthdayPosts(users: any[]): any[] {
+    const todayBirthdays = this.getTodayBirthdays(users);
+    if (todayBirthdays.length === 0) return [];
+
+    const companyName = 'Avioa';
+    const companyInitials = 'AV';
+
+    return todayBirthdays.map((birthday) => {
+      const message = `¡Feliz Cumpleaños ${birthday.name}!
+
+${birthday.employee.role ? `Cargo: ${birthday.employee.role}` : ''}
+
+${birthday.day && birthday.month ? `Fecha: ${birthday.day} de ${birthday.month}` : ''}
+
+Todo el equipo de ${companyName} te desea un día lleno de alegría, éxitos y momentos inolvidables. ¡Gracias por ser parte de nuestra gran familia!
+
+¡Disfruta tu día al máximo!`;
+
+      return {
+        id: `birthday-${Date.now()}-${birthday.id}`,
+        author: companyName,
+        authorAvatar: companyInitials,
+        authorRole: 'Recursos Humanos',
+        content: message,
+        timestamp: new Date().toISOString(),
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        liked: false,
+        commentsList: [],
+        isBirthdayPost: true,
+        birthdayPerson: birthday.name,
+      };
+    });
+  }
+
+  // Método principal para obtener publicaciones de cumpleaños
+  async getBirthdayPosts(): Promise<BirthdayPostsResponseDto> {
+    // Obtener todos los usuarios
+    const users = await this.getUsers();
+
+    if (!users || users.length === 0) {
+      return {
+        birthdayPosts: [],
+        todayBirthdays: [],
+        monthBirthdays: [],
+        generatedAt: new Date().toISOString(),
+        count: {
+          birthdayPosts: 0,
+          todayBirthdays: 0,
+          monthBirthdays: 0,
+        },
+      };
+    }
+
+    // Generar datos
+    const birthdayPosts = this.generateBirthdayPosts(users);
+    const todayBirthdays = this.getTodayBirthdays(users);
+    const monthBirthdays = this.getCurrentMonthBirthdays(users);
+
+    return {
+      birthdayPosts,
+      todayBirthdays,
+      monthBirthdays,
+      generatedAt: new Date().toISOString(),
+      count: {
+        birthdayPosts: birthdayPosts.length,
+        todayBirthdays: todayBirthdays.length,
+        monthBirthdays: monthBirthdays.length,
+      },
+    };
   }
 }
