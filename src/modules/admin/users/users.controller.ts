@@ -41,7 +41,8 @@ export class UsersController {
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard, ValidateAdminGuard)
+  // @UseGuards(JwtAuthGuard, ValidateAdminGuard)
+  @UseGuards(JwtAuthGuard)
   public async getAllUsers() {
     return await this.usersService.getAllUsers();
   }
