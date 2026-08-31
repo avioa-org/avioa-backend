@@ -363,12 +363,12 @@ export class OvertimeService {
 
     const id = `${user.documentNumber}-${formatDate(overtimes[0].startTime)}`;
 
-    await fetch(
-      `${envs.N8N_OVERTIME_URL}?accion=aprobado&id=${id}&nombre=${user.name}&inicio=${inicio}&final=${final}&desc=${descripcion}`,
-      {
-        method: 'GET',
-      },
-    );
+    // await fetch(
+    //   `${envs.N8N_OVERTIME_URL}?accion=aprobado&id=${id}&nombre=${user.name}&inicio=${inicio}&final=${final}&desc=${descripcion}`,
+    //   {
+    //     method: 'GET',
+    //   },
+    // );
 
     return isBatch ? overtimes : overtimes[0];
   }
