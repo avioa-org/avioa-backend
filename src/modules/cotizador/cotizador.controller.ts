@@ -11,7 +11,7 @@ import { CotizadorService } from './cotizador.service';
 import { CotizadorDto } from './dto/cotizador.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 
-// @UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard)
 @Controller('cotizador')
 export class CotizadorController {
   constructor(private readonly cotizadorService: CotizadorService) {}
