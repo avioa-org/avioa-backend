@@ -154,6 +154,9 @@ export class UsersService {
 
   public async getAllUsers() {
     return await this.prisma.user.findMany({
+      where: {
+        AND: [{ NOT: { name: 'lider test' } }, { NOT: { name: 'testing' } }],
+      },
       select: {
         userId: true,
         name: true,
