@@ -65,6 +65,7 @@ jobs:
             docker run --rm \
               --network infra_network \
               --env-file .env.production \
+              -e TZ=America/Bogota \
               $IMAGE \
               sh -c "SKIP_ENV_VALIDATION=true npx prisma migrate deploy"
 
@@ -76,11 +77,15 @@ jobs:
               --name avioa-backend \
               --network infra_network \
               --env-file .env.production \
+              -e TZ=America/Bogota \
               -p 3000:3000 \
               -v $(pwd)/logs:/usr/src/app/logs \
               $IMAGE
 
             echo "🧹 Cleaning old images..."
             docker image prune -af
+
+            echo "🕐 Verificando zona horaria..."
+            docker exec avioa-backend node -e "console.log('Date:', new Date().toString()); console.log('Timezone:', Intl.DateTimeFormat().resolvedOptions().timeZone)"
 
             echo "✅ Deploy complete"
