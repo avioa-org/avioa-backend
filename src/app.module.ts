@@ -23,6 +23,7 @@ import { GoogleModule } from './modules/google/google.module';
 import { PasswordVaultModule } from './modules/password-vault/password-vault.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { FeedModule } from './modules/feed/feed.module';
+import { CotizadorModule } from './modules/cotizador/cotizador.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { FeedModule } from './modules/feed/feed.module';
     PasswordVaultModule,
     NotificationsModule,
     FeedModule,
+    CotizadorModule,
   ],
   controllers: [],
   providers: [
