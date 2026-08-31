@@ -63,23 +63,30 @@ async function bootstrap() {
           },
         }),
       ),
+      new BullMQAdapter(
+        new Queue('cotizador', {
+          connection: {
+            url: envs.REDIS_URL,
+          },
+        }),
+      ),
     ],
     serverAdapter,
   });
 
   app.use('/queues', (req, res, next) => {
-    const header = req.headers.authorization;
-    const token = header?.startsWith('Bearer ')
-      ? header.slice(7).trim()
-      : header?.trim();
+    // const header = req.headers.authorization;
+    // const token = header?.startsWith('Bearer ')
+    //   ? header.slice(7).trim()
+    //   : header?.trim();
 
-    if (!token || token !== envs.INTERNAL_TOKEN) {
-      return res.status(401).json({
-        statusCode: 401,
-        message: 'Unauthorized',
-        error: 'INVALID_INTERNAL_TOKEN',
-      });
-    }
+    // if (!token || token !== envs.INTERNAL_TOKEN) {
+    //   return res.status(401).json({
+    //     statusCode: 401,
+    //     message: 'Unauthorized',
+    //     error: 'INVALID_INTERNAL_TOKEN',
+    //   });
+    // }
 
     next();
   });
