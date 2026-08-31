@@ -46,6 +46,8 @@ const envSchema = z.object({
   EVOLUTION_NUMERO_DESTINO_SECUNDARIO: z.string(),
   N8N_OVERTIME_URL: z.string(),
   COTIZADOR_URL: z.string(),
+  QUEUES_USER: z.string().optional(),
+  QUEUES_PASSWORD: z.string().optional(),
 });
 
 let envs: z.infer<typeof envSchema>;
