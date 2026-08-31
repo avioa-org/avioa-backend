@@ -29,7 +29,7 @@ export class JwtAuthGuard implements CanActivate {
 
     try {
       const token = header.replace('Bearer ', '').trim();
-      decoded = verify(token, envs.JWT_SECRET as string) as { userId?: string };
+      decoded = verify(token, envs.JWT_SECRET) as { userId?: string };
     } catch {
       throw new UnauthorizedException('Invalid token');
     }
@@ -51,6 +51,7 @@ export class JwtAuthGuard implements CanActivate {
         leaderId: true,
         managerId: true,
         avatarUrl: true,
+        canPublishInFeed: true,
       },
     });
 
@@ -73,6 +74,7 @@ export class JwtAuthGuard implements CanActivate {
       department: user.department,
       leaderId: user.leaderId,
       managerId: user.managerId,
+      canPublishInFeed: user.canPublishInFeed,
     };
 
     return true;

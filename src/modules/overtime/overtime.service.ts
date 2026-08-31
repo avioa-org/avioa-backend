@@ -16,6 +16,7 @@ import { EmailService } from 'src/infrastructure/email/email.infra';
 import { OvertimeStatus, Role, NotificationType } from 'generated/prisma/enums';
 import { OvertimeRequest } from 'generated/prisma/browser';
 import { SocketGateway } from '../points/gateway/points.gateway';
+import { envs } from 'src/config/env.config';
 
 @Injectable()
 export class OvertimeService {
@@ -32,7 +33,7 @@ export class OvertimeService {
     // 1. Cargar usuario y verificar que tiene líder asignado
     const user = await this.prisma.user.findUnique({
       where: { userId },
-      select: { leaderId: true, name: true },
+      select: { leaderId: true, name: true, documentNumber: true },
     });
 
     if (!user) {
@@ -81,10 +82,9 @@ export class OvertimeService {
         );
       }
 
+      // asumimo que si la hora de fin es menor o igual a la de inicio, cruza medianoche
       if (endTime <= startTime) {
-        throw new BadRequestException(
-          `La hora de fin debe ser posterior a la hora de inicio en requests[${idx}]`,
-        );
+        endTime.setDate(endTime.getDate() + 1);
       }
 
       const totalHours =
@@ -94,9 +94,15 @@ export class OvertimeService {
         throw new BadRequestException(`El mínimo registrable es 30 minutos`);
       }
 
+      // if (requestDate.getTime() !== today.getTime()) {
+      //   throw new BadRequestException(
+      //     `Solo puedes registrar horas extra del día actual.`,
+      //   );
+      // }
+
       if (requestDate.getTime() !== today.getTime()) {
         throw new BadRequestException(
-          `Solo puedes registrar horas extra del día actual.`,
+          `Solo puedes registrar horas extra del dia actual.`,
         );
       }
 
@@ -117,10 +123,16 @@ export class OvertimeService {
         const a = preparedEntries[i];
         const b = preparedEntries[j];
 
-        if (
-          a.dateKey === b.dateKey &&
-          this.hasOverlap(a.startTime, a.endTime, b.startTime, b.endTime)
-        ) {
+        // if (
+        //   a.dateKey === b.dateKey &&
+        //   this.hasOverlap(a.startTime, a.endTime, b.startTime, b.endTime)
+        // ) {
+        //   throw new BadRequestException(
+        //     `Las solicitudes ${i + 1} y ${j + 1} tienen horarios solapados.`,
+        //   );
+        // }
+
+        if (this.hasOverlap(a.startTime, a.endTime, b.startTime, b.endTime)) {
           throw new BadRequestException(
             `Las solicitudes ${i + 1} y ${j + 1} tienen horarios solapados.`,
           );
@@ -128,29 +140,71 @@ export class OvertimeService {
       }
     }
 
-    for (const entry of preparedEntries) {
-      const overlap = await this.prisma.overtimeRequest.findFirst({
-        where: {
-          userId,
-          status: {
-            in: [OvertimeStatus.PENDING, OvertimeStatus.APPROVED],
-          },
-          date: entry.requestDate,
-          startTime: {
-            lt: entry.endTime,
-          },
-          endTime: {
-            gt: entry.startTime,
-          },
-        },
-      });
+    const dateRanges = preparedEntries.map((entry) => {
+      const startDate = new Date(entry.requestDate); // fecha inicio
+      const endDate = new Date(entry.endTime); // puede ser el dia siguiente
+      return { startDate, endDate };
+    });
 
-      if (overlap) {
-        throw new BadRequestException(
-          `Ya tienes una solicitud que se cruza con el horario ${entry.startTime.toLocaleTimeString()} - ${entry.endTime.toLocaleTimeString()}.`,
-        );
+    const minDate = new Date(
+      Math.min(...dateRanges.map((r) => r.startDate.getTime())),
+    );
+
+    const maxDate = new Date(
+      Math.max(...dateRanges.map((r) => r.endDate.getTime())),
+    );
+    maxDate.setHours(23, 59, 59, 999);
+
+    const existingRequests = await this.prisma.overtimeRequest.findMany({
+      where: {
+        userId,
+        status: { in: [OvertimeStatus.PENDING, OvertimeStatus.APPROVED] },
+        date: { gte: minDate, lte: maxDate },
+      },
+    });
+
+    for (const entry of preparedEntries) {
+      // const overlap = await this.prisma.overtimeRequest.findFirst({
+      //   where: {
+      //     userId,
+      //     status: {
+      //       in: [OvertimeStatus.PENDING, OvertimeStatus.APPROVED],
+      //     },
+      //     date: entry.requestDate,
+      //     startTime: {
+      //       lt: entry.endTime,
+      //     },
+      //     endTime: {
+      //       gt: entry.startTime,
+      //     },
+      //   },
+      // });
+
+      // if (overlap) {
+      //   throw new BadRequestException(
+      //     `Ya tienes una solicitud que se cruza con el horario ${entry.startTime.toLocaleTimeString()} - ${entry.endTime.toLocaleTimeString()}.`,
+      //   );
+      // }
+      for (const existing of existingRequests) {
+        const existingStart = existing.startTime;
+        const existingEnd = existing.endTime;
+
+        if (
+          this.hasOverlap(
+            entry.startTime,
+            entry.endTime,
+            existingStart,
+            existingEnd,
+          )
+        ) {
+          throw new BadRequestException(
+            `Ya tienes una solicitud que se cruza con el horario ${entry.startTime.toLocaleTimeString()} - ${entry.endTime.toLocaleTimeString()}.`,
+          );
+        }
       }
     }
+
+    const DAILY_LIMITS_HOURS = 8;
 
     const dateKeys = Array.from(
       new Set(preparedEntries.map((entry) => entry.dateKey)),
@@ -184,12 +238,14 @@ export class OvertimeService {
 
     for (const [dateKey, existingHours] of existingActiveByDate) {
       const requestedHours = requestedByDate[dateKey] ?? 0;
-      if (existingHours + requestedHours > 8) {
+      if (existingHours + requestedHours > DAILY_LIMITS_HOURS) {
         throw new BadRequestException(
-          `Excedes el máximo de 8h para ${dateKey}. Ya tienes ${existingHours}h activas y estás solicitando ${requestedHours}h.`,
+          `Excedes el máximo de ${DAILY_LIMITS_HOURS}h para ${dateKey}. Ya tienes ${existingHours}h activas y estás solicitando ${requestedHours}h.`,
         );
       }
     }
+
+    const MONTHLY_LIMIT_HOURS = 50;
 
     const requestedByMonth = preparedEntries.reduce(
       (acc, entry) => {
@@ -219,9 +275,9 @@ export class OvertimeService {
       const approvedHours = monthlySummary._sum.totalHours ?? 0;
       const requestedHours = requestedByMonth[monthKey];
 
-      if (approvedHours + requestedHours > 50) {
+      if (approvedHours + requestedHours > MONTHLY_LIMIT_HOURS) {
         throw new BadRequestException(
-          `Excedes el límite legal de 50 horas extra mensuales. Tienes ${approvedHours}h aprobadas en ${year}-${monthIndex + 1} y estás solicitando ${requestedHours}h.`,
+          `Excedes el límite legal de ${MONTHLY_LIMIT_HOURS} horas extra mensuales. Tienes ${approvedHours}h aprobadas en ${year}-${monthIndex + 1} y estás solicitando ${requestedHours}h.`,
         );
       }
     }
@@ -246,6 +302,7 @@ export class OvertimeService {
                 avatarUrl: true,
                 position: true,
                 department: true,
+                documentNumber: true,
               },
             },
           },
@@ -295,6 +352,23 @@ export class OvertimeService {
     //   // La notificación no debe revertir la creación
     //   console.error('Error al enviar notificación al líder:', error);
     // }
+
+    // registro en n8n
+    const inicio = `${String(overtimes[0].startTime.getHours()).padStart(2, '0')}:${String(overtimes[0].startTime.getMinutes()).padStart(2, '0')}:00`;
+    const final = `${String(overtimes[0].endTime.getHours()).padStart(2, '0')}:${String(overtimes[0].endTime.getMinutes()).padStart(2, '0')}:00`;
+    const descripcion = overtimes[0].description;
+
+    const formatDate = (date: Date) =>
+      `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+
+    const id = `${user.documentNumber}-${formatDate(overtimes[0].startTime)}`;
+
+    await fetch(
+      `${envs.N8N_OVERTIME_URL}?accion=aprobado&id=${id}&nombre=${user.name}&inicio=${inicio}&final=${final}&desc=${descripcion}`,
+      {
+        method: 'GET',
+      },
+    );
 
     return isBatch ? overtimes : overtimes[0];
   }

@@ -44,6 +44,7 @@ const envSchema = z.object({
   PASSWORD_MASTER_KEY: z.string(),
   PASSWORD_PEPPER_KEY: z.string(),
   EVOLUTION_NUMERO_DESTINO_SECUNDARIO: z.string(),
+  N8N_OVERTIME_URL: z.string(),
 });
 
 let envs: z.infer<typeof envSchema>;

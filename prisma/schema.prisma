@@ -133,6 +133,11 @@ model User {
   twoFactorSecret  String? @map("two_factor_secret")
   temporyToken     String? @map("temporary_token")
 
+  // feed
+  canPublishInFeed Boolean @default(false)
+
+  isLeader Boolean @default(false) @map("is_leader")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -167,6 +172,10 @@ model User {
   passwordVaults           PasswordVault[]
   passwordPermissions      PasswordPermission[]
   passwordAudits           PasswordAudit[]
+  reactions                FeedReaction[]
+  comments                 FeedComment[]
+  recognizedPosts          FeedPost[]           @relation("RecognizedUser")
+  feedPosts                FeedPost[]
 
   @@map("users")
 }
@@ -633,7 +642,72 @@ model HotelImmediatePayment {
   @@map("hotel_immediate_payment")
 }
 
+// Feed
+model FeedPost {
+  feedPostId String       @id @default(uuid()) @map("feed_post_id")
+  authorId   String       @map("author_id")
+  author     User         @relation(fields: [authorId], references: [userId])
+  type       FeedPostType @default(PUBLICATION)
+  content    String
+  images     String[]     @default([]) // urls por el momento
+  pinned     Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @default(now())
+  deletedAt  DateTime?
+
+  reactions FeedReaction[]
+  comments  FeedComment[]
+
+  // PARA RECONOCIMIENTS: A QUIEN SE RECONOCE
+  recognizedUserId String? @map("recognized_user_id")
+  recognizedUser   User?   @relation("RecognizedUser", fields: [recognizedUserId], references: [userId])
+
+  @@index([createdAt])
+  @@index([type])
+  @@map("feed_post")
+}
+
+model FeedReaction {
+  feedReactionId String       @id @default(uuid()) @map("feed_reaction_id")
+  postId         String       @map("post_id")
+  post           FeedPost     @relation(fields: [postId], references: [feedPostId], onDelete: Cascade)
+  userId         String       @map("user_id")
+  user           User         @relation(fields: [userId], references: [userId])
+  type           ReactionType @default(LIKE)
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@unique([postId, userId]) // un usuario, una reaccion por post
+  @@map("feed_reaction")
+}
+
+model FeedComment {
+  feedCommentId String    @id @default(uuid()) @map("feed_comment_id")
+  postId        String    @map("post_id")
+  post          FeedPost  @relation(fields: [postId], references: [feedPostId], onDelete: Cascade)
+  authorId      String    @map("author_id")
+  author        User      @relation(fields: [authorId], references: [userId])
+  content       String
+  createdAt     DateTime  @default(now()) @map("created_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  @@index([postId])
+  @@map("feed_comment")
+}
+
 // ENUMS
+enum ReactionType {
+  LIKE
+  CELEBRATE
+  SUPPORT
+  LOVE
+}
+
+enum FeedPostType {
+  PUBLICATION // comunicado normal
+  RECOGNITION // reconocimiento a un colaborador
+  ANNOUNCEMENT // comunicado oficial de RRHH
+}
+
 enum RedemptionStatus {
   PENDING // Acaba de redimir, esperando procesamiento
   IN_PROCESS // RRHH lo vio, esta en proceso

@@ -271,6 +271,7 @@ export class UsersService {
         avatarUrl: true,
         department: true,
         area: true,
+        birthDate: true,
       },
       orderBy: { name: 'asc' },
     });
@@ -337,6 +338,37 @@ export class UsersService {
         }
       }
     }
+  }
+
+  public searchUser(query: string, excludeUserId: string) {
+    if (!query || query.trim().length < 2) return [];
+
+    return this.prisma.user.findMany({
+      where: {
+        userId: { not: excludeUserId },
+        name: { contains: query, mode: 'insensitive' },
+        status: 'ACTIVE',
+      },
+      select: { userId: true, name: true, avatarUrl: true, role: true },
+      take: 8,
+    });
+  }
+
+  public async getLeadersDb() {
+    const normalized = (s: string) => {
+      return s
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+    };
+
+    const users = await this.prisma.user.findMany();
+
+    const leaders = users.filter((user) => {
+      return normalized(user.position ?? '').includes(normalized('lider'));
+    });
+
+    return leaders;
   }
 
   private getInitials(name: string | null | undefined): string {
