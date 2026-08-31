@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
@@ -40,7 +41,8 @@ export class UsersController {
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard, ValidateAdminGuard)
+  // @UseGuards(JwtAuthGuard, ValidateAdminGuard)
+  @UseGuards(JwtAuthGuard)
   public async getAllUsers() {
     return await this.usersService.getAllUsers();
   }
@@ -55,6 +57,17 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   public async getLeaders() {
     return await this.usersService.getLeaders();
+  }
+
+  @Get('search')
+  @UseGuards(JwtAuthGuard)
+  search(@Query('q') q: string, @CurrentUser('userId') userId: string) {
+    return this.usersService.searchUser(q, userId);
+  }
+
+  @Get('leaders-db')
+  public async getLeadersDb() {
+    return await this.usersService.getLeadersDb();
   }
 
   @Patch('update-profile')

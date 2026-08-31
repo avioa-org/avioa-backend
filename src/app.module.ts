@@ -21,6 +21,8 @@ import { FormsModule } from './modules/forms/forms.module';
 import { LeavesModule } from './modules/leaves/leaves.module';
 import { GoogleModule } from './modules/google/google.module';
 import { PasswordVaultModule } from './modules/password-vault/password-vault.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { FeedModule } from './modules/feed/feed.module';
 
 @Module({
   imports: [
@@ -52,6 +54,8 @@ import { PasswordVaultModule } from './modules/password-vault/password-vault.mod
     LeavesModule,
     GoogleModule,
     PasswordVaultModule,
+    NotificationsModule,
+    FeedModule,
   ],
   controllers: [],
   providers: [

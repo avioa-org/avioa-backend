@@ -141,22 +141,29 @@ export class LeavesService {
       startDate: leave.startDate,
       endDate: leave.endDate,
       createdAt: new Date(),
+      notificationId: '',
     };
+
+    const notificationCreate = await this.prisma.$transaction(async (tx) => {
+      return await this.prisma.notification.create({
+        data: {
+          userId: leaderId,
+          title: notificationData.title,
+          message: notificationData.message,
+          type: notificationData.type,
+        },
+      });
+    });
+
+    notificationData.notificationId = notificationCreate.notificationId;
+
+    console.log(notificationData);
 
     await this.socketGateway.notifyLeader(
       leaderId,
       'leave_request_received',
       notificationData,
     );
-
-    await this.prisma.notification.create({
-      data: {
-        userId: leaderId,
-        title: notificationData.title,
-        message: notificationData.message,
-        type: notificationData.type,
-      },
-    });
 
     return leave;
   }
@@ -427,22 +434,31 @@ export class LeavesService {
       status: dto.status,
       reviewedAt: updated.reviewedAt,
       comment: dto.comment ?? null,
+      notificationId: '',
     };
+
+    const notificationCreated = await this.prisma.$transaction(async () => {
+      return await this.prisma.notification.create({
+        data: {
+          userId: record.userId,
+          title: notificationData.title,
+          message: notificationData.message,
+          type: notificationData.type,
+        },
+      });
+    });
+
+    console.log(notificationCreated.notificationId);
+
+    notificationData.notificationId = notificationCreated.notificationId;
+
+    console.log(notificationData);
 
     await this.socketGateway.notifyEmployee(
       record.userId,
       isApproved ? 'leave_request_approved' : 'leave_request_rejected',
       notificationData,
     );
-
-    await this.prisma.notification.create({
-      data: {
-        userId: record.userId,
-        title: notificationData.title,
-        message: notificationData.message,
-        type: notificationData.type,
-      },
-    });
 
     return updated;
   }
