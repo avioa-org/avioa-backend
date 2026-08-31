@@ -75,18 +75,22 @@ async function bootstrap() {
   });
 
   app.use('/queues', (req, res, next) => {
-    // const header = req.headers.authorization;
-    // const token = header?.startsWith('Bearer ')
-    //   ? header.slice(7).trim()
-    //   : header?.trim();
+    const auth: string = req.headers.authorization;
 
-    // if (!token || token !== envs.INTERNAL_TOKEN) {
-    //   return res.status(401).json({
-    //     statusCode: 401,
-    //     message: 'Unauthorized',
-    //     error: 'INVALID_INTERNAL_TOKEN',
-    //   });
-    // }
+    if (!auth?.startsWith('Basic ')) {
+      res.setHeader('WWW-Authenticate', 'Basic realm="Queues"');
+      return res.status(401).send('Authentication required');
+    }
+
+    const encoded = auth.slice(6);
+    const decoded = Buffer.from(encoded, 'base64').toString('utf8');
+
+    const [username, password] = decoded.split(':');
+
+    if (username !== envs.QUEUES_USER || password !== envs.QUEUES_PASSWORD) {
+      res.setHeader('WWW-Authenticate', 'Basic realm="Queues"');
+      return res.status(401).send('Invalid credentials');
+    }
 
     next();
   });
