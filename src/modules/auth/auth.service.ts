@@ -481,7 +481,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
-    return this.issueTokens({
+    const tokens = await this.issueTokens({
       userId: user.userId,
       name: user.name,
       email: user.email || undefined,
@@ -492,6 +492,8 @@ export class AuthService {
       leaderName: user.leader?.name,
       documentNumber: user.documentNumber as string,
     });
+
+    return tokens;
   }
 
   public async logout(userId: string) {

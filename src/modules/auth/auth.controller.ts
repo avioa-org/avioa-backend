@@ -61,8 +61,8 @@ export class AuthController {
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('refresh')
-  refresh(@Body('refreshToken') refreshToken: string) {
-    return this.authService.refresh(refreshToken);
+  async refresh(@Body('refreshToken') refreshToken: string) {
+    return await this.authService.refresh(refreshToken);
   }
 
   @Post('invite/accept')

@@ -251,7 +251,7 @@ export class PasswordVaultService {
   }
 
   public async restore(userId: string, vaultId: string) {
-    await this.assetCanAdmin(userId, vaultId);
+    await this.assetCanAdmin(userId, vaultId, true);
 
     await this.prisma.$transaction([
       this.prisma.passwordVault.update({
@@ -262,6 +262,21 @@ export class PasswordVaultService {
         data: { vaultId, userId, action: 'RESTORED' },
       }),
     ]);
+
+    return {
+      vault: await this.prisma.passwordVault.findFirstOrThrow({
+        where: { passwordVaultId: vaultId, deletedAt: null },
+        select: {
+          passwordVaultId: true,
+          title: true,
+          username: true,
+          email: true,
+          website: true,
+          notes: true,
+          favorite: true,
+        },
+      }),
+    };
   }
 
   // Esto esun Job - borra definitivamente tras 30 dias en papelera
@@ -831,17 +846,21 @@ export class PasswordVaultService {
     return result;
   }
 
-  private async resolveVaultAccess(userId: string, vaultId: string) {
+  private async resolveVaultAccess(
+    userId: string,
+    vaultId: string,
+    restore?: boolean,
+  ) {
     this.logger.debug('userId', userId, 'vaultId', vaultId);
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { userId },
       select: { department: true, area: true },
     });
 
-    return this.prisma.passwordVault.findFirst({
+    const vault = await this.prisma.passwordVault.findFirst({
       where: {
         passwordVaultId: vaultId,
-        deletedAt: null,
+        ...(restore ? {} : { deletedAt: null }),
         OR: [
           { ownerId: userId },
           { permissions: { some: { userId } } },
@@ -858,6 +877,8 @@ export class PasswordVaultService {
         },
       },
     });
+
+    return vault;
   }
 
   private async assertCanEdit(userId: string, vaultId: string) {
@@ -868,12 +889,16 @@ export class PasswordVaultService {
       throw new ForbiddenException('No tienes permiso de edición');
   }
 
-  private async assetCanAdmin(userId: string, vaultId: string) {
-    const vault = await this.resolveVaultAccess(userId, vaultId);
+  private async assetCanAdmin(
+    userId: string,
+    vaultId: string,
+    restore?: boolean,
+  ) {
+    const vault = await this.resolveVaultAccess(userId, vaultId, restore);
     const isOwner = vault?.ownerId === userId;
     const hasAdmin = vault?.permissions.some((p) => p.canAdmin);
     if (!vault || (!isOwner && !hasAdmin)) {
-      throw new ForbiddenException('No tienes permido de administración');
+      throw new ForbiddenException('No tienes permiso de administración');
     }
   }
 
