@@ -94,12 +94,6 @@ export class OvertimeService {
         throw new BadRequestException(`El mínimo registrable es 30 minutos`);
       }
 
-      // if (requestDate.getTime() !== today.getTime()) {
-      //   throw new BadRequestException(
-      //     `Solo puedes registrar horas extra del día actual.`,
-      //   );
-      // }
-
       if (requestDate.getTime() !== today.getTime()) {
         throw new BadRequestException(
           `Solo puedes registrar horas extra del dia actual.`,
@@ -122,15 +116,6 @@ export class OvertimeService {
       for (let j = i + 1; j < preparedEntries.length; j++) {
         const a = preparedEntries[i];
         const b = preparedEntries[j];
-
-        // if (
-        //   a.dateKey === b.dateKey &&
-        //   this.hasOverlap(a.startTime, a.endTime, b.startTime, b.endTime)
-        // ) {
-        //   throw new BadRequestException(
-        //     `Las solicitudes ${i + 1} y ${j + 1} tienen horarios solapados.`,
-        //   );
-        // }
 
         if (this.hasOverlap(a.startTime, a.endTime, b.startTime, b.endTime)) {
           throw new BadRequestException(
@@ -164,27 +149,6 @@ export class OvertimeService {
     });
 
     for (const entry of preparedEntries) {
-      // const overlap = await this.prisma.overtimeRequest.findFirst({
-      //   where: {
-      //     userId,
-      //     status: {
-      //       in: [OvertimeStatus.PENDING, OvertimeStatus.APPROVED],
-      //     },
-      //     date: entry.requestDate,
-      //     startTime: {
-      //       lt: entry.endTime,
-      //     },
-      //     endTime: {
-      //       gt: entry.startTime,
-      //     },
-      //   },
-      // });
-
-      // if (overlap) {
-      //   throw new BadRequestException(
-      //     `Ya tienes una solicitud que se cruza con el horario ${entry.startTime.toLocaleTimeString()} - ${entry.endTime.toLocaleTimeString()}.`,
-      //   );
-      // }
       for (const existing of existingRequests) {
         const existingStart = existing.startTime;
         const existingEnd = existing.endTime;
@@ -353,24 +317,88 @@ export class OvertimeService {
     //   console.error('Error al enviar notificación al líder:', error);
     // }
 
-    // registro en n8n
-    const inicio = `${String(overtimes[0].startTime.getHours()).padStart(2, '0')}:${String(overtimes[0].startTime.getMinutes()).padStart(2, '0')}:00`;
-    const final = `${String(overtimes[0].endTime.getHours()).padStart(2, '0')}:${String(overtimes[0].endTime.getMinutes()).padStart(2, '0')}:00`;
-    const descripcion = overtimes[0].description;
-
-    const formatDate = (date: Date) =>
-      `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
-
-    const id = `${user.documentNumber}-${formatDate(overtimes[0].startTime)}`;
-
-    // await fetch(
-    //   `${envs.N8N_OVERTIME_URL}?accion=aprobado&id=${id}&nombre=${user.name}&inicio=${inicio}&final=${final}&desc=${descripcion}`,
-    //   {
-    //     method: 'GET',
-    //   },
-    // );
-
     return isBatch ? overtimes : overtimes[0];
+  }
+
+  private async sendToN8N(
+    overtime: OvertimeRequest,
+    user: { name: string; documentNumber?: string },
+  ) {
+    if (!overtime) {
+      throw new BadRequestException(
+        'No se encontró el registro de horas extra para enviar a N8N',
+      );
+    }
+
+    if (
+      !(overtime.startTime instanceof Date) ||
+      isNaN(overtime.startTime.getTime())
+    ) {
+      throw new BadRequestException(
+        'La fecha de inicio de la hora extra no es válida',
+      );
+    }
+
+    if (
+      !(overtime.endTime instanceof Date) ||
+      isNaN(overtime.endTime.getTime())
+    ) {
+      throw new BadRequestException(
+        'La fecha de fin de la hora extra no es válida',
+      );
+    }
+
+    const formatTime = (date: Date): string => {
+      return `${String(date.getHours()).padStart(2, '0')}:${String(
+        date.getMinutes(),
+      ).padStart(2, '0')}:00`;
+    };
+
+    const formatDate = (date: Date): string => {
+      return `${date.getDate()}/${String(date.getMonth() + 1).padStart(
+        2,
+        '0',
+      )}/${date.getFullYear()}`;
+    };
+
+    const inicio = formatTime(overtime.startTime);
+    const final = formatTime(overtime.endTime);
+    const descripcion = overtime.description ?? '';
+    const id = `${user.documentNumber}-${formatDate(overtime.startTime)}`;
+
+    const url = new URL(envs.N8N_OVERTIME_URL);
+
+    url.searchParams.set('accion', 'aprobado');
+    url.searchParams.set('id', id);
+    url.searchParams.set('nombre', user.name);
+    url.searchParams.set('inicio', inicio);
+    url.searchParams.set('final', final);
+    url.searchParams.set('desc', descripcion);
+
+    const controller = new AbortController();
+
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, 10_000);
+
+    try {
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al enviar la solicitud a N8N');
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Timeout comuncándose con n8n');
+      }
+
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   async findMyRequests(userId: string, query: OvertimeQueryDto) {
@@ -468,6 +496,11 @@ export class OvertimeService {
         comment: dto.comment ?? null,
         reviewedAt: new Date(),
       },
+      include: {
+        user: {
+          select: { name: true, documentNumber: true, isUserTest: true },
+        },
+      },
     });
 
     const isApproved = dto.status === OvertimeStatus.APPROVED;
@@ -515,6 +548,19 @@ export class OvertimeService {
     //   console.error('Error al enviar notificación al empleado:', error);
     // }
 
+    // registrar en N8N si fue aprobado
+    if (isApproved && !updated.user.isUserTest) {
+      if (updated.user.documentNumber) {
+        await this.sendToN8N(updated, {
+          name: updated.user.name,
+          documentNumber: updated.user.documentNumber || undefined,
+        });
+        this.logger.log(
+          `Solicitud de horas extra enviada a N8N para ${updated.user.name} (${updated.user.documentNumber})`,
+        );
+      }
+    }
+
     return updated;
   }
 
@@ -555,6 +601,7 @@ export class OvertimeService {
         status: true,
         userId: true,
         description: true,
+        createdAt: true,
       },
       orderBy: { date: 'asc' },
     });
