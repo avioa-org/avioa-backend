@@ -1,4 +1,4 @@
-import { IsBoolean, IsEnum, IsOptional } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsOptional } from 'class-validator';
 import { UserStatus } from 'generated/prisma/enums';
 
 export class UpdateUserDto {
@@ -9,4 +9,8 @@ export class UpdateUserDto {
   @IsBoolean()
   @IsOptional()
   isLeader?: boolean;
+
+  @IsInt()
+  @IsOptional()
+  vacationDaysAdjustment?: number;
 }

@@ -140,6 +140,8 @@ model User {
 
   isUserTest Boolean @default(false) @map("is_user_test")
 
+  vacationDaysAdjustment Int @default(0) @map("vacation_days_adjustment")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

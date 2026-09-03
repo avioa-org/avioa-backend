@@ -72,7 +72,7 @@ export class UsersService {
         email: registerDto.email,
         name: registerDto.name,
         role: registerDto.role,
-        isLeader: registerDto.isLeader ?? (registerDto.role === 'LEADER'),
+        isLeader: registerDto.isLeader ?? registerDto.role === 'LEADER',
         status: 'PENDING',
         password: null,
         department: registerDto.department,
@@ -179,6 +179,7 @@ export class UsersService {
         birthDate: true,
         // subordinates: true,
         status: true,
+        vacationDaysAdjustment: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -201,6 +202,9 @@ export class UsersService {
         status: updateUserDto?.status,
         ...(updateUserDto?.isLeader !== undefined && {
           isLeader: updateUserDto.isLeader,
+        }),
+        ...(updateUserDto?.vacationDaysAdjustment !== undefined && {
+          vacationDaysAdjustment: updateUserDto.vacationDaysAdjustment,
         }),
       },
     });

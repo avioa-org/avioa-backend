@@ -20,6 +20,7 @@ import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { LeaveQueryDto } from './dto/leave-query.dto';
 import { LeaveLeaderGuard } from './guards/leave-leader.guard';
 import { ReviewLeaveDto } from './dto/review-leave.dto';
+import { UpdateVacationAdjustmentDto } from './dto/update-vacation-adjustment.dto';
 
 @Controller('leaves')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -54,6 +55,24 @@ export class LeavesController {
     @Query() query: LeaveQueryDto,
   ) {
     return this.leavesService.findTeamRequests(userId, query);
+  }
+
+  @Get('admin/balances')
+  @Roles(Role.ADMIN)
+  getAllEmployeeBalances() {
+    return this.leavesService.getAllEmployeeBalances();
+  }
+
+  @Patch('admin/adjustment/:userId')
+  @Roles(Role.ADMIN)
+  updateUserVacationAdjustment(
+    @Param('userId') userId: string,
+    @Body() dto: UpdateVacationAdjustmentDto,
+  ) {
+    return this.leavesService.updateUserVacationAdjustment(
+      userId,
+      dto.vacationDaysAdjustment,
+    );
   }
 
   @Get(':id')
