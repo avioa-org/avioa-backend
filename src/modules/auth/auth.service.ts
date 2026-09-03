@@ -83,7 +83,7 @@ export class AuthService {
         email: registerDto.email,
         name: registerDto.name,
         role: registerDto.role,
-        isLeader: registerDto.isLeader ?? (registerDto.role === 'LEADER'),
+        isLeader: registerDto.isLeader ?? registerDto.role === 'LEADER',
         status: 'PENDING',
         password: null,
         department: registerDto.department,
