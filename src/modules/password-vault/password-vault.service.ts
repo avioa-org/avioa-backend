@@ -23,6 +23,7 @@ import {
   UpdateCategoryDto,
 } from './dto/create-category.dto';
 import { CreateTagDto } from './dto/create-tag.dto';
+import { PasswordVaultGateway } from './password-vault.gateway';
 
 interface GeneratorOptions {
   length: number;
@@ -90,6 +91,7 @@ export class PasswordVaultService {
   constructor(
     private readonly encryptionService: EncryptionService,
     private readonly twoFactorService: TwoFactorService,
+    private readonly passwordVaultGateway: PasswordVaultGateway,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -527,14 +529,6 @@ export class PasswordVaultService {
 
     const permission = await this.prisma.$transaction(async (tx) => {
       const created = await tx.passwordPermission.create({
-        // data: {
-        //   vaultId,
-        //   userId: dto.userId as string,
-        //   department: dto.department,
-        //   canView: dto.canView,
-        //   canEdit: dto.canEdit,
-        //   canAdmin: dto.canAdmin,
-        // },
         data: {
           vault: {
             connect: {
@@ -551,7 +545,7 @@ export class PasswordVaultService {
                 },
               }
             : {
-                department: dto.department,
+                area: dto.department,
               }),
 
           canView: dto.canView,
@@ -563,6 +557,17 @@ export class PasswordVaultService {
       await tx.passwordAudit.create({
         data: { vaultId, userId: actingUserId, action: 'SHARED' },
       });
+
+      if (dto.userId) {
+        this.passwordVaultGateway.emitPasswordSharedToUser(created, dto.userId);
+      }
+
+      if (dto.department) {
+        this.passwordVaultGateway.emitPasswordSharedToArea(
+          created,
+          dto.department,
+        );
+      }
 
       return created;
     });

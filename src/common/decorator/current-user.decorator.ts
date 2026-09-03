@@ -7,6 +7,7 @@ export interface ICurrentUser {
   email: string;
   avatar: string | null;
   role: Role;
+  isLeader: boolean;
   status: UserStatus;
   area: string | null;
   department: string | null;
