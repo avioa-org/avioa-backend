@@ -36,7 +36,12 @@ export class LeavesService {
   public async create(userId: string, dto: CreateLeaveDto) {
     const user = await this.prisma.user.findUnique({
       where: { userId },
-      select: { leaderId: true, name: true, startDate: true },
+      select: {
+        leaderId: true,
+        name: true,
+        startDate: true,
+        vacationDaysAdjustment: true,
+      },
     });
 
     if (!user) {
@@ -95,6 +100,7 @@ export class LeavesService {
       const balance = await this.calculateVacationBalance(
         userId,
         user.startDate,
+        user.vacationDaysAdjustment,
       );
 
       // calculamos como quedaria el saldo
@@ -219,14 +225,26 @@ export class LeavesService {
   public async calculateVacationBalance(
     userId: string,
     startDate: Date | null,
+    adjustmentInput?: number,
   ) {
+    const adjustment =
+      adjustmentInput ??
+      (
+        await this.prisma.user.findUnique({
+          where: { userId },
+          select: { vacationDaysAdjustment: true },
+        })
+      )?.vacationDaysAdjustment ??
+      0;
+
     if (!startDate) {
       return {
-        accrued: 0,
+        accrued: adjustment,
         taken: 0,
         pending: 0,
-        available: 0,
-        projectedAvailable: 0,
+        available: adjustment,
+        projectedAvailable: adjustment,
+        adjustment,
       };
     }
 
@@ -240,11 +258,12 @@ export class LeavesService {
 
     if (start > current) {
       return {
-        accrued: 0,
+        accrued: adjustment,
         taken: 0,
         pending: 0,
-        available: 0,
-        projectedAvailable: 0,
+        available: adjustment,
+        projectedAvailable: adjustment,
+        adjustment,
       };
     }
 
@@ -266,8 +285,11 @@ export class LeavesService {
     monthsWorked = Math.max(0, monthsWorked);
 
     // 15 dias habiles por año
-    // se acumulan proporcionalmente por meses.
-    const accrued = Math.floor((monthsWorked * VACATIONS_DAYS_PER_YEAR) / 12);
+    // se acumulan proporcionalmente por meses + el ajuste manual de RRHH.
+    const calculatedAccrued = Math.floor(
+      (monthsWorked * VACATIONS_DAYS_PER_YEAR) / 12,
+    );
+    const accrued = calculatedAccrued + adjustment;
 
     // vacaciones aprobadas
     // se consideran todas las vacaciones aprobadas
@@ -321,18 +343,20 @@ export class LeavesService {
       pending,
       available,
       projectedAvailable,
+      adjustment,
     };
   }
 
   public async getMyBalance(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { userId },
-      select: { startDate: true },
+      select: { startDate: true, vacationDaysAdjustment: true },
     });
 
     const balance = await this.calculateVacationBalance(
       userId,
       user?.startDate ?? null,
+      user?.vacationDaysAdjustment ?? 0,
     );
     return balance;
   }
@@ -488,6 +512,85 @@ export class LeavesService {
         status: LeaveStatus.CANCELLED,
       },
     });
+  }
+
+  public async getAllEmployeeBalances() {
+    const users = await this.prisma.user.findMany({
+      where: { status: 'ACTIVE' },
+      select: {
+        userId: true,
+        name: true,
+        email: true,
+        avatarUrl: true,
+        department: true,
+        position: true,
+        startDate: true,
+        vacationDaysAdjustment: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const results = await Promise.all(
+      users.map(async (u) => {
+        const balance = await this.calculateVacationBalance(
+          u.userId,
+          u.startDate,
+          u.vacationDaysAdjustment,
+        );
+
+        return {
+          user: {
+            userId: u.userId,
+            name: u.name,
+            email: u.email,
+            avatarUrl: u.avatarUrl,
+            department: u.department,
+            position: u.position,
+            startDate: u.startDate,
+          },
+          balance,
+        };
+      }),
+    );
+
+    return results;
+  }
+
+  public async updateUserVacationAdjustment(
+    userId: string,
+    vacationDaysAdjustment: number,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { userId },
+      select: { userId: true, name: true, startDate: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { userId },
+      data: { vacationDaysAdjustment },
+      select: {
+        userId: true,
+        name: true,
+        email: true,
+        vacationDaysAdjustment: true,
+      },
+    });
+
+    const newBalance = await this.calculateVacationBalance(
+      userId,
+      user.startDate,
+      vacationDaysAdjustment,
+    );
+
+    return {
+      message: 'Ajuste de vacaciones actualizado correctamente',
+      user: updatedUser,
+      balance: newBalance,
+    };
   }
 
   private humanType(type: LeaveType): string {
