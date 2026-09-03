@@ -14,6 +14,7 @@ export class OvertimeLeaderGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const userId = request.user?.userId;
+    const role = request.user?.role;
     const overtimeRequestId = request.params?.id;
 
     const record = await this.prisma.overtimeRequest.findUnique({
@@ -26,7 +27,7 @@ export class OvertimeLeaderGuard implements CanActivate {
       });
     }
 
-    if (record.leaderId !== userId) {
+    if (role !== 'ADMIN' && record.leaderId !== userId) {
       throw new ForbiddenException({
         message: 'No tienes permiso para revisar esta solicitud',
       });

@@ -157,8 +157,6 @@ export class LeavesService {
 
     notificationData.notificationId = notificationCreate.notificationId;
 
-    console.log(notificationData);
-
     await this.socketGateway.notifyLeader(
       leaderId,
       'leave_request_received',
@@ -504,6 +502,10 @@ export class LeavesService {
       PERMISO_REMUNERADO: 'permiso remunerado',
       PERMISO_NO_REMUNERADO: 'permiso no remunerado',
       CALAMIDAD_DOMESTICA: 'calamidad doméstica',
+      DILIGENCIA_PERSONAL: 'diligencia personal',
+      OBLIGACION_COMO_ACUDIENTE:
+        'permiso para asistir a obligaciones escolares como acudiente',
+      CITA_MEDICA_PARTICULAR: 'cita médica particular',
       OTRO: 'ausencia',
     };
 

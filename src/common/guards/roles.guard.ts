@@ -30,6 +30,10 @@ export class RolesGuard implements CanActivate {
       return false;
     }
 
-    return requiredRoles.includes(user.role as Role);
+    const hasRole = requiredRoles.includes(user.role as Role);
+    const isLeaderAuthorized =
+      user.isLeader === true && requiredRoles.includes(Role.LEADER);
+
+    return hasRole || isLeaderAuthorized;
   }
 }

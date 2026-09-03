@@ -51,8 +51,11 @@ export class AuthService {
     }
 
     if (registerDto.role === 'EMPLOYEE' && registerDto.leaderId) {
-      const leader = await this.prisma.user.findUnique({
-        where: { userId: registerDto.leaderId, role: 'LEADER' },
+      const leader = await this.prisma.user.findFirst({
+        where: {
+          userId: registerDto.leaderId,
+          OR: [{ role: 'LEADER' }, { isLeader: true }],
+        },
       });
       if (!leader)
         throw new BadRequestException({
@@ -80,6 +83,7 @@ export class AuthService {
         email: registerDto.email,
         name: registerDto.name,
         role: registerDto.role,
+        isLeader: registerDto.isLeader ?? (registerDto.role === 'LEADER'),
         status: 'PENDING',
         password: null,
         department: registerDto.department,
@@ -253,6 +257,7 @@ export class AuthService {
       email: user?.email || undefined,
       avatarUrl: user.avatarUrl,
       role: user.role,
+      isLeader: user.isLeader,
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leader?.name,
@@ -268,6 +273,8 @@ export class AuthService {
       userId: string;
       purpose?: string;
     };
+
+    console.log('dto.temporaryToken', dto.temporaryToken);
 
     try {
       payload = verify(dto.temporaryToken, envs.JWT_SECRET) as typeof payload;
@@ -318,6 +325,7 @@ export class AuthService {
       email: user?.email || undefined,
       avatarUrl: user.avatarUrl,
       role: user.role,
+      isLeader: user.isLeader,
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leader?.name,
@@ -402,6 +410,7 @@ export class AuthService {
     email?: string;
     avatarUrl: string | null;
     role: string;
+    isLeader?: boolean;
     area: string | null;
     leaderId: string | null;
     leaderName: string | null | undefined;
@@ -413,6 +422,7 @@ export class AuthService {
       name: user.name,
       avatar: user.avatarUrl,
       role: user.role,
+      isLeader: user.isLeader ?? false,
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leaderName,
@@ -487,6 +497,7 @@ export class AuthService {
       email: user.email || undefined,
       avatarUrl: user.avatarUrl,
       role: user.role,
+      isLeader: user.isLeader,
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leader?.name,
@@ -623,6 +634,7 @@ export class AuthService {
       email: user.email || undefined,
       avatarUrl: user.avatarUrl,
       role: user.role,
+      isLeader: user.isLeader,
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leader?.name,

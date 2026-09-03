@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsDate,
   IsDecimal,
   IsEmail,
@@ -27,6 +28,10 @@ export class CreateUserDto {
   @IsEnum(Object.values(Role))
   @IsOptional()
   role?: Role;
+
+  @IsBoolean()
+  @IsOptional()
+  isLeader?: boolean;
 
   @IsString()
   @IsOptional()

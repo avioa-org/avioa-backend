@@ -40,8 +40,11 @@ export class UsersService {
     }
 
     if (registerDto.role === 'EMPLOYEE' && registerDto.leaderId) {
-      const leader = await this.prisma.user.findUnique({
-        where: { userId: registerDto.leaderId, role: 'LEADER' },
+      const leader = await this.prisma.user.findFirst({
+        where: {
+          userId: registerDto.leaderId,
+          OR: [{ role: 'LEADER' }, { isLeader: true }],
+        },
       });
       if (!leader)
         throw new BadRequestException({
@@ -69,6 +72,7 @@ export class UsersService {
         email: registerDto.email,
         name: registerDto.name,
         role: registerDto.role,
+        isLeader: registerDto.isLeader ?? (registerDto.role === 'LEADER'),
         status: 'PENDING',
         password: null,
         department: registerDto.department,
@@ -195,6 +199,9 @@ export class UsersService {
       where: { userId },
       data: {
         status: updateUserDto?.status,
+        ...(updateUserDto?.isLeader !== undefined && {
+          isLeader: updateUserDto.isLeader,
+        }),
       },
     });
   }
@@ -202,8 +209,9 @@ export class UsersService {
   public async getLeaders() {
     return await this.prisma.user.findMany({
       where: {
-        role: { in: ['LEADER', 'MANAGER'] },
+        OR: [{ role: { in: ['LEADER', 'MANAGER'] } }, { isLeader: true }],
         status: 'ACTIVE',
+        isUserTest: false,
       },
       select: {
         userId: true,
