@@ -5,6 +5,9 @@ import { TwoFactorService } from 'src/infrastructure/two-factor/two-factor.servi
 import { VaultDashboardService } from './vault-dasboard.service';
 import { EncryptionService } from 'src/infrastructure/encryption/encryption.service';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
+import { JwtModule } from '@nestjs/jwt';
+import { envs } from 'src/config/env.config';
+import { PasswordVaultGateway } from './password-vault.gateway';
 
 @Module({
   controllers: [PasswordVaultController],
@@ -13,8 +16,14 @@ import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
     TwoFactorService,
     VaultDashboardService,
     EncryptionService,
+    PasswordVaultGateway,
     PrismaService,
   ],
-  exports: [PasswordVaultService],
+  exports: [PasswordVaultService, PasswordVaultGateway],
+  imports: [
+    JwtModule.register({
+      secret: envs.JWT_SECRET,
+    }),
+  ],
 })
 export class PasswordVaultModule {}

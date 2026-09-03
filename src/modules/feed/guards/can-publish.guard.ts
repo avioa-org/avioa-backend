@@ -15,6 +15,7 @@ export class CanPublishGuard implements CanActivate {
     const allowed =
       user.role === Role.ADMIN ||
       user.role === Role.LEADER ||
+      user.isLeader === true ||
       user.role === Role.MANAGER ||
       user.canPublishInFeed === true;
 

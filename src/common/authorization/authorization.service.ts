@@ -95,13 +95,16 @@ export class AuthorizationService {
   ): Promise<Record<string, unknown>> {
     if (actor.role === Role.ADMIN) return {};
 
-    if (actor.role == Role.LEADER) {
+    if (actor.role === Role.LEADER || actor.isLeader) {
       return { OR: [{ leaderId: actor.userId }, { userId: actor.userId }] };
     }
 
     if (actor.role === Role.MANAGER) {
       const leaders = await this.prisma.user.findMany({
-        where: { managerId: actor.userId, role: Role.LEADER },
+        where: {
+          managerId: actor.userId,
+          OR: [{ role: Role.LEADER }, { isLeader: true }],
+        },
         select: { userId: true },
       });
 

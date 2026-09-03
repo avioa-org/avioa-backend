@@ -51,7 +51,7 @@ export class PointRequestService {
       });
     }
 
-    if (!['LEADER', 'MANAGER', 'ADMIN'].includes(leader.role)) {
+    if (!['LEADER', 'MANAGER', 'ADMIN'].includes(leader.role) && !leader.isLeader) {
       this.logger.error(
         `Leader with id ${requestPointsDto.leaderId} is not a leader or manager`,
       );
@@ -132,7 +132,7 @@ export class PointRequestService {
       });
     }
 
-    if (!['LEADER', 'MANAGER', 'ADMIN'].includes(leader.role)) {
+    if (!['LEADER', 'MANAGER', 'ADMIN'].includes(leader.role) && !leader.isLeader) {
       this.logger.error(
         `Leader with id ${leaderId} is not a leader or manager`,
       );
