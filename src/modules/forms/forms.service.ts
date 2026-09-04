@@ -299,8 +299,8 @@ export class FormsService {
             category: createFormDto.category,
             type: createFormDto?.type,
             embedUrl: createFormDto.embedUrl,
-            schema: JSON.parse(JSON.stringify(createFormDto.schema)),
-            autofill: createFormDto.autofill,
+            // schema: JSON.parse(JSON.stringify(createFormDto.schema)),
+            // autofill: createFormDto.autofill,
             status: 'DRAFT',
           },
         });
