@@ -37,7 +37,7 @@ export class EquipmentDto {
   status?: EquipmentStatus;
 
   @IsOptional()
-  @IsUUID()
+  @IsString() 
   locationId?: string;
 
   @IsOptional()

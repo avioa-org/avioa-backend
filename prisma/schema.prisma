@@ -22,48 +22,48 @@ datasource db {
 
 // EQUIPMENT LOANS MODULE
 model Equipment {
-  id               String           @id @default(cuid())
-  name             String           // "Laptop Dell XPS 13"
-  serialNumber     String?          @unique @map("serial_number")
-  category         EquipmentCategory
-  status           EquipmentStatus  @default(AVAILABLE)
-  locationId       String?          @map("location_id")
-  description      String?
-  purchaseDate     DateTime?        @map("purchase_date")
-  purchaseCost     Decimal?         @map("purchase_cost") @db.Decimal(12,2)
-  warrantyEnd      DateTime?        @map("warranty_end")
+  equipmentId        String           @id @default(cuid()) @map("equipment_id")
+  name               String
+  serialNumber       String?          @unique @map("serial_number")
+  category           EquipmentCategory
+  status             EquipmentStatus  @default(AVAILABLE)
+  locationId         String?          @map("location_id")
+  description        String?
+  purchaseDate       DateTime?        @map("purchase_date")
+  purchaseCost       Decimal?         @map("purchase_cost") @db.Decimal(12,2)
+  warrantyEnd        DateTime?        @map("warranty_end")
   
-  createdAt        DateTime         @default(now()) @map("created_at")
-  updatedAt        DateTime         @updatedAt @map("updated_at")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
   
   // Relaciones
-  location         Location?        @relation(fields: [locationId], references: [id])
-  loans            EquipmentLoan[]
+  location           Location?        @relation(fields: [locationId], references: [locationId])
+  loans              EquipmentLoan[]
   
   @@map("equipment")
 }
 
 model Location {
-  id               String           @id @default(cuid())
-  name             String           @unique // MARINILLA, MEDELLIN, etc
-  description      String?          // Descripción adicional si es necesario
-  isActive         Boolean          @default(true) @map("is_active")
+  locationId         String           @id @default(cuid()) @map("location_id")
+  name               String           @unique
+  description        String?
+  isActive           Boolean          @default(true) @map("is_active")
   
-  createdAt        DateTime         @default(now()) @map("created_at")
-  updatedAt        DateTime         @updatedAt @map("updated_at")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
   
   // Relaciones
-  equipments       Equipment[]
+  equipments         Equipment[]
   
   @@map("locations")
 }
 
 model EquipmentLoan {
-  id                 String       @id @default(cuid())
+  equipmentLoanId    String       @id @default(cuid()) @map("equipment_loan_id")
   equipmentId        String       @map("equipment_id")
-  userId             String       @map("user_id") // Solicitante
-  approvedById       String?      @map("approved_by_id") // Quién aprueba
-  returnedById       String?      @map("returned_by_id") // Quién registra devolución
+  userId             String       @map("user_id")
+  approvedById       String?      @map("approved_by_id")
+  returnedById       String?      @map("returned_by_id")
   
   // Fechas
   loanDate           DateTime     @default(now()) @map("loan_date")
@@ -82,7 +82,7 @@ model EquipmentLoan {
   updatedAt          DateTime     @updatedAt @map("updated_at")
   
   // Relaciones
-  equipment          Equipment    @relation(fields: [equipmentId], references: [id])
+  equipment          Equipment    @relation(fields: [equipmentId], references: [equipmentId])
   user               User         @relation("EmployeeEquipmentLoans", fields: [userId], references: [userId])
   approvedBy         User?        @relation("ApproverEquipmentLoans", fields: [approvedById], references: [userId])
   returnedBy         User?        @relation("ReturnerEquipmentLoans", fields: [returnedById], references: [userId])

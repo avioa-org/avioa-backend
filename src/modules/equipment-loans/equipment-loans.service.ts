@@ -41,7 +41,7 @@ export class EquipmentLoansService {
 
   async findOneEquipment(id: string) {
     const equipment = await this.prisma.equipment.findUnique({
-      where: { id },
+      where: { id },  
       include: { location: true, loans: true },
     });
     if (!equipment) throw new NotFoundException('Equipment not found');
@@ -52,7 +52,7 @@ export class EquipmentLoansService {
     await this.findOneEquipment(id);
     const cleanData = this.cleanObject(data);
     return this.prisma.equipment.update({
-      where: { id },
+      where: { id },  
       data: cleanData as any,
       include: { location: true },
     });
@@ -66,13 +66,15 @@ export class EquipmentLoansService {
     if (activeLoans.length > 0) {
       throw new BadRequestException('Cannot delete equipment with active loans');
     }
-    return this.prisma.equipment.delete({ where: { id } });
+    return this.prisma.equipment.delete({ 
+      where: { id }  
+    });
   }
 
   // ===== PRÉSTAMOS =====
   async createLoan(userId: string, data: LoanDto) {
     const equipment = await this.prisma.equipment.findUnique({
-      where: { id: data.equipmentId },
+      where: { id: data.equipmentId }, 
     });
     if (!equipment) throw new NotFoundException('Equipment not found');
     if (equipment.status !== EquipmentStatus.AVAILABLE) {
@@ -102,49 +104,52 @@ export class EquipmentLoansService {
     });
   }
 
+  async findAllLoans(filters?: { status?: LoanStatus; userId?: string; equipmentId?: string }) {
+    const where: any = {};
+    
+    if (filters?.status) where.status = filters.status;
+    if (filters?.userId) where.userId = filters.userId;
+    if (filters?.equipmentId) where.equipmentId = filters.equipmentId;
 
-
-async findAllLoans(filters?: { status?: LoanStatus; userId?: string; equipmentId?: string }) {
-  const where: any = {};
-  
-  if (filters?.status) where.status = filters.status;
-  if (filters?.userId) where.userId = filters.userId;
-  if (filters?.equipmentId) where.equipmentId = filters.equipmentId;
-
-  return this.prisma.equipmentLoan.findMany({
-    where,
-    include: {
-      equipment: { include: { location: true } },
-      user: {
-        select: {
-          userId: true,
-          name: true,
-          email: true,
+    return this.prisma.equipmentLoan.findMany({
+      where,
+      include: {
+        equipment: { include: { location: true } },
+        user: {
+          select: {
+            userId: true,
+            name: true,
+            email: true,
+          },
+        },
+        approvedBy: {
+          select: {
+            userId: true,
+            name: true,
+            email: true,
+          },
+        },
+        returnedBy: {
+          select: {
+            userId: true,
+            name: true,
+            email: true,
+          },
         },
       },
-      approvedBy: {
-        select: {
-          userId: true,
-          name: true,
-          email: true,
-        },
-      },
-      returnedBy: {
-        select: {
-          userId: true,
-          name: true,
-          email: true,
-        },
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-}
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 
   async findOneLoan(id: string) {
     const loan = await this.prisma.equipmentLoan.findUnique({
-      where: { id },
-      include: { equipment: { include: { location: true } }, user: true, approvedBy: true },
+      where: { id },  
+      include: { 
+        equipment: { include: { location: true } }, 
+        user: true, 
+        approvedBy: true,
+        returnedBy: true,
+      },
     });
     if (!loan) throw new NotFoundException('Loan not found');
     return loan;
@@ -156,7 +161,7 @@ async findAllLoans(filters?: { status?: LoanStatus; userId?: string; equipmentId
     // Si se aprueba, cambiar estado del equipo
     if (status === LoanStatus.APPROVED) {
       await this.prisma.equipment.update({
-        where: { id: loan.equipmentId },
+        where: { id: loan.equipmentId },  
         data: { status: EquipmentStatus.LOANED },
       });
     }
@@ -164,19 +169,24 @@ async findAllLoans(filters?: { status?: LoanStatus; userId?: string; equipmentId
     // Si se devuelve, cambiar estado del equipo
     if (status === LoanStatus.RETURNED) {
       await this.prisma.equipment.update({
-        where: { id: loan.equipmentId },
+        where: { id: loan.equipmentId },  
         data: { status: EquipmentStatus.AVAILABLE },
       });
     }
 
     return this.prisma.equipmentLoan.update({
-      where: { id },
+      where: { id },  
       data: { 
         status, 
         approvedById: userId,
         actualReturnDate: status === LoanStatus.RETURNED ? new Date() : undefined
       },
-      include: { equipment: { include: { location: true } }, user: true },
+      include: { 
+        equipment: { include: { location: true } }, 
+        user: true,
+        approvedBy: true,
+        returnedBy: true,
+      },
     });
   }
 
@@ -189,12 +199,12 @@ async findAllLoans(filters?: { status?: LoanStatus; userId?: string; equipmentId
       throw new BadRequestException('Only pending loans can be cancelled');
     }
     return this.prisma.equipmentLoan.update({
-      where: { id },
+      where: { id },  // ← SE MANTIENE "id"
       data: { status: LoanStatus.CANCELLED },
     });
   }
 
-  // ===== UBICACIONES =====
+
   async findAllLocations() {
     return this.prisma.location.findMany({
       where: { isActive: true },
@@ -202,3 +212,4 @@ async findAllLoans(filters?: { status?: LoanStatus; userId?: string; equipmentId
     });
   }
 }
+
