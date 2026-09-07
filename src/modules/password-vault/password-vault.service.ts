@@ -193,7 +193,7 @@ export class PasswordVaultService {
     if (dto.password) {
       newEncrypted = this.encryptionService.encrypt(dto.password);
       data.passwordEncrypted = newEncrypted.encrypted;
-      data.passwordIv = newEncrypted.encrypted;
+      data.passwordIv = newEncrypted.iv;
       data.passwordAuthTag = newEncrypted.authTag;
       data.passwordHash = this.encryptionService.hash(dto.password);
       data.strengthLevel = this.evaluatePassword(dto.password).level;
