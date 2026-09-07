@@ -545,7 +545,7 @@ export class PasswordVaultService {
                 },
               }
             : {
-                area: dto.department,
+                department: dto.department,
               }),
 
           canView: dto.canView,
