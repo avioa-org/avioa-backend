@@ -24,6 +24,8 @@ import { PasswordVaultModule } from './modules/password-vault/password-vault.mod
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { FeedModule } from './modules/feed/feed.module';
 import { CotizadorModule } from './modules/cotizador/cotizador.module';
+import { EquipmentLoansModule } from './modules/equipment-loans/equipment-loans.module';
+
 
 @Module({
   imports: [
@@ -58,6 +60,7 @@ import { CotizadorModule } from './modules/cotizador/cotizador.module';
     NotificationsModule,
     FeedModule,
     CotizadorModule,
+    EquipmentLoansModule,
   ],
   controllers: [],
   providers: [

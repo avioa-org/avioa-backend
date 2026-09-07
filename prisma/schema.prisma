@@ -13,6 +13,122 @@ datasource db {
   provider = "postgresql"
 }
 
+
+
+
+
+
+
+
+// EQUIPMENT LOANS MODULE
+model Equipment {
+  id               String           @id @default(cuid())
+  name             String           // "Laptop Dell XPS 13"
+  serialNumber     String?          @unique @map("serial_number")
+  category         EquipmentCategory
+  status           EquipmentStatus  @default(AVAILABLE)
+  locationId       String?          @map("location_id")
+  description      String?
+  purchaseDate     DateTime?        @map("purchase_date")
+  purchaseCost     Decimal?         @map("purchase_cost") @db.Decimal(12,2)
+  warrantyEnd      DateTime?        @map("warranty_end")
+  
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  
+  // Relaciones
+  location         Location?        @relation(fields: [locationId], references: [id])
+  loans            EquipmentLoan[]
+  
+  @@map("equipment")
+}
+
+model Location {
+  id               String           @id @default(cuid())
+  name             String           @unique // MARINILLA, MEDELLIN, etc
+  description      String?          // Descripción adicional si es necesario
+  isActive         Boolean          @default(true) @map("is_active")
+  
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  
+  // Relaciones
+  equipments       Equipment[]
+  
+  @@map("locations")
+}
+
+model EquipmentLoan {
+  id                 String       @id @default(cuid())
+  equipmentId        String       @map("equipment_id")
+  userId             String       @map("user_id") // Solicitante
+  approvedById       String?      @map("approved_by_id") // Quién aprueba
+  returnedById       String?      @map("returned_by_id") // Quién registra devolución
+  
+  // Fechas
+  loanDate           DateTime     @default(now()) @map("loan_date")
+  expectedReturnDate DateTime     @map("expected_return_date")
+  actualReturnDate   DateTime?    @map("actual_return_date")
+  
+  // Motivos
+  reason             String?
+  observation        String?
+  rejectionReason    String?      @map("rejection_reason")
+  
+  // Estado
+  status             LoanStatus   @default(PENDING)
+  
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+  
+  // Relaciones
+  equipment          Equipment    @relation(fields: [equipmentId], references: [id])
+  user               User         @relation("EmployeeEquipmentLoans", fields: [userId], references: [userId])
+  approvedBy         User?        @relation("ApproverEquipmentLoans", fields: [approvedById], references: [userId])
+  returnedBy         User?        @relation("ReturnerEquipmentLoans", fields: [returnedById], references: [userId])
+  
+  @@index([userId])
+  @@index([equipmentId])
+  @@index([status])
+  @@map("equipment_loans")
+}
+
+// ENUMS
+enum EquipmentCategory {
+  LAPTOP
+  CELLPHONE
+  KEYBOARD
+  MOUSE
+  HEADPHONES
+  MONITOR
+  PRINTER
+  PROJECTOR
+  OTHER
+}
+
+enum EquipmentStatus {
+  AVAILABLE
+  LOANED
+  MAINTENANCE
+  DAMAGED
+  DISPOSED
+}
+
+enum LoanStatus {
+  PENDING
+  APPROVED
+  LOANED
+  RETURNED
+  OVERDUE
+  REJECTED
+  CANCELLED
+}
+
+
+
+
+
+
 model AlertaReserva {
   threadId          String    @id @map("thread_id")
   tipo              String?
@@ -146,6 +262,12 @@ model User {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relaciones
+
+
+  equipmentLoans         EquipmentLoan[] @relation("EmployeeEquipmentLoans")
+  approvedEquipmentLoans EquipmentLoan[] @relation("ApproverEquipmentLoans")
+  returnedEquipmentLoans EquipmentLoan[] @relation("ReturnerEquipmentLoans")
+
   signature Signature? @relation(fields: [signatureId], references: [signatureId])
 
   // Empleado -> lider
