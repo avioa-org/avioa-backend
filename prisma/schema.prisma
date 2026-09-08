@@ -22,7 +22,7 @@ datasource db {
 
 // EQUIPMENT LOANS MODULE
 model Equipment {
-  equipmentId        String           @id @default(cuid()) @map("equipment_id")
+  equipmentId        String           @id @default(uuid()) @map("equipment_id")
   name               String
   serialNumber       String?          @unique @map("serial_number")
   category           EquipmentCategory
@@ -44,7 +44,7 @@ model Equipment {
 }
 
 model Location {
-  locationId         String           @id @default(cuid()) @map("location_id")
+  locationId         String           @id @default(uuid()) @map("location_id")
   name               String           @unique
   description        String?
   isActive           Boolean          @default(true) @map("is_active")
@@ -59,7 +59,7 @@ model Location {
 }
 
 model EquipmentLoan {
-  equipmentLoanId    String       @id @default(cuid()) @map("equipment_loan_id")
+  equipmentLoanId    String       @id @default(uuid()) @map("equipment_loan_id")
   equipmentId        String       @map("equipment_id")
   userId             String       @map("user_id")
   approvedById       String?      @map("approved_by_id")
