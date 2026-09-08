@@ -302,6 +302,8 @@ model User {
   comments                 FeedComment[]
   recognizedPosts          FeedPost[]           @relation("RecognizedUser")
   feedPosts                FeedPost[]
+  knowledgeFolders         KnowledgeFolder[]
+  knowledgeFiles           KnowledgeFile[]
 
   @@map("users")
 }
@@ -818,6 +820,37 @@ model FeedComment {
 
   @@index([postId])
   @@map("feed_comment")
+}
+
+// Biblioteca
+model KnowledgeFolder {
+  knowledgeFolderId String            @id @default(uuid()) @map("knowledge_folder_id")
+  name              String
+  parentId          String?
+  parent            KnowledgeFolder?  @relation("FolderChildren", fields: [parentId], references: [knowledgeFolderId], onDelete: Cascade)
+  children          KnowledgeFolder[] @relation("FolderChildren")
+  files             KnowledgeFile[]
+  createdById       String            @map("created_by_id")
+  createdBy         User              @relation(fields: [createdById], references: [userId])
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  @@index([parentId])
+  @@map("knowledge_folder")
+}
+
+model KnowledgeFile {
+  knowledgeFileId String          @id @default(uuid()) @map("knowledge_file_id")
+  title           String
+  driveUrl        String          @map("drive_url")
+  folderId        String          @map("folder_id")
+  folder          KnowledgeFolder @relation(fields: [folderId], references: [knowledgeFolderId], onDelete: Cascade)
+  createdById     String          @map("created_by_id")
+  createdBy       User            @relation(fields: [createdById], references: [userId])
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  @@index([folderId])
+  @@map("knowledge_file")
 }
 
 // ENUMS

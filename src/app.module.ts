@@ -25,6 +25,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { FeedModule } from './modules/feed/feed.module';
 import { CotizadorModule } from './modules/cotizador/cotizador.module';
 import { EquipmentLoansModule } from './modules/equipment-loans/equipment-loans.module';
+import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 
 
 @Module({
@@ -61,6 +62,7 @@ import { EquipmentLoansModule } from './modules/equipment-loans/equipment-loans.
     FeedModule,
     CotizadorModule,
     EquipmentLoansModule,
+    KnowledgeModule
   ],
   controllers: [],
   providers: [
