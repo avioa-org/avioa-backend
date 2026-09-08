@@ -2,10 +2,14 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { EquipmentDto, EquipmentStatus } from './dto/equipment.dto';
 import { LoanDto, LoanStatus } from './dto/loan.dto';
+import { EquipmentLoansGateway } from './equipment-loans.gateway';
 
 @Injectable()
 export class EquipmentLoansService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly gateway: EquipmentLoansGateway,
+  ) {}
 
   // Helper para limpiar objetos undefined
   private cleanObject<T>(obj: T): Partial<T> {
@@ -41,7 +45,7 @@ export class EquipmentLoansService {
 
   async findOneEquipment(id: string) {
     const equipment = await this.prisma.equipment.findUnique({
-      where: { id },  
+      where: { equipmentId: id },
       include: { location: true, loans: true },
     });
     if (!equipment) throw new NotFoundException('Equipment not found');
@@ -52,7 +56,7 @@ export class EquipmentLoansService {
     await this.findOneEquipment(id);
     const cleanData = this.cleanObject(data);
     return this.prisma.equipment.update({
-      where: { id },  
+      where: { equipmentId: id },
       data: cleanData as any,
       include: { location: true },
     });
@@ -66,15 +70,16 @@ export class EquipmentLoansService {
     if (activeLoans.length > 0) {
       throw new BadRequestException('Cannot delete equipment with active loans');
     }
-    return this.prisma.equipment.delete({ 
-      where: { id }  
+    return this.prisma.equipment.delete({
+      where: { equipmentId: id }
     });
   }
 
   // ===== PRÉSTAMOS =====
   async createLoan(userId: string, data: LoanDto) {
     const equipment = await this.prisma.equipment.findUnique({
-      where: { id: data.equipmentId }, 
+      where: { equipmentId: data.equipmentId },
+      include: { location: true },
     });
     if (!equipment) throw new NotFoundException('Equipment not found');
     if (equipment.status !== EquipmentStatus.AVAILABLE) {
@@ -90,10 +95,40 @@ export class EquipmentLoansService {
       status: LoanStatus.PENDING,
     };
 
-    return this.prisma.equipmentLoan.create({
+    const newLoan = await this.prisma.equipmentLoan.create({
       data: loanData,
-      include: { equipment: { include: { location: true } }, user: true },
+      include: {
+        equipment: { include: { location: true } },
+        user: true,
+      },
     });
+
+    // 🔔 NOTIFICACIÓN: Nueva solicitud de préstamo
+    this.gateway.notifyNewLoan(userId, {
+      equipmentLoanId: newLoan.equipmentLoanId,
+      equipment: newLoan.equipment,
+      status: newLoan.status,
+    });
+
+    // 🔔 NOTIFICACIÓN: Buscar líderes para aprobación
+    const leaders = await this.prisma.user.findMany({
+      where: {
+        role: 'LEADER',
+        isLeader: true,
+      },
+    });
+
+    if (leaders.length > 0) {
+      const leaderIds = leaders.map(l => l.userId);
+      this.gateway.notifyLeadersPendingApproval(leaderIds, {
+        equipmentLoanId: newLoan.equipmentLoanId,
+        user: newLoan.user,
+        equipment: newLoan.equipment,
+        reason: newLoan.reason,
+      });
+    }
+
+    return newLoan;
   }
 
   async findMyLoans(userId: string) {
@@ -143,10 +178,10 @@ export class EquipmentLoansService {
 
   async findOneLoan(id: string) {
     const loan = await this.prisma.equipmentLoan.findUnique({
-      where: { id },  
-      include: { 
-        equipment: { include: { location: true } }, 
-        user: true, 
+      where: { equipmentLoanId: id },
+      include: {
+        equipment: { include: { location: true } },
+        user: true,
         approvedBy: true,
         returnedBy: true,
       },
@@ -158,10 +193,13 @@ export class EquipmentLoansService {
   async updateLoanStatus(id: string, status: LoanStatus, userId?: string) {
     const loan = await this.findOneLoan(id);
     
+    // Validar transiciones
+    this.validateLoanStatusTransition(loan.status, status);
+    
     // Si se aprueba, cambiar estado del equipo
     if (status === LoanStatus.APPROVED) {
       await this.prisma.equipment.update({
-        where: { id: loan.equipmentId },  
+        where: { equipmentId: loan.equipmentId },
         data: { status: EquipmentStatus.LOANED },
       });
     }
@@ -169,25 +207,66 @@ export class EquipmentLoansService {
     // Si se devuelve, cambiar estado del equipo
     if (status === LoanStatus.RETURNED) {
       await this.prisma.equipment.update({
-        where: { id: loan.equipmentId },  
+        where: { equipmentId: loan.equipmentId },
         data: { status: EquipmentStatus.AVAILABLE },
       });
     }
 
-    return this.prisma.equipmentLoan.update({
-      where: { id },  
-      data: { 
-        status, 
-        approvedById: userId,
-        actualReturnDate: status === LoanStatus.RETURNED ? new Date() : undefined
+    const updatedLoan = await this.prisma.equipmentLoan.update({
+      where: { equipmentLoanId: id },
+      data: {
+        status,
+        approvedById: status === LoanStatus.APPROVED || status === LoanStatus.REJECTED ? userId : undefined,
+        returnedById: status === LoanStatus.RETURNED ? userId : undefined,
+        actualReturnDate: status === LoanStatus.RETURNED ? new Date() : undefined,
       },
-      include: { 
-        equipment: { include: { location: true } }, 
+      include: {
+        equipment: { include: { location: true } },
         user: true,
         approvedBy: true,
         returnedBy: true,
       },
     });
+
+    // 🔔 NOTIFICACIÓN: Cambio de estado del préstamo
+    this.gateway.notifyStatusChange(
+      loan.userId,
+      updatedLoan.equipmentLoanId,
+      status,
+      updatedLoan.equipment.name
+    );
+
+    // Si fue aprobado, notificar al usuario
+    if (status === LoanStatus.APPROVED) {
+      this.gateway.notifyUser(loan.userId, 'loan:approved', {
+        loanId: updatedLoan.equipmentLoanId,
+        equipmentName: updatedLoan.equipment.name,
+        message: '¡Tu solicitud de préstamo ha sido aprobada!',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Si fue rechazado, notificar al usuario
+    if (status === LoanStatus.REJECTED) {
+      this.gateway.notifyUser(loan.userId, 'loan:rejected', {
+        loanId: updatedLoan.equipmentLoanId,
+        equipmentName: updatedLoan.equipment.name,
+        message: 'Tu solicitud de préstamo ha sido rechazada',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Si fue devuelto, notificar al usuario
+    if (status === LoanStatus.RETURNED) {
+      this.gateway.notifyUser(loan.userId, 'loan:returned', {
+        loanId: updatedLoan.equipmentLoanId,
+        equipmentName: updatedLoan.equipment.name,
+        message: 'El equipo ha sido devuelto exitosamente',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return updatedLoan;
   }
 
   async cancelLoan(id: string, userId: string) {
@@ -198,18 +277,48 @@ export class EquipmentLoansService {
     if (loan.status !== LoanStatus.PENDING) {
       throw new BadRequestException('Only pending loans can be cancelled');
     }
-    return this.prisma.equipmentLoan.update({
-      where: { id },  // ← SE MANTIENE "id"
+    
+    const cancelledLoan = await this.prisma.equipmentLoan.update({
+      where: { equipmentLoanId: id },
       data: { status: LoanStatus.CANCELLED },
     });
+
+    // 🔔 NOTIFICACIÓN: Préstamo cancelado
+    this.gateway.notifyStatusChange(
+      userId,
+      cancelledLoan.equipmentLoanId,
+      LoanStatus.CANCELLED,
+      loan.equipment?.name || 'Equipo'
+    );
+
+    return cancelledLoan;
   }
 
-
+  // ===== UBICACIONES =====
   async findAllLocations() {
     return this.prisma.location.findMany({
       where: { isActive: true },
       orderBy: { name: 'asc' },
     });
   }
-}
 
+  // ===== VALIDACIONES =====
+  private validateLoanStatusTransition(currentStatus: string, newStatus: LoanStatus) {
+    const validTransitions: Record<string, LoanStatus[]> = {
+      [LoanStatus.PENDING]: [LoanStatus.APPROVED, LoanStatus.REJECTED, LoanStatus.CANCELLED],
+      [LoanStatus.APPROVED]: [LoanStatus.LOANED, LoanStatus.CANCELLED],
+      [LoanStatus.LOANED]: [LoanStatus.RETURNED, 'OVERDUE' as LoanStatus],
+      [LoanStatus.RETURNED]: [],
+      ['OVERDUE' as LoanStatus]: [LoanStatus.RETURNED],
+      [LoanStatus.REJECTED]: [],
+      [LoanStatus.CANCELLED]: [],
+    };
+
+    const allowed = validTransitions[currentStatus] || [];
+    if (!allowed.includes(newStatus)) {
+      throw new BadRequestException(
+        `Invalid status transition from ${currentStatus} to ${newStatus}`
+      );
+    }
+  }
+}
