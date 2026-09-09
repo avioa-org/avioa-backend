@@ -25,6 +25,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { FeedModule } from './modules/feed/feed.module';
 import { CotizadorModule } from './modules/cotizador/cotizador.module';
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
+import { CesantiasModule } from './modules/cesantias/cesantias.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { KnowledgeModule } from './modules/knowledge/knowledge.module';
     FeedModule,
     CotizadorModule,
     KnowledgeModule,
+    CesantiasModule,
   ],
   controllers: [],
   providers: [
