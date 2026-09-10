@@ -48,6 +48,11 @@ const envSchema = z.object({
   COTIZADOR_URL: z.string(),
   QUEUES_USER: z.string().optional(),
   QUEUES_PASSWORD: z.string().optional(),
+  SUPABASE_URL: z.string(),
+  SUPABASE_PUBLISHABLE_KEY: z.string(),
+  SUPABASE_SECRET_KEY: z.string(),
+  SUPABASE_BUCKET: z.string(),
+  SUPABASE_JWKS_URL: z.string().optional(),
 });
 
 let envs: z.infer<typeof envSchema>;

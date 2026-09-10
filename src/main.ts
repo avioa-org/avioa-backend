@@ -29,8 +29,21 @@ async function bootstrap() {
     origin.trim(),
   );
   app.enableCors({
-    origin: corsOrigins,
+    origin: [
+      'http://localhost:3000', // Frontend local
+      'http://localhost:3001', // Backend local
+      'https://avioa-frontend.vercel.app', // Producción
+      'http://127.0.0.1:3000',
+    ],
     credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Accept',
+      'Origin',
+      'X-Requested-With',
+    ],
   });
 
   const logger = isProd ? loggerConfig : new Logger();
