@@ -72,8 +72,7 @@ export class CreateUserDto {
   documentType?: DocumentType;
 
   @IsString()
-  @IsOptional()
-  documentNumber?: string;
+  documentNumber!: string;
 
   @IsString()
   @IsOptional()

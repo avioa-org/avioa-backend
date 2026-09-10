@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { EquipmentDto, EquipmentStatus } from './dto/equipment.dto';
 import { LoanDto, LoanStatus } from './dto/loan.dto';
@@ -65,13 +69,15 @@ export class EquipmentLoansService {
   async deleteEquipment(id: string) {
     const equipment = await this.findOneEquipment(id);
     const activeLoans = equipment.loans.filter(
-      (l) => l.status === LoanStatus.LOANED || l.status === LoanStatus.PENDING
+      (l) => l.status === LoanStatus.LOANED || l.status === LoanStatus.PENDING,
     );
     if (activeLoans.length > 0) {
-      throw new BadRequestException('Cannot delete equipment with active loans');
+      throw new BadRequestException(
+        'Cannot delete equipment with active loans',
+      );
     }
     return this.prisma.equipment.delete({
-      where: { equipmentId: id }
+      where: { equipmentId: id },
     });
   }
 
@@ -119,7 +125,7 @@ export class EquipmentLoansService {
     });
 
     if (leaders.length > 0) {
-      const leaderIds = leaders.map(l => l.userId);
+      const leaderIds = leaders.map((l) => l.userId);
       this.gateway.notifyLeadersPendingApproval(leaderIds, {
         equipmentLoanId: newLoan.equipmentLoanId,
         user: newLoan.user,
@@ -139,9 +145,13 @@ export class EquipmentLoansService {
     });
   }
 
-  async findAllLoans(filters?: { status?: LoanStatus; userId?: string; equipmentId?: string }) {
+  async findAllLoans(filters?: {
+    status?: LoanStatus;
+    userId?: string;
+    equipmentId?: string;
+  }) {
     const where: any = {};
-    
+
     if (filters?.status) where.status = filters.status;
     if (filters?.userId) where.userId = filters.userId;
     if (filters?.equipmentId) where.equipmentId = filters.equipmentId;
@@ -192,10 +202,10 @@ export class EquipmentLoansService {
 
   async updateLoanStatus(id: string, status: LoanStatus, userId?: string) {
     const loan = await this.findOneLoan(id);
-    
+
     // Validar transiciones
     this.validateLoanStatusTransition(loan.status, status);
-    
+
     // Si se aprueba, cambiar estado del equipo
     if (status === LoanStatus.APPROVED) {
       await this.prisma.equipment.update({
@@ -203,7 +213,7 @@ export class EquipmentLoansService {
         data: { status: EquipmentStatus.LOANED },
       });
     }
-    
+
     // Si se devuelve, cambiar estado del equipo
     if (status === LoanStatus.RETURNED) {
       await this.prisma.equipment.update({
@@ -216,9 +226,13 @@ export class EquipmentLoansService {
       where: { equipmentLoanId: id },
       data: {
         status,
-        approvedById: status === LoanStatus.APPROVED || status === LoanStatus.REJECTED ? userId : undefined,
+        approvedById:
+          status === LoanStatus.APPROVED || status === LoanStatus.REJECTED
+            ? userId
+            : undefined,
         returnedById: status === LoanStatus.RETURNED ? userId : undefined,
-        actualReturnDate: status === LoanStatus.RETURNED ? new Date() : undefined,
+        actualReturnDate:
+          status === LoanStatus.RETURNED ? new Date() : undefined,
       },
       include: {
         equipment: { include: { location: true } },
@@ -233,7 +247,7 @@ export class EquipmentLoansService {
       loan.userId,
       updatedLoan.equipmentLoanId,
       status,
-      updatedLoan.equipment.name
+      updatedLoan.equipment.name,
     );
 
     // Si fue aprobado, notificar al usuario
@@ -277,7 +291,7 @@ export class EquipmentLoansService {
     if (loan.status !== LoanStatus.PENDING) {
       throw new BadRequestException('Only pending loans can be cancelled');
     }
-    
+
     const cancelledLoan = await this.prisma.equipmentLoan.update({
       where: { equipmentLoanId: id },
       data: { status: LoanStatus.CANCELLED },
@@ -288,7 +302,7 @@ export class EquipmentLoansService {
       userId,
       cancelledLoan.equipmentLoanId,
       LoanStatus.CANCELLED,
-      loan.equipment?.name || 'Equipo'
+      loan.equipment?.name || 'Equipo',
     );
 
     return cancelledLoan;
@@ -303,9 +317,16 @@ export class EquipmentLoansService {
   }
 
   // ===== VALIDACIONES =====
-  private validateLoanStatusTransition(currentStatus: string, newStatus: LoanStatus) {
+  private validateLoanStatusTransition(
+    currentStatus: string,
+    newStatus: LoanStatus,
+  ) {
     const validTransitions: Record<string, LoanStatus[]> = {
-      [LoanStatus.PENDING]: [LoanStatus.APPROVED, LoanStatus.REJECTED, LoanStatus.CANCELLED],
+      [LoanStatus.PENDING]: [
+        LoanStatus.APPROVED,
+        LoanStatus.REJECTED,
+        LoanStatus.CANCELLED,
+      ],
       [LoanStatus.APPROVED]: [LoanStatus.LOANED, LoanStatus.CANCELLED],
       [LoanStatus.LOANED]: [LoanStatus.RETURNED, 'OVERDUE' as LoanStatus],
       [LoanStatus.RETURNED]: [],
@@ -317,7 +338,7 @@ export class EquipmentLoansService {
     const allowed = validTransitions[currentStatus] || [];
     if (!allowed.includes(newStatus)) {
       throw new BadRequestException(
-        `Invalid status transition from ${currentStatus} to ${newStatus}`
+        `Invalid status transition from ${currentStatus} to ${newStatus}`,
       );
     }
   }
