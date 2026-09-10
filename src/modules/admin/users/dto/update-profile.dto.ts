@@ -30,6 +30,14 @@ export class UpdateProfileDto {
   @IsOptional()
   area?: string;
 
+  @IsString()
+  @IsOptional()
+  phone?: string;
+
+  @IsString()
+  @IsOptional()
+  office?: string;
+
   @ValidateIf((_, value) => {
     return value !== 'undefined';
   })
