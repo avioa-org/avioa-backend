@@ -1,8 +1,8 @@
 import { IsEmail, IsString } from 'class-validator';
 
 export class ForgotPasswordDto {
-  @IsEmail()
-  email!: string;
+  @IsString()
+  documentNumber!: string;
 
   @IsString()
   password!: string;
@@ -14,4 +14,7 @@ export class ForgotPasswordDto {
 export class ForgotPasswordSendDto {
   @IsEmail()
   email!: string;
+
+  @IsString()
+  documentNumber!: string;
 }
