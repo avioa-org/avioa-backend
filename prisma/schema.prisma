@@ -13,80 +13,73 @@ datasource db {
   provider = "postgresql"
 }
 
-
-
-
-
-
-
-
 // EQUIPMENT LOANS MODULE
 model Equipment {
-  equipmentId        String           @id @default(uuid()) @map("equipment_id")
-  name               String
-  serialNumber       String?          @unique @map("serial_number")
-  category           EquipmentCategory
-  status             EquipmentStatus  @default(AVAILABLE)
-  locationId         String?          @map("location_id")
-  description        String?
-  purchaseDate       DateTime?        @map("purchase_date")
-  purchaseCost       Decimal?         @map("purchase_cost") @db.Decimal(12,2)
-  warrantyEnd        DateTime?        @map("warranty_end")
-  
-  createdAt          DateTime         @default(now()) @map("created_at")
-  updatedAt          DateTime         @updatedAt @map("updated_at")
-  
+  equipmentId  String            @id @default(uuid()) @map("equipment_id")
+  name         String
+  serialNumber String?           @unique @map("serial_number")
+  category     EquipmentCategory
+  status       EquipmentStatus   @default(AVAILABLE)
+  locationId   String?           @map("location_id")
+  description  String?
+  purchaseDate DateTime?         @map("purchase_date")
+  purchaseCost Decimal?          @map("purchase_cost") @db.Decimal(12, 2)
+  warrantyEnd  DateTime?         @map("warranty_end")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   // Relaciones
-  location           Location?        @relation(fields: [locationId], references: [locationId])
-  loans              EquipmentLoan[]
-  
+  location Location?       @relation(fields: [locationId], references: [locationId])
+  loans    EquipmentLoan[]
+
   @@map("equipment")
 }
 
 model Location {
-  locationId         String           @id @default(uuid()) @map("location_id")
-  name               String           @unique
-  description        String?
-  isActive           Boolean          @default(true) @map("is_active")
-  
-  createdAt          DateTime         @default(now()) @map("created_at")
-  updatedAt          DateTime         @updatedAt @map("updated_at")
-  
+  locationId  String  @id @default(uuid()) @map("location_id")
+  name        String  @unique
+  description String?
+  isActive    Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   // Relaciones
-  equipments         Equipment[]
-  
+  equipments Equipment[]
+
   @@map("locations")
 }
 
 model EquipmentLoan {
-  equipmentLoanId    String       @id @default(uuid()) @map("equipment_loan_id")
-  equipmentId        String       @map("equipment_id")
-  userId             String       @map("user_id")
-  approvedById       String?      @map("approved_by_id")
-  returnedById       String?      @map("returned_by_id")
-  
+  equipmentLoanId String  @id @default(uuid()) @map("equipment_loan_id")
+  equipmentId     String  @map("equipment_id")
+  userId          String  @map("user_id")
+  approvedById    String? @map("approved_by_id")
+  returnedById    String? @map("returned_by_id")
+
   // Fechas
-  loanDate           DateTime     @default(now()) @map("loan_date")
-  expectedReturnDate DateTime     @map("expected_return_date")
-  actualReturnDate   DateTime?    @map("actual_return_date")
-  
+  loanDate           DateTime  @default(now()) @map("loan_date")
+  expectedReturnDate DateTime  @map("expected_return_date")
+  actualReturnDate   DateTime? @map("actual_return_date")
+
   // Motivos
-  reason             String?
-  observation        String?
-  rejectionReason    String?      @map("rejection_reason")
-  
+  reason          String?
+  observation     String?
+  rejectionReason String? @map("rejection_reason")
+
   // Estado
-  status             LoanStatus   @default(PENDING)
-  
-  createdAt          DateTime     @default(now()) @map("created_at")
-  updatedAt          DateTime     @updatedAt @map("updated_at")
-  
+  status LoanStatus @default(PENDING)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   // Relaciones
-  equipment          Equipment    @relation(fields: [equipmentId], references: [equipmentId])
-  user               User         @relation("EmployeeEquipmentLoans", fields: [userId], references: [userId])
-  approvedBy         User?        @relation("ApproverEquipmentLoans", fields: [approvedById], references: [userId])
-  returnedBy         User?        @relation("ReturnerEquipmentLoans", fields: [returnedById], references: [userId])
-  
+  equipment  Equipment @relation(fields: [equipmentId], references: [equipmentId])
+  user       User      @relation("EmployeeEquipmentLoans", fields: [userId], references: [userId])
+  approvedBy User?     @relation("ApproverEquipmentLoans", fields: [approvedById], references: [userId])
+  returnedBy User?     @relation("ReturnerEquipmentLoans", fields: [returnedById], references: [userId])
+
   @@index([userId])
   @@index([equipmentId])
   @@index([status])
@@ -123,11 +116,6 @@ enum LoanStatus {
   REJECTED
   CANCELLED
 }
-
-
-
-
-
 
 model AlertaReserva {
   threadId          String    @id @map("thread_id")
@@ -185,7 +173,7 @@ model User {
   userId String @id @default(uuid()) @map("user_id")
 
   name               String     @map("name")
-  email              String?    @unique @map("email")
+  email              String?    @map("email")
   password           String?    @map("password")
   role               Role       @default(EMPLOYEE)
   status             UserStatus @default(ACTIVE)
@@ -262,7 +250,6 @@ model User {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relaciones
-
 
   equipmentLoans         EquipmentLoan[] @relation("EmployeeEquipmentLoans")
   approvedEquipmentLoans EquipmentLoan[] @relation("ApproverEquipmentLoans")

@@ -180,6 +180,7 @@ export class UsersService {
         // subordinates: true,
         status: true,
         vacationDaysAdjustment: true,
+        office: true,
       },
       orderBy: { createdAt: 'desc' },
     });
