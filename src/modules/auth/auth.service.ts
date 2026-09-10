@@ -39,7 +39,7 @@ export class AuthService {
 
   public async inviteUser(registerDto: CreateUserDto) {
     const existingUser = await this.prisma.user.findUnique({
-      where: { email: registerDto.email },
+      where: { documentNumber: registerDto.documentNumber },
     });
 
     if (existingUser) {
