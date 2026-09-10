@@ -27,7 +27,12 @@ export class EquipmentLoansGateway {
   }
 
   // Notificar cambio de estado del préstamo
-  notifyStatusChange(userId: string, loanId: string, status: string, equipmentName: string) {
+  notifyStatusChange(
+    userId: string,
+    loanId: string,
+    status: string,
+    equipmentName: string,
+  ) {
     const messages = {
       APPROVED: 'Tu solicitud de préstamo ha sido APROBADA',
       REJECTED: 'Tu solicitud de préstamo ha sido RECHAZADA',
@@ -50,7 +55,7 @@ export class EquipmentLoansGateway {
   notifyLeadersPendingApproval(leaderIds: string[], loanData: any) {
     if (!leaderIds || leaderIds.length === 0) return;
 
-    leaderIds.forEach(leaderId => {
+    leaderIds.forEach((leaderId) => {
       this.socketGateway.notifyLeader(leaderId, 'loan:pendingApproval', {
         loanId: loanData.equipmentLoanId,
         userName: loanData.user?.name || 'Usuario',
@@ -64,7 +69,7 @@ export class EquipmentLoansGateway {
 
   // Notificar a administradores (opcional)
   notifyAdmins(admins: string[], event: string, data: any) {
-    admins.forEach(adminId => {
+    admins.forEach((adminId) => {
       this.socketGateway.notifyEmployee(adminId, event, data);
     });
   }
