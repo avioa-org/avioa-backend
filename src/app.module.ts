@@ -24,6 +24,7 @@ import { PasswordVaultModule } from './modules/password-vault/password-vault.mod
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { FeedModule } from './modules/feed/feed.module';
 import { CotizadorModule } from './modules/cotizador/cotizador.module';
+import { EquipmentLoansModule } from './modules/equipment-loans/equipment-loans.module';
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { CesantiasModule } from './modules/cesantias/cesantias.module';
 
@@ -60,6 +61,7 @@ import { CesantiasModule } from './modules/cesantias/cesantias.module';
     NotificationsModule,
     FeedModule,
     CotizadorModule,
+    EquipmentLoansModule,
     KnowledgeModule,
     CesantiasModule,
   ],

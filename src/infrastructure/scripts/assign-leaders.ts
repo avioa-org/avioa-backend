@@ -19,8 +19,8 @@ interface LeadersData {
   subordinados: string[];
 }
 
-// const JSON_PATH = path.join(__dirname, './data/lideres.json');
-const JSON_PATH = process.argv[2] ?? '/tmp/lideres.json';
+const JSON_PATH = path.join(__dirname, './data/lideres.json');
+// const JSON_PATH = process.argv[2] ?? '/tmp/lideres.json';
 
 const leadershipData: LeadersData[] = JSON.parse(
   fs.readFileSync(JSON_PATH, 'utf-8'),
