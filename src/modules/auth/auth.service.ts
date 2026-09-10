@@ -341,7 +341,7 @@ export class AuthService {
   }
 
   public async forgotPassword(forgotPassword: ForgotPasswordDto) {
-    const { email, password, confirmPassword } = forgotPassword;
+    const { documentNumber, password, confirmPassword } = forgotPassword;
 
     if (password !== confirmPassword) {
       throw new BadRequestException({
@@ -351,12 +351,12 @@ export class AuthService {
     }
 
     const user = await this.prisma.user.findUnique({
-      where: { email, status: 'ACTIVE' },
+      where: { documentNumber, status: 'ACTIVE' },
     });
 
     if (!user) {
       throw new NotFoundException({
-        message: `El usuario con el correo: ${email} no existe`,
+        message: `El usuario con el numero de documento: ${documentNumber} no existe`,
         error: 'USER_NOT_FOUND',
       });
     }
@@ -370,7 +370,7 @@ export class AuthService {
       },
     });
 
-    this.logger.log(`User ${user.email} updated password successfully`);
+    this.logger.log(`User ${user.name} updated password successfully`);
 
     return {
       message: 'Contraseña actualizada exitosamente',
@@ -380,26 +380,29 @@ export class AuthService {
   public async forgotPasswordSend(
     forgotPasswordSendDto: ForgotPasswordSendDto,
   ) {
-    const { email } = forgotPasswordSendDto;
+    const { documentNumber, email } = forgotPasswordSendDto;
 
     const user = await this.prisma.user.findUnique({
-      where: { email, status: 'ACTIVE' },
+      where: { documentNumber, status: 'ACTIVE' },
+      select: { documentNumber: true },
     });
 
     if (!user) {
       throw new NotFoundException({
-        message: `El usuario con el correo: ${email} no existe`,
+        message: `El usuario con el numero de documento: ${documentNumber} no existe`,
         error: 'USER_NOT_FOUND',
       });
     }
 
-    const linkToSend = `${envs.FRONTEND_URL}/forgot-password?email=${user.email}`;
+    console.log('user.documentNumber', user.documentNumber);
 
-    // await this.mailService.sendInvite({
-    //   to: user.email,
-    //   subject: 'Recuperación de contraseña',
-    //   inviteUrl: linkToSend,
-    // });
+    const linkToSend = `${envs.FRONTEND_URL}/forgot-password?documentNumber=${user.documentNumber}`;
+
+    await this.mailService.sendInvite({
+      to: email,
+      subject: 'Recuperación de contraseña',
+      inviteUrl: linkToSend,
+    });
 
     return { message: 'Link enviado exitosamente' };
   }
