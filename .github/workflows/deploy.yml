@@ -82,10 +82,41 @@ jobs:
               -v $(pwd)/logs:/usr/src/app/logs \
               $IMAGE
 
-            echo "🧹 Cleaning old images..."
-            docker image prune -af
-
             echo "🕐 Verificando zona horaria..."
             docker exec avioa-backend node -e "console.log('Date:', new Date().toString()); console.log('Timezone:', Intl.DateTimeFormat().resolvedOptions().timeZone)"
+
+            echo "🔎 Verificando contenedor..."
+            if [ "$(docker inspect -f '{{.State.Running}}' avioa-backend 2>/dev/null)" != "true" ]; then
+              echo "❌ avioa-backend no está ejecutándose"
+              echo "📋 Logs del contenedor:"
+              docker logs avioa-backend --tail 100
+              exit 1
+            fi
+
+            echo "✅ avioa-backend está ejecutándose"
+
+            echo "⏳ Esperando healthcheck..."
+            for i in {1..12}; do
+              STATUS=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' avioa-backend 2>/dev/null)
+
+              echo "Healthcheck: $STATUS"
+
+              if [ "$STATUS" = "healthy" ]; then
+                echo "💚 Healthcheck OK"
+                break
+              fi
+
+              if [ "$STATUS" = "unhealthy" ]; then
+                echo "❌ Healthcheck falló"
+                echo "📋 Logs del contenedor:"
+                docker logs avioa-backend --tail 100
+                exit 1
+              fi
+
+              sleep 5
+            done
+
+            echo "🧹 Cleaning old images..."
+            docker image prune -af
 
             echo "✅ Deploy complete"
