@@ -26,7 +26,7 @@ import { FeedModule } from './modules/feed/feed.module';
 import { CotizadorModule } from './modules/cotizador/cotizador.module';
 import { EquipmentLoansModule } from './modules/equipment-loans/equipment-loans.module';
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
-
+import { CesantiasModule } from './modules/cesantias/cesantias.module';
 
 @Module({
   imports: [
@@ -62,7 +62,8 @@ import { KnowledgeModule } from './modules/knowledge/knowledge.module';
     FeedModule,
     CotizadorModule,
     EquipmentLoansModule,
-    KnowledgeModule
+    KnowledgeModule,
+    CesantiasModule,
   ],
   controllers: [],
   providers: [

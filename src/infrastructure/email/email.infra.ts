@@ -13,10 +13,23 @@ interface IEmail {
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-
-  private readonly resend = new Resend(envs.RESEND_API_KEY as string);
+  private readonly fromEmail = envs.RESEND_FROM_EMAIL;
+  private readonly resend = new Resend(envs.RESEND_API_KEY);
 
   constructor() {}
+
+  async send(to: string | string[], subject: string, html: string) {
+    try {
+      await this.resend.emails.send({
+        from: this.fromEmail,
+        to,
+        subject,
+        html,
+      });
+    } catch (error) {
+      this.logger.error(`Error enviando correo a ${to}: ${error}`);
+    }
+  }
 
   public async sendInvite(data: {
     to: string;

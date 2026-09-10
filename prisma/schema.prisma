@@ -284,26 +284,29 @@ model User {
   pointRequestsCreated   PointRequest[] @relation("UserPointRequests")
   pointRequestsToApprove PointRequest[] @relation("LeaderPointRequests")
 
-  pointTransactions        PointTransaction[]
-  pointWallet              PointWallet?
-  notifications            Notification[]
-  rewardRedemptions        RewardRedemption[]
-  overtimeRequests         OvertimeRequest[]    @relation("EmployeeOvertime")
-  overtimeRequestsToReview OvertimeRequest[]    @relation("LeaderOvertime")
-  auditLogs                AuditLog[]
-  googleCredentials        GoogleCredentials?
-  leaveRequestsCreated     LeaveRequest[]       @relation("EmployeeLeave")
-  leaveRequestsToApprove   LeaveRequest[]       @relation("LeaderLeave")
-  recoveryCodes            RecoveryCode[]
-  passwordVaults           PasswordVault[]
-  passwordPermissions      PasswordPermission[]
-  passwordAudits           PasswordAudit[]
-  reactions                FeedReaction[]
-  comments                 FeedComment[]
-  recognizedPosts          FeedPost[]           @relation("RecognizedUser")
-  feedPosts                FeedPost[]
-  knowledgeFolders         KnowledgeFolder[]
-  knowledgeFiles           KnowledgeFile[]
+  pointTransactions            PointTransaction[]
+  pointWallet                  PointWallet?
+  notifications                Notification[]
+  rewardRedemptions            RewardRedemption[]
+  overtimeRequests             OvertimeRequest[]    @relation("EmployeeOvertime")
+  overtimeRequestsToReview     OvertimeRequest[]    @relation("LeaderOvertime")
+  auditLogs                    AuditLog[]
+  googleCredentials            GoogleCredentials?
+  leaveRequestsCreated         LeaveRequest[]       @relation("EmployeeLeave")
+  leaveRequestsToApprove       LeaveRequest[]       @relation("LeaderLeave")
+  recoveryCodes                RecoveryCode[]
+  passwordVaults               PasswordVault[]
+  passwordPermissions          PasswordPermission[]
+  passwordAudits               PasswordAudit[]
+  reactions                    FeedReaction[]
+  comments                     FeedComment[]
+  recognizedPosts              FeedPost[]           @relation("RecognizedUser")
+  feedPosts                    FeedPost[]
+  knowledgeFolders             KnowledgeFolder[]
+  knowledgeFiles               KnowledgeFile[]
+  cesantiasHistorials          CesantiasHistorial[]
+  cesantiasRequests            CesantiasRequest[]
+  cesantiasRequestsResponsable CesantiasRequest[]   @relation("CesantiasResponsable")
 
   @@map("users")
 }
@@ -853,7 +856,114 @@ model KnowledgeFile {
   @@map("knowledge_file")
 }
 
+// CESANTIAS
+model CesantiasRequest {
+  cesantiasRequestId String          @id @default(uuid()) @map("cesantias_request_id")
+  radicado           String          @unique // CES-2026-0001
+  status             CensatiasStatus @default(RECIBIDA)
+
+  // colaborador
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [userId])
+  nombreCompleto  String   @map("nombre_completo")
+  tipoDocumento   String   @map("tipo_documento")
+  numeroDocumento String   @map("numero_documento")
+  correo          String
+  telefono        String
+  cargo           String
+  area            String
+  razonSocial     String   @map("razon_social")
+  fondo           String
+  fondoOtro       String?  @map("fondo_otro")
+  valorSolicitado Decimal
+  saldoDisponible Decimal?
+
+  motivo CesantiasMotivo
+
+  //JSON para los campos condicionales (Educación, Compra vivienda, ...)
+  detalleMotivo Json @map("detalle_motivo")
+
+  // declaraciones
+  declaraVeracidad        Boolean @map("declara_veracidad")
+  declaraDestinacion      Boolean @map("declara_destinacion")
+  declaraTratamientoDatos Boolean @map("declara_tratamiento_datos")
+  declaraDocsAdicionales  Boolean @map("declara_docs_adicionales")
+
+  documentos CesantiasDocument[]
+
+  // gestion RRHH
+  responsableId      String?   @map("responsable_id")
+  responsable        User?     @relation("CesantiasResponsable", fields: [responsableId], references: [userId])
+  decision           String?
+  motivoDevolucion   String?   @map("motivo_devolucion")
+  fechaDecision      DateTime? @map("fecha_decision")
+  cartaUrl           String?   @map("carta_url")
+  numeroTramiteFondo String?   @map("numero_tramite_fondo")
+  fechaEnvioFondo    DateTime? @map("fecha_envio_fondo")
+  resultadoFinal     String?   @map("resultado_final")
+  fechaCierra        String?   @map("fecha_cierre")
+  observaciones      String?
+
+  historial CesantiasHistorial[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("cesantias_request")
+}
+
+model CesantiasDocument {
+  cesantiasDocumentId String           @id @default(uuid()) @map("cesantias_document_id")
+  requestId           String           @map("request_id")
+  request             CesantiasRequest @relation(fields: [requestId], references: [cesantiasRequestId], onDelete: Cascade)
+  tipo                String
+  fileName            String           @map("file_name")
+  storageKey          String           @map("storage_key")
+  mimeType            String           @map("mime_type")
+  sizeBytes           Int              @map("size_bytes")
+  uploadedById        String           @map("uploaded_by_id")
+  createdAt           DateTime         @default(now()) @map("created_at")
+
+  @@map("cesantias_document")
+}
+
+model CesantiasHistorial {
+  cesantiasHistoriaId String           @id @default(uuid()) @map("cesantias_historial_id")
+  requestId           String           @map("request_id")
+  request             CesantiasRequest @relation(fields: [requestId], references: [cesantiasRequestId], onDelete: Cascade)
+  actorId             String           @map("actor_id")
+  actor               User             @relation(fields: [actorId], references: [userId])
+  accion              String // Enviada, En revision, Aprobada, etc.
+  comentario          String?
+  createdAt           DateTime         @default(now()) @map("created_at")
+}
+
 // ENUMS
+
+// Cesantias
+enum CensatiasStatus {
+  RECIBIDA
+  EN_REVISION
+  PENDIENTE_DOCUMENTOS
+  CORREGIDA
+  APROBADA
+  RECHAZADA
+  ENVIADA_AL_FONDO
+  PAGADA_FINALIZADA
+  DESISTIDA
+  CERRADA
+}
+
+enum CesantiasMotivo {
+  EDUCACION
+  COMPRA_VIVIENDA
+  MEJORA_VIVIENDA
+  IMPUESTO_PREDIAL
+  TERMINACION_CONTRATO
+}
+
+//
+
 enum ReactionType {
   LIKE
   CELEBRATE
@@ -895,6 +1005,7 @@ enum Role {
   MANAGER
   EMPLOYEE
   LEADER
+  RRHH
 }
 
 enum UserStatus {

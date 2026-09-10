@@ -1,4 +1,10 @@
-import { IsString, IsOptional, IsUUID, IsEnum, IsNotEmpty } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsUUID,
+  IsEnum,
+  IsNotEmpty,
+} from 'class-validator';
 
 export enum EquipmentCategory {
   LAPTOP = 'LAPTOP',
@@ -37,7 +43,7 @@ export class EquipmentDto {
   status?: EquipmentStatus;
 
   @IsOptional()
-  @IsString() 
+  @IsString()
   locationId?: string;
 
   @IsOptional()

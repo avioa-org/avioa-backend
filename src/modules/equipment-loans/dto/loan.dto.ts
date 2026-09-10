@@ -1,4 +1,9 @@
-import { IsOptional, IsString, IsDateString, IsNotEmpty } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsDateString,
+  IsNotEmpty,
+} from 'class-validator';
 
 export enum LoanStatus {
   PENDING = 'PENDING',

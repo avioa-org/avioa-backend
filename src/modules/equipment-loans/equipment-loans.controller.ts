@@ -31,7 +31,7 @@ export class EquipmentLoansController {
   constructor(private readonly service: EquipmentLoansService) {}
 
   // ========== EQUIPOS ==========
-  
+
   @Post('equipment')
   @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.CREATED)
@@ -56,10 +56,7 @@ export class EquipmentLoansController {
   @Put('equipment/:id')
   @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.OK)
-  updateEquipment(
-    @Param('id') id: string,
-    @Body() dto: EquipmentDto,
-  ) {
+  updateEquipment(@Param('id') id: string, @Body() dto: EquipmentDto) {
     return this.service.updateEquipment(id, dto);
   }
 
@@ -75,10 +72,7 @@ export class EquipmentLoansController {
   @Post('loans')
   @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
   @HttpCode(HttpStatus.CREATED)
-  createLoan(
-    @CurrentUser() user: ICurrentUser,
-    @Body() dto: LoanDto,
-  ) {
+  createLoan(@CurrentUser() user: ICurrentUser, @Body() dto: LoanDto) {
     return this.service.createLoan(user.userId, dto);
   }
 
@@ -121,10 +115,7 @@ export class EquipmentLoansController {
   @Patch('loans/:id/cancel')
   @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
-  cancelLoan(
-    @Param('id') id: string,
-    @CurrentUser() user: ICurrentUser,
-  ) {
+  cancelLoan(@Param('id') id: string, @CurrentUser() user: ICurrentUser) {
     return this.service.cancelLoan(id, user.userId);
   }
 
