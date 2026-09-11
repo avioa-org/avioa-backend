@@ -21,6 +21,7 @@ import { LeaveQueryDto } from './dto/leave-query.dto';
 import { LeaveLeaderGuard } from './guards/leave-leader.guard';
 import { ReviewLeaveDto } from './dto/review-leave.dto';
 import { UpdateVacationAdjustmentDto } from './dto/update-vacation-adjustment.dto';
+import { BulkMigrateVacationsDto } from './dto/bulk-migration-vacations.dto';
 
 @Controller('leaves')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -31,6 +32,11 @@ export class LeavesController {
   @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
   create(@Body() dto: CreateLeaveDto, @CurrentUser('userId') userId: string) {
     return this.leavesService.create(userId, dto);
+  }
+
+  @Post('bulk-migrate-historical')
+  async bulkMigrateVacations(@Body() dto: BulkMigrateVacationsDto) {
+    return await this.leavesService.bulkMigrate(dto);
   }
 
   @Get('my')
@@ -69,6 +75,7 @@ export class LeavesController {
     @Param('userId') userId: string,
     @Body() dto: UpdateVacationAdjustmentDto,
   ) {
+    console.log('updateUserVacationAdjustment', userId, dto);
     return this.leavesService.updateUserVacationAdjustment(
       userId,
       dto.vacationDaysAdjustment,
