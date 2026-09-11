@@ -25,15 +25,21 @@ import { parse as parseCsv } from 'csv-parse/sync';
 // Configuración de rutas (mismo patrón que tus otros seeds)
 // ─────────────────────────────────────────────────────────────
 
-const EXPORT_PORTAL_PATH = path.join(
-  __dirname,
-  './data/export_portal_con_userid.json',
-);
-const RECONCILIACION_PATH = path.join(
-  __dirname,
-  './data/reconciliacion_vacaciones.csv',
-);
-const OUT_PATH = path.join(__dirname, './data/bulk-migrate-payload.json');
+// const EXPORT_PORTAL_PATH = path.join(
+//   __dirname,
+//   './data/export_portal_con_userid.json',
+// );
+// const RECONCILIACION_PATH = path.join(
+//   __dirname,
+//   './data/reconciliacion_vacaciones.csv',
+// );
+// const OUT_PATH = path.join(__dirname, './data/bulk-migrate-payload.json');
+
+const EXPORT_PORTAL_PATH =
+  process.argv[2] ?? '/tmp/export_portal_con_userid.json';
+const RECONCILIACION_PATH =
+  process.argv[3] ?? '/tmp/reconciliacion_vacaciones.csv';
+const OUT_PATH = process.argv[4] ?? '/tmp/bulk-migrate-payload.json';
 
 const LEADER_ID: string | null = null; // fallback opcional; null = no usar
 const FECHA_CORTE: string | null = '2026-09-09'; // YYYY-MM-DD; null = ayer
