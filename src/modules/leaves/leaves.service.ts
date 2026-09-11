@@ -526,6 +526,7 @@ export class LeavesService {
         position: true,
         startDate: true,
         vacationDaysAdjustment: true,
+        leaderId: true,
       },
       orderBy: { name: 'asc' },
     });
@@ -547,6 +548,7 @@ export class LeavesService {
             department: u.department,
             position: u.position,
             startDate: u.startDate,
+            leaderId: u.leaderId,
           },
           balance,
         };
