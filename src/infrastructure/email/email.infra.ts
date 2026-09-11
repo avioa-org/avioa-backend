@@ -31,6 +31,36 @@ export class EmailService {
     }
   }
 
+  async sendTemplate(
+    to: string | string[],
+    templateId: string,
+    variables: Record<string, string>,
+  ) {
+    try {
+      const { data, error } = await this.resend.emails.send({
+        from: this.fromEmail,
+        to,
+
+        template: {
+          id: templateId,
+          variables,
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      this.logger.log(
+        `Correo enviado correctamente a ${Array.isArray(to) ? to.join(', ') : to}`,
+      );
+
+      return data;
+    } catch (error) {
+      this.logger.error(`Error enviando template a ${to}: ${error}`);
+    }
+  }
+
   public async sendInvite(data: {
     to: string;
     subject: string;

@@ -181,6 +181,7 @@ export class UsersService {
         status: true,
         vacationDaysAdjustment: true,
         office: true,
+        startDate: true,
       },
       orderBy: { createdAt: 'desc' },
     });

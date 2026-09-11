@@ -384,7 +384,7 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { documentNumber, status: 'ACTIVE' },
-      select: { documentNumber: true },
+      select: { documentNumber: true, name: true },
     });
 
     if (!user) {
@@ -394,15 +394,22 @@ export class AuthService {
       });
     }
 
-    console.log('user.documentNumber', user.documentNumber);
-
     const linkToSend = `${envs.FRONTEND_URL}/forgot-password?documentNumber=${user.documentNumber}`;
 
-    await this.mailService.sendInvite({
-      to: email,
-      subject: 'Recuperación de contraseña',
-      inviteUrl: linkToSend,
-    });
+    // await this.mailService.sendInvite({
+    //   to: email,
+    //   subject: 'Recuperación de contraseña',
+    //   inviteUrl: linkToSend,
+    // });
+
+    await this.mailService.sendTemplate(
+      email,
+      envs.RESEND_RESET_PASSWORD_TEMPLATE_ALIAS,
+      {
+        USER_NAME: user.name,
+        RESET_URL: linkToSend,
+      },
+    );
 
     return { message: 'Link enviado exitosamente' };
   }

@@ -53,6 +53,7 @@ const envSchema = z.object({
   SUPABASE_SECRET_KEY: z.string(),
   SUPABASE_BUCKET: z.string(),
   SUPABASE_JWKS_URL: z.string().optional(),
+  RESEND_RESET_PASSWORD_TEMPLATE_ALIAS: z.string(),
 });
 
 let envs: z.infer<typeof envSchema>;

@@ -19,9 +19,21 @@ import {
 import { LeaveQueryDto } from './dto/leave-query.dto';
 import { LeaveRequest } from 'generated/prisma/browser';
 import { ReviewLeaveDto } from './dto/review-leave.dto';
+import {
+  BulkMigrateVacationsDto,
+  HistoricalVacationEntryDto,
+} from './dto/bulk-migration-vacations.dto';
 
 const VACATIONS_DAYS_PER_YEAR = 15;
 const MIN_VACATIONS_DAYS_PER_YEAR = -15;
+
+export interface EntryResult {
+  userId: string;
+  status: 'ok' | 'skipped' | 'error';
+  message?: string;
+}
+
+const HISTORICAL_MIGRATION_TAG = '[MIGRACION_HISTORICA_VACACIONES_2026]';
 
 @Injectable()
 export class LeavesService {
@@ -286,10 +298,18 @@ export class LeavesService {
 
     // 15 dias habiles por año
     // se acumulan proporcionalmente por meses + el ajuste manual de RRHH.
-    const calculatedAccrued = Math.floor(
-      (monthsWorked * VACATIONS_DAYS_PER_YEAR) / 12,
+    const MS_PER_DAY = 1000 * 60 * 60 * 24;
+    const daysWorked = Math.floor(
+      (current.getTime() - start.getTime()) / MS_PER_DAY,
     );
-    const accrued = calculatedAccrued + adjustment;
+
+    // const calculatedAccrued =
+    //   Math.floor(((daysWorked * VACATIONS_DAYS_PER_YEAR) / 360) * 100) / 100;
+
+    const calculatedAccrued = Math.floor(
+      (daysWorked * VACATIONS_DAYS_PER_YEAR) / 360,
+    );
+    const accrued = Math.floor(calculatedAccrued + adjustment);
 
     // vacaciones aprobadas
     // se consideran todas las vacaciones aprobadas
@@ -593,6 +613,101 @@ export class LeavesService {
       user: updatedUser,
       balance: newBalance,
     };
+  }
+
+  public async bulkMigrate(dto: BulkMigrateVacationsDto) {
+    const results: EntryResult[] = [];
+
+    for (const entry of dto.entries) {
+      try {
+        const result = await this.migrateOne(entry, dto.dryRun ?? false);
+        results.push(result);
+      } catch (err: any) {
+        this.logger.error(
+          `Error migrando userId=${entry.userId}: ${err.message}`,
+          err.stack,
+        );
+        results.push({
+          userId: entry.userId,
+          status: 'error',
+          message: err.message,
+        });
+      }
+    }
+
+    return {
+      dryRun: dto.dryRun ?? false,
+      total: dto.entries.length,
+      ok: results.filter((r) => r.status === 'ok').length,
+      skipped: results.filter((r) => r.status === 'skipped').length,
+      errors: results.filter((r) => r.status === 'error'),
+      details: results,
+    };
+  }
+
+  private async migrateOne(
+    entry: HistoricalVacationEntryDto,
+    dryRun: boolean,
+  ): Promise<EntryResult> {
+    const already = await this.prisma.leaveRequest.findFirst({
+      where: {
+        userId: entry.userId,
+        type: LeaveType.VACACIONES,
+        reason: { contains: HISTORICAL_MIGRATION_TAG },
+      },
+      select: { leaveRequestId: true },
+    });
+
+    if (already) {
+      return {
+        userId: entry.userId,
+        status: 'skipped',
+        message:
+          'Ya existe un registro histórico (${already.leaveRequestId}); no se volvió a crear.',
+      };
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { userId: entry.userId },
+      select: { userId: true },
+    });
+
+    if (!user) {
+      return {
+        userId: entry.userId,
+        status: 'error',
+        message: 'userId no existe en la tabla User',
+      };
+    }
+
+    if (dryRun) {
+      return { userId: entry.userId, status: 'ok', message: 'dry-run: ok' };
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      if (entry.businessDays > 0) {
+        await tx.leaveRequest.create({
+          data: {
+            userId: entry.userId,
+            leaderId: entry.leaderId,
+            type: LeaveType.VACACIONES,
+            startDate: new Date(entry.startDate),
+            endDate: new Date(entry.endDate),
+            businessDays: entry.businessDays,
+            reason: `${entry.reason ?? 'Migración de saldo histórico de vacaciones'} ${HISTORICAL_MIGRATION_TAG}`,
+            status: LeaveStatus.APPROVED,
+            reviewedAt: new Date(),
+          },
+        });
+      }
+
+      await tx.user.update({
+        where: { userId: entry.userId },
+        data: { vacationDaysAdjustment: entry.newAdjustment },
+      });
+    });
+
+    return { userId: entry.userId, status: 'ok' };
   }
 
   private humanType(type: LeaveType): string {
