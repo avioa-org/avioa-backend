@@ -1,23 +1,24 @@
-import { Injectable } from '@nestjs/common';
+// backend/src/modules/equipment-loans/equipment-loans.gateway.ts
+
+import { Injectable, Logger } from '@nestjs/common';
 import { SocketGateway } from 'src/modules/points/gateway/points.gateway';
 
 @Injectable()
 export class EquipmentLoansGateway {
+  private readonly logger = new Logger(EquipmentLoansGateway.name);
+
   constructor(private readonly socketGateway: SocketGateway) {}
 
-  // Notificar al usuario sobre su préstamo
-  notifyUser(userId: string, event: string, data: any) {
-    this.socketGateway.notifyEmployee(userId, event, data);
+  async notifyUser(userId: string, event: string, data: any) {
+    await this.socketGateway.notifyEmployee(userId, event, data);
   }
 
-  // Notificar a un líder específico
-  notifyLeader(leaderId: string, event: string, data: any) {
-    this.socketGateway.notifyLeader(leaderId, event, data);
+  async notifyLeader(leaderId: string, event: string, data: any) {
+    await this.socketGateway.notifyLeader(leaderId, event, data);
   }
 
-  // Notificar nueva solicitud de préstamo
-  notifyNewLoan(userId: string, loanData: any) {
-    this.socketGateway.notifyEmployee(userId, 'loan:newRequest', {
+  async notifyNewLoan(userId: string, loanData: any) {
+    await this.socketGateway.notifyEmployee(userId, 'loan:newRequest', {
       loanId: loanData.equipmentLoanId,
       equipmentName: loanData.equipment?.name || 'Equipo',
       status: loanData.status,
@@ -26,9 +27,13 @@ export class EquipmentLoansGateway {
     });
   }
 
-  // Notificar cambio de estado del préstamo
-  notifyStatusChange(userId: string, loanId: string, status: string, equipmentName: string) {
-    const messages = {
+  async notifyStatusChange(
+    userId: string,
+    loanId: string,
+    status: string,
+    equipmentName: string,
+  ) {
+    const messages: Record<string, string> = {
       APPROVED: 'Tu solicitud de préstamo ha sido APROBADA',
       REJECTED: 'Tu solicitud de préstamo ha sido RECHAZADA',
       LOANED: 'El equipo te ha sido ENTREGADO',
@@ -37,7 +42,7 @@ export class EquipmentLoansGateway {
       CANCELLED: 'Tu solicitud ha sido CANCELADA',
     };
 
-    this.socketGateway.notifyEmployee(userId, 'loan:statusChange', {
+    await this.socketGateway.notifyEmployee(userId, 'loan:statusChange', {
       loanId,
       status,
       equipmentName,
@@ -46,26 +51,31 @@ export class EquipmentLoansGateway {
     });
   }
 
-  // Notificar a líderes sobre nueva solicitud pendiente
-  notifyLeadersPendingApproval(leaderIds: string[], loanData: any) {
-    if (!leaderIds || leaderIds.length === 0) return;
+  async notifyLeadersPendingApproval(leaderIds: string[], loanData: any) {
+    if (!leaderIds || leaderIds.length === 0) {
+      this.logger.warn('No hay líderes para notificar');
+      return;
+    }
 
-    leaderIds.forEach(leaderId => {
-      this.socketGateway.notifyLeader(leaderId, 'loan:pendingApproval', {
-        loanId: loanData.equipmentLoanId,
-        userName: loanData.user?.name || 'Usuario',
-        equipmentName: loanData.equipment?.name || 'Equipo',
-        reason: loanData.reason || 'Sin motivo especificado',
-        message: 'Hay una nueva solicitud de préstamo pendiente de aprobación',
-        timestamp: new Date().toISOString(),
-      });
-    });
+    this.logger.log(`Notificando a ${leaderIds.length} aprobadores`);
+
+    await Promise.all(
+      leaderIds.map((leaderId) =>
+        this.socketGateway.notifyLeader(leaderId, 'loan:pendingApproval', {
+          loanId: loanData.equipmentLoanId,
+          userName: loanData.user?.name || 'Usuario',
+          equipmentName: loanData.equipment?.name || 'Equipo',
+          reason: loanData.reason || 'Sin motivo especificado',
+          message: 'Hay una nueva solicitud de préstamo pendiente de aprobación',
+          timestamp: new Date().toISOString(),
+        }),
+      ),
+    );
   }
 
-  // Notificar a administradores (opcional)
-  notifyAdmins(admins: string[], event: string, data: any) {
-    admins.forEach(adminId => {
-      this.socketGateway.notifyEmployee(adminId, event, data);
-    });
+  async notifyAdmins(admins: string[], event: string, data: any) {
+    await Promise.all(
+      admins.map((adminId) => this.socketGateway.notifyEmployee(adminId, event, data)),
+    );
   }
 }
