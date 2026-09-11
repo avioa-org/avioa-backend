@@ -22,6 +22,7 @@ import { LeaveLeaderGuard } from './guards/leave-leader.guard';
 import { ReviewLeaveDto } from './dto/review-leave.dto';
 import { UpdateVacationAdjustmentDto } from './dto/update-vacation-adjustment.dto';
 import { BulkMigrateVacationsDto } from './dto/bulk-migration-vacations.dto';
+import { Public } from 'src/common/decorator/public.decorator';
 
 @Controller('leaves')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -35,6 +36,7 @@ export class LeavesController {
   }
 
   @Post('bulk-migrate-historical')
+  @Public()
   async bulkMigrateVacations(@Body() dto: BulkMigrateVacationsDto) {
     return await this.leavesService.bulkMigrate(dto);
   }
