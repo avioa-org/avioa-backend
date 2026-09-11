@@ -1,15 +1,42 @@
 // backend/src/modules/equipment-loans/equipment-loans.service.ts
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
-import { EquipmentDto, EquipmentStatus } from './dto/equipment.dto';
+import {
+  EquipmentDto,
+  EquipmentStatus,
+  EquipmentCategory,
+} from './dto/equipment.dto';
 import { LoanDto, LoanStatus } from './dto/loan.dto';
 import { EquipmentLoansGateway } from './equipment-loans.gateway';
+import { EvolutionApiService } from '../../infrastructure/evolution-api/evolution-api.service';
+import { envs } from '../../config/env.config';
+
+// Categorías que se notifican al líder del área
+const CATEGORIAS_LIDER: EquipmentCategory[] = [
+  EquipmentCategory.LAPTOP,
+  EquipmentCategory.CELLPHONE,
+  EquipmentCategory.MONITOR,
+  EquipmentCategory.PRINTER,
+  EquipmentCategory.PROJECTOR,
+];
+
+// Categorías que se notifican a soporte técnico
+const CATEGORIAS_SOPORTE: EquipmentCategory[] = [
+  EquipmentCategory.KEYBOARD,
+  EquipmentCategory.MOUSE,
+  EquipmentCategory.HEADPHONES,
+];
 
 @Injectable()
 export class EquipmentLoansService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: EquipmentLoansGateway,
+    private readonly evolutionApi: EvolutionApiService,
   ) {}
 
   // Helper para limpiar objetos undefined
@@ -21,6 +48,165 @@ export class EquipmentLoansService {
       }
     }
     return cleaned;
+  }
+
+  // ===== HELPERS WHATSAPP =====
+  private formatCategoria(cat: EquipmentCategory): string {
+    const labels: Record<string, string> = {
+      LAPTOP: 'Laptop',
+      CELLPHONE: 'Telefono',
+      KEYBOARD: 'Teclado',
+      MOUSE: 'Mouse',
+      HEADPHONES: 'Audifonos',
+      MONITOR: 'Monitor',
+      PRINTER: 'Impresora',
+      PROJECTOR: 'Proyector',
+      OTHER: 'Otro',
+    };
+    return labels[cat] || cat;
+  }
+
+  private formatFecha(date: Date | string): string {
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
+  private normalizePhone(phone: string): string {
+    let cleaned = phone.replace(/[\s\-\(\)\+]/g, '');
+
+    if (cleaned.startsWith('0')) {
+      cleaned = cleaned.substring(1);
+    }
+
+    if (!cleaned.startsWith('57')) {
+      cleaned = `57${cleaned}`;
+    }
+
+    return cleaned;
+  }
+
+  private buildMensajeSolicitud(
+    solicitante: { name: string; area?: string | null },
+    equipment: {
+      name: string;
+      category: EquipmentCategory;
+      serialNumber?: string | null;
+    },
+    loan: { reason?: string | null; expectedReturnDate: Date },
+    esPeriferico: boolean,
+  ): string {
+    const titulo = esPeriferico
+      ? '*NUEVA SOLICITUD DE PERIFERICO*'
+      : '*NUEVA SOLICITUD DE PRESTAMO*';
+
+    const lineas = [
+      titulo,
+      '',
+      `*Solicitante:* ${solicitante.name}`,
+      solicitante.area ? `*Area:* ${solicitante.area}` : '',
+      `*Equipo:* ${equipment.name}`,
+      `*Categoria:* ${this.formatCategoria(equipment.category)}`,
+      equipment.serialNumber ? `*Serial:* ${equipment.serialNumber}` : '',
+      loan.reason ? `*Motivo:* ${loan.reason}` : '',
+      `*Devolucion esperada:* ${this.formatFecha(loan.expectedReturnDate)}`,
+      '',
+      'Revisa el portal para aprobar o rechazar.',
+    ];
+
+    return lineas.filter(Boolean).join('\n');
+  }
+
+  private async enviarWhatsAppSolicitud(
+    equipmentCategory: EquipmentCategory,
+    solicitante: {
+      userId: string;
+      name: string;
+      area?: string | null;
+      leaderId?: string | null;
+    },
+    equipment: {
+      name: string;
+      category: EquipmentCategory;
+      serialNumber?: string | null;
+    },
+    loan: { reason?: string | null; expectedReturnDate: Date },
+  ): Promise<void> {
+    // Ignorar OTHER
+    if (equipmentCategory === EquipmentCategory.OTHER) {
+      return;
+    }
+
+    const esPeriferico = CATEGORIAS_SOPORTE.includes(equipmentCategory);
+    const esLider = CATEGORIAS_LIDER.includes(equipmentCategory);
+
+    if (!esPeriferico && !esLider) {
+      return;
+    }
+
+    const mensaje = this.buildMensajeSolicitud(
+      solicitante,
+      equipment,
+      loan,
+      esPeriferico,
+    );
+
+    try {
+      // Caso 1: Periférico -> soporte técnico (número de env)
+      if (esPeriferico) {
+        const ok = await this.evolutionApi.enviarMensaje(
+          mensaje,
+          envs.EVOLUTION_NUMERO_SOPORTE,
+        );
+        if (ok) {
+          console.log('WhatsApp de solicitud enviado a soporte tecnico');
+        } else {
+          console.warn('Fallo el envio de WhatsApp a soporte tecnico');
+        }
+        return;
+      }
+
+      // Caso 2: Categoría de líder
+      // 2a. Sin leaderId -> warning + enviar al genérico
+      if (!solicitante.leaderId) {
+        console.warn(
+          `Solicitante ${solicitante.name} (${solicitante.userId}) no tiene leaderId asignado. Enviando al numero generico.`,
+        );
+        await this.evolutionApi.enviarMensaje(mensaje);
+        return;
+      }
+
+      // 2b. Buscar al líder
+      const lider = await this.prisma.user.findUnique({
+        where: { userId: solicitante.leaderId },
+        select: { userId: true, name: true, phone: true },
+      });
+
+      if (!lider) {
+        console.warn(
+          `Lider ${solicitante.leaderId} no encontrado. Enviando al numero generico.`,
+        );
+        await this.evolutionApi.enviarMensaje(mensaje);
+        return;
+      }
+
+      // 2c. Líder sin telefono -> warning, NO enviar nada
+      if (!lider.phone) {
+        console.warn(
+          `Lider ${lider.name} (${lider.userId}) no tiene telefono registrado. No se envia WhatsApp.`,
+        );
+        return;
+      }
+
+      // 2d. Enviar al líder
+      const phoneNormalizado = this.normalizePhone(lider.phone);
+      await this.evolutionApi.enviarMensaje(mensaje, phoneNormalizado);
+      console.log(`WhatsApp de solicitud enviado al lider ${lider.name}`);
+    } catch (error) {
+      console.error('Error enviando WhatsApp de solicitud:', error);
+    }
   }
 
   // ===== EQUIPOS =====
@@ -69,7 +255,9 @@ export class EquipmentLoansService {
       (l) => l.status === LoanStatus.LOANED || l.status === LoanStatus.PENDING,
     );
     if (activeLoans.length > 0) {
-      throw new BadRequestException('Cannot delete equipment with active loans');
+      throw new BadRequestException(
+        'Cannot delete equipment with active loans',
+      );
     }
     return this.prisma.equipment.delete({
       where: { equipmentId: id },
@@ -180,6 +368,30 @@ export class EquipmentLoansService {
       }
     }
 
+    // WhatsApp: notificar al lider de area o a soporte tecnico segun categoria
+    try {
+      await this.enviarWhatsAppSolicitud(
+        newLoan.equipment.category as EquipmentCategory,
+        {
+          userId: newLoan.user.userId,
+          name: newLoan.user.name,
+          area: newLoan.user.area,
+          leaderId: newLoan.user.leaderId,
+        },
+        {
+          name: newLoan.equipment.name,
+          category: newLoan.equipment.category as EquipmentCategory,
+          serialNumber: newLoan.equipment.serialNumber,
+        },
+        {
+          reason: newLoan.reason,
+          expectedReturnDate: newLoan.expectedReturnDate,
+        },
+      );
+    } catch (error) {
+      console.error('Error enviando WhatsApp de solicitud:', error);
+    }
+
     return newLoan;
   }
 
@@ -277,7 +489,8 @@ export class EquipmentLoansService {
             ? userId
             : undefined,
         returnedById: status === LoanStatus.RETURNED ? userId : undefined,
-        actualReturnDate: status === LoanStatus.RETURNED ? new Date() : undefined,
+        actualReturnDate:
+          status === LoanStatus.RETURNED ? new Date() : undefined,
       },
       include: {
         equipment: { include: { location: true } },

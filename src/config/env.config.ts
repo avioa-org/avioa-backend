@@ -53,6 +53,7 @@ const envSchema = z.object({
   SUPABASE_SECRET_KEY: z.string(),
   SUPABASE_BUCKET: z.string(),
   SUPABASE_JWKS_URL: z.string().optional(),
+  EVOLUTION_NUMERO_SOPORTE: z.string().min(12)
 });
 
 let envs: z.infer<typeof envSchema>;

@@ -33,7 +33,7 @@ export class EquipmentLoansController {
   // ========== EQUIPOS ==========
 
   @Post('equipment')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.LEADER)
   @HttpCode(HttpStatus.CREATED)
   createEquipment(@Body() dto: EquipmentDto) {
     return this.service.createEquipment(dto);
@@ -54,14 +54,14 @@ export class EquipmentLoansController {
   }
 
   @Put('equipment/:id')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.LEADER)
   @HttpCode(HttpStatus.OK)
   updateEquipment(@Param('id') id: string, @Body() dto: EquipmentDto) {
     return this.service.updateEquipment(id, dto);
   }
 
   @Delete('equipment/:id')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.LEADER)
   @HttpCode(HttpStatus.OK)
   deleteEquipment(@Param('id') id: string) {
     return this.service.deleteEquipment(id);
