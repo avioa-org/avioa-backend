@@ -58,7 +58,7 @@ export class LeavesController {
   }
 
   @Get('admin/balances')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.RRHH)
   getAllEmployeeBalances() {
     return this.leavesService.getAllEmployeeBalances();
   }
