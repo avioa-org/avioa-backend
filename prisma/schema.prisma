@@ -74,12 +74,8 @@ model Location {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relaciones
-  <<<<<<< HEAD
-  equipments          Equipment[]
-  =======
   equipments          Equipment[]
   maintenanceRequests MaintenanceRequest[]
-  >>>>>>> c8618da249af7f60b555fbdf5c73976cda0ddd92
 
   @@map("locations")
 }
