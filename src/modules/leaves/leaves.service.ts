@@ -68,6 +68,9 @@ export class LeavesService {
       );
     }
 
+    const esCompensada =
+      dto.type === 'VACACIONES' ? (dto.esCompensada ?? false) : false;
+
     const [ys, ms, ds] = dto.startDate.split('-').map(Number);
     const [ye, me, de] = dto.endDate.split('-').map(Number);
     const startDate = new Date(ys, ms - 1, ds);
@@ -93,19 +96,21 @@ export class LeavesService {
       );
     }
 
-    const overlap = await this.prisma.leaveRequest.findFirst({
-      where: {
-        userId,
-        status: { in: [LeaveStatus.PENDING, LeaveStatus.APPROVED] },
-        startDate: { lte: endDate },
-        endDate: { gte: startDate },
-      },
-    });
+    if (!esCompensada) {
+      const overlap = await this.prisma.leaveRequest.findFirst({
+        where: {
+          userId,
+          status: { in: [LeaveStatus.PENDING, LeaveStatus.APPROVED] },
+          startDate: { lte: endDate },
+          endDate: { gte: startDate },
+        },
+      });
 
-    if (overlap) {
-      throw new BadRequestException(
-        'Ya tienes una solicitud activa que se cruza con estas fechas',
-      );
+      if (overlap) {
+        throw new BadRequestException(
+          'Ya tienes una solicitud activa que se cruza con estas fechas',
+        );
+      }
     }
 
     if (dto.type === LeaveType.VACACIONES) {
