@@ -28,6 +28,7 @@ import { EquipmentLoansModule } from './modules/equipment-loans/equipment-loans.
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { CesantiasModule } from './modules/cesantias/cesantias.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
+import { NominaModule } from './modules/nomina/nomina.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { MaintenanceModule } from './modules/maintenance/maintenance.module';
     KnowledgeModule,
     CesantiasModule,
     MaintenanceModule,
+    NominaModule,
   ],
   controllers: [],
   providers: [

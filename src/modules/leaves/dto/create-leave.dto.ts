@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsNotEmpty,
@@ -36,4 +37,8 @@ export class CreateLeaveDto {
   @IsOptional()
   @IsString()
   leaderId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  esCompensada?: boolean;
 }

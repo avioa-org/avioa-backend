@@ -609,6 +609,11 @@ model LeaveRequest {
   status  LeaveStatus @default(PENDING)
   comment String?     @map("comment")
 
+  // solo aplica cuando type = VACACIONES
+  // false = disfrutadas
+  // true = compensadas (se pagan en dinero)
+  esCompensada Boolean @default(false) @map("es_compensada")
+
   createdAt  DateTime  @default(now()) @map("created_at")
   reviewedAt DateTime? @map("reviewed_at")
 
