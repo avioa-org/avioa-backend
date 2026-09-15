@@ -38,30 +38,32 @@ export class EvolutionApiService {
     }
   }
 
-  public async enviarMensaje(texto: string, numero?: string): Promise<void> {
-    const activa = await this.instanciaActiva();
+public async enviarMensaje(texto: string, numero?: string): Promise<boolean> {
+  const activa = await this.instanciaActiva();
 
-    if (!activa) {
-      this.logger.warn(
-        'Evolution API no disponible — enviando alerta por email',
-      );
-
-      // Aqui se integraria la alerta con email
-      this.logger.error(`ALERTA EMAIL: ${texto}`);
-      return;
-    }
-
-    try {
-      await firstValueFrom(
-        this.http.post(
-          `${this.baseUrl}/message/sendText/${this.instance}`,
-          { number: numero || this.numero, text: texto },
-          { headers: { apiKey: this.apiKey } },
-        ),
-      );
-      this.logger.log('Alerta WhatsApp enviada correctamente');
-    } catch (e) {
-      this.logger.error(`Error enviando WhatsApp: ${e?.['message']}`);
-    }
+  if (!activa) {
+    this.logger.warn(
+      'Evolution API no disponible — enviando alerta por email',
+    );
+    this.logger.error(`ALERTA EMAIL: ${texto}`);
+    return false;
   }
+
+  try {
+    await firstValueFrom(
+      this.http.post(
+        `${this.baseUrl}/message/sendText/${this.instance}`,
+        { number: numero || this.numero, text: texto },
+        { headers: { apiKey: this.apiKey } },
+      ),
+    );
+    this.logger.log('Alerta WhatsApp enviada correctamente');
+    return true;
+  } catch (e) {
+    this.logger.error(
+      `Error enviando WhatsApp a ${numero || this.numero}: ${e?.['response']?.data?.message || e?.['message']}`,
+    );
+    return false;
+  }
+}
 }

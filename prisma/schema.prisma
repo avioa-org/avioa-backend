@@ -13,6 +13,33 @@ datasource db {
   provider = "postgresql"
 }
 
+model MaintenanceRequest {
+  maintenanceRequestId String            @id @default(uuid()) @map("maintenance_request_id")
+  equipmentId          String            @map("equipment_id")
+  userId               String            @map("user_id")
+  reason               String
+  description          String?
+  status               MaintenanceStatus @default(PENDING)
+  assignedToId         String?           @map("assigned_to_id")
+  resolvedAt           DateTime?         @map("resolved_at")
+  resolutionNotes      String?           @map("resolution_notes")
+  rejectedReason       String?           @map("rejected_reason")
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @updatedAt @map("updated_at")
+
+  equipment          Equipment @relation(fields: [equipmentId], references: [equipmentId], onDelete: Cascade)
+  user               User      @relation("MaintenanceRequester", fields: [userId], references: [userId], onDelete: Cascade)
+  assignedTo         User?     @relation("MaintenanceAssignee", fields: [assignedToId], references: [userId], onDelete: SetNull)
+  location           Location? @relation(fields: [locationLocationId], references: [locationId])
+  locationLocationId String?
+
+  @@index([userId])
+  @@index([equipmentId])
+  @@index([status])
+  @@index([assignedToId])
+  @@map("maintenance_requests")
+}
+
 // EQUIPMENT LOANS MODULE
 model Equipment {
   equipmentId  String            @id @default(uuid()) @map("equipment_id")
@@ -30,8 +57,9 @@ model Equipment {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relaciones
-  location Location?       @relation(fields: [locationId], references: [locationId])
-  loans    EquipmentLoan[]
+  location            Location?            @relation(fields: [locationId], references: [locationId])
+  loans               EquipmentLoan[]
+  maintenanceRequests MaintenanceRequest[]
 
   @@map("equipment")
 }
@@ -46,7 +74,12 @@ model Location {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relaciones
-  equipments Equipment[]
+  <<<<<<< HEAD
+  equipments          Equipment[]
+  =======
+  equipments          Equipment[]
+  maintenanceRequests MaintenanceRequest[]
+  >>>>>>> c8618da249af7f60b555fbdf5c73976cda0ddd92
 
   @@map("locations")
 }
@@ -254,6 +287,9 @@ model User {
   equipmentLoans         EquipmentLoan[] @relation("EmployeeEquipmentLoans")
   approvedEquipmentLoans EquipmentLoan[] @relation("ApproverEquipmentLoans")
   returnedEquipmentLoans EquipmentLoan[] @relation("ReturnerEquipmentLoans")
+
+  maintenanceRequests MaintenanceRequest[] @relation("MaintenanceRequester")
+  maintenanceAssigned MaintenanceRequest[] @relation("MaintenanceAssignee")
 
   signature Signature? @relation(fields: [signatureId], references: [signatureId])
 
@@ -1043,6 +1079,12 @@ enum NotificationType {
   OVERTIME_REJECTED
   APPROVAL
   REJECTION
+  EQUIPMENT_LOAN_REQUEST
+  EQUIPMENT_LOAN_APPROVED
+  EQUIPMENT_LOAN_REJECTED
+  EQUIPMENT_LOAN_RETURNED
+  MAINTENANCE_REQUEST
+  MAINTENANCE_STATUS_CHANGE
 }
 
 enum RewardType {
@@ -1136,4 +1178,13 @@ enum PasswordStrengthLevel {
   MEDIUM
   STRONG
   VERY_STRONG
+}
+
+enum MaintenanceStatus {
+  PENDING
+  IN_REVIEW
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+  CANCELLED
 }
