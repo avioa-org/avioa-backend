@@ -27,6 +27,7 @@ import { CotizadorModule } from './modules/cotizador/cotizador.module';
 import { EquipmentLoansModule } from './modules/equipment-loans/equipment-loans.module';
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { CesantiasModule } from './modules/cesantias/cesantias.module';
+import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { CesantiasModule } from './modules/cesantias/cesantias.module';
     EquipmentLoansModule,
     KnowledgeModule,
     CesantiasModule,
+    MaintenanceModule,
   ],
   controllers: [],
   providers: [
