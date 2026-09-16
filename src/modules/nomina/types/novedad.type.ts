@@ -12,32 +12,32 @@ export interface NovedadConsolidada {
   esRemunerada: boolean;
   afectaNomina: 'SUMA' | 'RESTA' | 'NEUTRO';
 
-  // colaborador
+  // Colaborador
   userId: string;
   nombreColaborador: string;
-  documentNumber: string;
+  documentNumber: string | null;
   position: string | null;
   area: string | null;
   department: string | null;
   legalEntity: string | null;
   office: string | null;
 
-  // fechas
+  // Fechas reales (sin recortar)
   fechaInicio: string;
   fechaFin: string;
 
-  // recortado al periodo liquidado
+  // Recortado al periodo liquidado
   fechaInicioEnPeriodo: string;
   fechaFinEnPeriodo: string;
   cantidadEnPeriodo: number;
   cantidadTotal: number;
 
-  cruzaPeriodoAnterioro: boolean;
+  cruzaPeriodoAnterior: boolean;
   cruzaPeriodoSiguiente: boolean;
 
-  // esto es para trazabilidad
+  // Soporte y trazabilidad
   motivo: string;
-  attachmentUr: string | null;
+  attachmentUrl: string | null;
   comentarioAprobador: string | null;
   aprobadorId: string;
   nombreAprobador: string;

@@ -3,19 +3,14 @@ import { LeaveType } from 'generated/prisma/enums';
 interface ConfigTipo {
   label: string;
   esRemunerada: boolean;
-  afectaNomina: 'SUMA' | 'RESTA' | 'NEUTRO';
-
-  // true = se cuenta en dias habiles; false = dias calendario
+  afectaNomina: 'SUMA' | 'RESTA';
   contarHabiles: boolean;
 }
 
-export const CONFIG_TIPOS: Record<LeaveType, ConfigTipo> = {
-  VACACIONES: {
-    label: 'Vacaciones',
-    esRemunerada: true,
-    afectaNomina: 'NEUTRO',
-    contarHabiles: true,
-  },
+export const CONFIG_TIPOS: Record<
+  Exclude<LeaveType, 'VACACIONES'>,
+  ConfigTipo
+> = {
   INCAPACIDAD_EPS: {
     label: 'Incapacidad EPS',
     esRemunerada: true,
@@ -43,23 +38,23 @@ export const CONFIG_TIPOS: Record<LeaveType, ConfigTipo> = {
   LICENCIA_LUTO: {
     label: 'Licencia de luto',
     esRemunerada: true,
-    afectaNomina: 'NEUTRO',
+    afectaNomina: 'RESTA',
     contarHabiles: false,
   },
   LICENCIA_MATRIMONIO: {
     label: 'Licencia de matrimonio',
     esRemunerada: true,
-    afectaNomina: 'NEUTRO',
+    afectaNomina: 'RESTA',
     contarHabiles: true,
   },
   PERMISO_REMUNERADO: {
-    label: 'Permiso remunerado',
+    label: 'Licencia remunerada',
     esRemunerada: true,
-    afectaNomina: 'NEUTRO',
+    afectaNomina: 'RESTA',
     contarHabiles: true,
   },
   PERMISO_NO_REMUNERADO: {
-    label: 'Permiso no remunerado',
+    label: 'Licencia no remunerada',
     esRemunerada: false,
     afectaNomina: 'RESTA',
     contarHabiles: true,
@@ -67,7 +62,7 @@ export const CONFIG_TIPOS: Record<LeaveType, ConfigTipo> = {
   CALAMIDAD_DOMESTICA: {
     label: 'Calamidad doméstica',
     esRemunerada: true,
-    afectaNomina: 'NEUTRO',
+    afectaNomina: 'RESTA',
     contarHabiles: true,
   },
   DILIGENCIA_PERSONAL: {
@@ -79,7 +74,7 @@ export const CONFIG_TIPOS: Record<LeaveType, ConfigTipo> = {
   OBLIGACION_COMO_ACUDIENTE: {
     label: 'Obligación como acudiente',
     esRemunerada: true,
-    afectaNomina: 'NEUTRO',
+    afectaNomina: 'RESTA',
     contarHabiles: true,
   },
   CITA_MEDICA_PARTICULAR: {
@@ -91,7 +86,23 @@ export const CONFIG_TIPOS: Record<LeaveType, ConfigTipo> = {
   OTRO: {
     label: 'Otro',
     esRemunerada: false,
-    afectaNomina: 'NEUTRO',
+    afectaNomina: 'RESTA',
     contarHabiles: true,
   },
 };
+
+export function resolverConfigVacaciones(esCompensada: boolean): ConfigTipo {
+  return esCompensada
+    ? {
+        label: 'Vacaciones compensadas (dinero)',
+        esRemunerada: true,
+        afectaNomina: 'SUMA', // pago adicional, el colaborador sigue trabajando
+        contarHabiles: true,
+      }
+    : {
+        label: 'Vacaciones disfrutadas (tiempo)',
+        esRemunerada: true,
+        afectaNomina: 'RESTA', // el colaborador no trabaja esos días
+        contarHabiles: true,
+      };
+}

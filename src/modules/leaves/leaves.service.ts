@@ -151,6 +151,7 @@ export class LeavesService {
         reason: dto.reason,
         attachmentUrl: dto.attachmentUrl ?? null,
         status: LeaveStatus.PENDING,
+        esCompensada,
       },
     });
 
@@ -164,6 +165,7 @@ export class LeavesService {
       startDate: leave.startDate,
       endDate: leave.endDate,
       createdAt: new Date(),
+      esCompensada,
       notificationId: '',
     };
 
