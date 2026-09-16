@@ -13,6 +13,7 @@ import { LoanDto, LoanStatus } from './dto/loan.dto';
 import { EquipmentLoansGateway } from './equipment-loans.gateway';
 import { EvolutionApiService } from '../../infrastructure/evolution-api/evolution-api.service';
 import { envs } from '../../config/env.config';
+import { CreateLocationDto } from './dto/location.dto';
 
 // Categorías que se notifican al líder del área
 const CATEGORIAS_LIDER: EquipmentCategory[] = [
@@ -709,6 +710,10 @@ export class EquipmentLoansService {
       where: { isActive: true },
       orderBy: { name: 'asc' },
     });
+  }
+
+  async createLocation(dto: CreateLocationDto[]) {
+    return this.prisma.location.createMany({ data: dto });
   }
 
   // ===== HELPERS =====

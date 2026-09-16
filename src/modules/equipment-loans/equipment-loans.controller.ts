@@ -24,6 +24,7 @@ import {
   type ICurrentUser,
 } from 'src/common/decorator/current-user.decorator';
 import { Public } from 'src/common/decorator/public.decorator';
+import { CreateLocationDto } from './dto/location.dto';
 
 @Controller('equipment-loans')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -130,5 +131,13 @@ export class EquipmentLoansController {
   @HttpCode(HttpStatus.OK)
   findAllLocations() {
     return this.service.findAllLocations();
+  }
+
+  @Post('locations')
+  @Roles(Role.ADMIN, Role.LEADER)
+  @HttpCode(HttpStatus.CREATED)
+  async createLocation(@Body() dto: CreateLocationDto[]) {
+    console.log(dto);
+    return await this.service.createLocation(dto);
   }
 }
