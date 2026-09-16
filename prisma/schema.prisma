@@ -89,7 +89,7 @@ model EquipmentLoan {
 
   // Fechas
   loanDate           DateTime  @default(now()) @map("loan_date")
-  expectedReturnDate DateTime  @map("expected_return_date")
+  expectedReturnDate DateTime?  @map("expected_return_date")
   actualReturnDate   DateTime? @map("actual_return_date")
 
   // Motivos

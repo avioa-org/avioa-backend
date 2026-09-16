@@ -40,10 +40,14 @@ export class EquipmentLoansController {
   }
 
   @Get('equipment')
-  @Public()
+  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
-  findAllEquipment() {
-    return this.service.findAllEquipment();
+  findAllEquipment(@CurrentUser() user: ICurrentUser) {
+    return this.service.findAllEquipment({
+      userId: user.userId,
+      role: user.role,
+      isLeader: user.isLeader,
+    });
   }
 
   @Get('equipment/:id')

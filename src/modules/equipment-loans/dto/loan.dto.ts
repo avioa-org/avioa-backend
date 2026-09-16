@@ -27,7 +27,7 @@ export class LoanDto {
   @IsString()
   observation?: string;
 
+  @IsOptional()
   @IsDateString()
-  @IsNotEmpty()
-  expectedReturnDate!: string;
+  expectedReturnDate?: string;
 }
