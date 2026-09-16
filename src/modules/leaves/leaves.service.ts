@@ -33,7 +33,7 @@ export interface EntryResult {
   message?: string;
 }
 
-const HISTORICAL_MIGRATION_TAG = '[MIGRACION_HISTORICA_VACACIONES_2026]';
+export const HISTORICAL_MIGRATION_TAG = '[MIGRACION_HISTORICA_VACACIONES_2026]';
 
 @Injectable()
 export class LeavesService {

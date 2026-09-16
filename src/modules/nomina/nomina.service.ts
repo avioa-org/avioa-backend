@@ -5,6 +5,7 @@ import { type NovedadConsolidada } from './types/novedad.type';
 import { LeavesController } from '../leaves/leaves.controller';
 import { LeaveStatus, LeaveType, OvertimeStatus } from 'generated/prisma/enums';
 import { CONFIG_TIPOS, resolverConfigVacaciones } from './config/tipos-novedad';
+import { HISTORICAL_MIGRATION_TAG } from '../leaves/leaves.service';
 
 export interface FiltrosNomina {
   desde: string; // YYYY-MM-DD
@@ -91,6 +92,9 @@ export class NominaService {
 
         startDate: { lte: periodo.hasta },
         endDate: { gte: periodo.desde },
+        NOT: {
+          reason: { contains: HISTORICAL_MIGRATION_TAG },
+        },
         ...(filtros.userId && { userId: filtros.userId }),
         ...(filtros.leaderId && { leaderId: filtros.leaderId }),
         ...(tiposLeave?.length && { type: { in: tiposLeave } }),
