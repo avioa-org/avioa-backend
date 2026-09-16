@@ -54,6 +54,8 @@ const envSchema = z.object({
   SUPABASE_BUCKET: z.string(),
   SUPABASE_JWKS_URL: z.string().optional(),
   RESEND_RESET_PASSWORD_TEMPLATE_ALIAS: z.string(),
+  EVOLUTION_NUMERO_SOPORTE: z.string().min(12),
+  SOPORTE_DOCUMENT_NUMBER: z.string().min(1),
 });
 
 let envs: z.infer<typeof envSchema>;

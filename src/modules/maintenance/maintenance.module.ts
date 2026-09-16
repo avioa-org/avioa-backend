@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
-import { EquipmentLoansService } from './equipment-loans.service';
-import { EquipmentLoansController } from './equipment-loans.controller';
-import { EquipmentLoansGateway } from './equipment-loans.gateway';
+import { MaintenanceService } from './maintenance.service';
+import { MaintenanceController } from './maintenance.controller';
+import { MaintenanceGateway } from './maintenance.gateway';
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module';
 import { AuthorizationModule } from '../../common/authorization/authorization.module';
 import { WebsocketsModule } from '../websockets/websockets.module';
@@ -15,11 +15,11 @@ import { EvolutionApiService } from '../../infrastructure/evolution-api/evolutio
     WebsocketsModule,
     HttpModule,
   ],
-  controllers: [EquipmentLoansController],
+  controllers: [MaintenanceController],
   providers: [
-    EquipmentLoansService,
-    EquipmentLoansGateway,
+    MaintenanceService,
+    MaintenanceGateway,
     EvolutionApiService,
   ],
 })
-export class EquipmentLoansModule {}
+export class MaintenanceModule {}

@@ -24,6 +24,7 @@ import {
   type ICurrentUser,
 } from 'src/common/decorator/current-user.decorator';
 import { Public } from 'src/common/decorator/public.decorator';
+import { CreateLocationDto } from './dto/location.dto';
 
 @Controller('equipment-loans')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -33,7 +34,7 @@ export class EquipmentLoansController {
   // ========== EQUIPOS ==========
 
   @Post('equipment')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.LEADER)
   @HttpCode(HttpStatus.CREATED)
   createEquipment(@Body() dto: EquipmentDto) {
     return this.service.createEquipment(dto);
@@ -54,14 +55,14 @@ export class EquipmentLoansController {
   }
 
   @Put('equipment/:id')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.LEADER)
   @HttpCode(HttpStatus.OK)
   updateEquipment(@Param('id') id: string, @Body() dto: EquipmentDto) {
     return this.service.updateEquipment(id, dto);
   }
 
   @Delete('equipment/:id')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.LEADER)
   @HttpCode(HttpStatus.OK)
   deleteEquipment(@Param('id') id: string) {
     return this.service.deleteEquipment(id);
@@ -126,5 +127,13 @@ export class EquipmentLoansController {
   @HttpCode(HttpStatus.OK)
   findAllLocations() {
     return this.service.findAllLocations();
+  }
+
+  @Post('locations')
+  @Roles(Role.ADMIN, Role.LEADER)
+  @HttpCode(HttpStatus.CREATED)
+  async createLocation(@Body() dto: CreateLocationDto[]) {
+    console.log(dto);
+    return await this.service.createLocation(dto);
   }
 }
