@@ -89,7 +89,7 @@ model EquipmentLoan {
 
   // Fechas
   loanDate           DateTime  @default(now()) @map("loan_date")
-  expectedReturnDate DateTime  @map("expected_return_date")
+  expectedReturnDate DateTime?  @map("expected_return_date")
   actualReturnDate   DateTime? @map("actual_return_date")
 
   // Motivos
@@ -1086,6 +1086,9 @@ enum NotificationType {
   EQUIPMENT_LOAN_RETURNED
   MAINTENANCE_REQUEST
   MAINTENANCE_STATUS_CHANGE
+  LEAVE_REQUEST_APPROVED
+  LEAVE_REQUEST_RECEIVED
+  LEAVE_REQUEST_REJECTED
 }
 
 enum RewardType {

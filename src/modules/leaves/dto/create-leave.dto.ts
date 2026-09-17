@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  IsUUID,
   MaxLength,
 } from 'class-validator';
 import { LeaveType } from 'generated/prisma/enums';
