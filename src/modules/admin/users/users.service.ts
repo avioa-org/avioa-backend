@@ -278,21 +278,75 @@ export class UsersService {
     return await this.prisma.user.delete({ where: { userId } });
   }
 
-  public async getUserDirectory(userId: string) {
-    return this.prisma.user.findMany({
-      where: { status: 'ACTIVE', userId: { not: userId } },
-      select: {
-        userId: true,
-        name: true,
-        email: true,
-        avatarUrl: true,
-        department: true,
-        area: true,
-        birthDate: true,
+public async getUserDirectory(userId: string) {
+  const users = await this.prisma.user.findMany({
+    where: { status: 'ACTIVE', userId: { not: userId } },
+    select: {
+      userId: true,
+      name: true,
+      email: true,
+      avatarUrl: true,
+      department: true,
+      area: true,
+      birthDate: true,
+      phone: true,
+      position: true,
+      office: true,
+      startDate: true,
+      contractType: true,
+      documentType: true,
+      documentNumber: true,
+      address: true,
+      emergencyContactName: true,
+      emergencyContactPhone: true,
+      emergencyContactRel: true,
+      role: true,
+      leaderId: true,
+      managerId: true,
+      leader: {
+        select: {
+          userId: true,
+          name: true,
+        },
       },
-      orderBy: { name: 'asc' },
-    });
-  }
+      manager: {
+        select: {
+          userId: true,
+          name: true,
+        },
+      },
+    },
+    orderBy: { name: 'asc' },
+  });
+
+  // Transformar para que el frontend reciba los campos planos que espera
+  return users.map((u) => ({
+    id: u.userId,
+    name: u.name,
+    email: u.email,
+    avatar: u.avatarUrl,
+    avatarUrl: u.avatarUrl,
+    department: u.department,
+    area: u.area,
+    birthDate: u.birthDate,
+    phone: u.phone,
+    position: u.position,
+    office: u.office,
+    startDate: u.startDate,
+    contractType: u.contractType,
+    documentType: u.documentType,
+    documentNumber: u.documentNumber,
+    address: u.address,
+    emergencyContactName: u.emergencyContactName,
+    emergencyContactPhone: u.emergencyContactPhone,
+    emergencyContactRel: u.emergencyContactRel,
+    role: u.role,
+    leaderId: u.leaderId,
+    leaderName: u.leader?.name || null,      // ← NUEVO
+    managerId: u.managerId,
+    managerName: u.manager?.name || null,     // ← NUEVO
+  }));
+}
 
   public async updateProfile(
     updateProfileDto: UpdateProfileDto,
