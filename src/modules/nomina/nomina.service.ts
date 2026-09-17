@@ -48,9 +48,9 @@ export class NominaService {
   }
 
   private formatDateLocal(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
 
     return `${year}-${month}-${day}`;
   }
@@ -199,6 +199,16 @@ export class NominaService {
         leader: { select: { name: true } },
       },
     });
+
+    const rr = registros
+      .filter((r) => r.userId === '5a41e6f3-33f0-46a0-a7ad-1fbd6613e94d')
+      .map((r) => ({
+        ...r,
+        startTime: this.formatDateLocal(r.startTime),
+        endTime: this.formatDateLocal(r.endTime),
+      }));
+
+    console.log('rr', rr);
 
     return registros.map((ot) => ({
       id: ot.overtimeRequestId,
