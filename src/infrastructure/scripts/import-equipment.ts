@@ -1,7 +1,6 @@
-// src/infrastructure/scripts/import-equipment.ts
+import 'dotenv/config';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as dotenv from 'dotenv';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../../generated/prisma/client';
 import {
@@ -9,25 +8,18 @@ import {
   EquipmentStatus,
   LoanStatus,
 } from '../../../generated/prisma/enums';
+import { envs } from '../../config/env.config';
 
 // Cargar variables de entorno ANTES de crear el cliente
-dotenv.config({ path: path.resolve(process.cwd(), '.env.development') });
 
 const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: envs.DATABASE_URL,
 });
 
 const prisma = new PrismaClient({ adapter });
 
-const JSON_PATH = path.resolve(
-  process.cwd(),
-  'src/infrastructure/scripts/data/equipos-classified.json',
-);
-
-const REPORTS_DIR = path.resolve(
-  process.cwd(),
-  'src/infrastructure/scripts/reports',
-);
+const JSON_PATH = path.join(__dirname, './data/equipos-classified.json');
+const REPORTS_DIR = path.join(__dirname, './data/reports');
 
 // ===== HELPERS =====
 
@@ -43,7 +35,7 @@ async function findUserByName(
 
   // Match exacto
   const user = await prisma.user.findFirst({
-    where: { name: cleaned },
+    where: { name: { contains: cleaned } },
     select: { userId: true, name: true },
   });
 
@@ -51,14 +43,12 @@ async function findUserByName(
 
   // Match case-insensitive como respaldo
   const userCI = await prisma.user.findFirst({
-    where: { name: { equals: cleaned, mode: 'insensitive' } },
+    where: { name: { contains: cleaned, mode: 'insensitive' } },
     select: { userId: true, name: true },
   });
 
   return userCI || null;
 }
-
-
 
 async function importEquipment() {
   // Leer el JSON

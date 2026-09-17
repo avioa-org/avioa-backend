@@ -21,14 +21,14 @@ function extract() {
   const workbook = XLSX.read(fs.readFileSync(EXCEL_PATH), { type: 'buffer' });
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as any[];
+  const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
   console.log(`${rows.length} filas leídas de la hoja "${sheetName}"`);
   console.log(`Columnas detectadas:`, Object.keys(rows[0] || {}));
 
   // Normalizar cada fila con nombres consistentes
   const normalized = rows.map((row, idx) => ({
-    _rowIndex: idx + 2, 
+    _rowIndex: idx + 2,
     assetTagId: String(row['Asset Tag ID'] || '').trim(),
     description: String(row['Description'] || '').trim(),
     serialNumber: String(row['Serial No'] || '').trim(),
