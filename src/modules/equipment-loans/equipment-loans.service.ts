@@ -110,7 +110,7 @@ export class EquipmentLoansService {
       category: EquipmentCategory;
       serialNumber?: string | null;
     },
-    loan: { reason?: string | null; expectedReturnDate: Date },
+    loan: { reason?: string | null; expectedReturnDate: Date | null },
     esPeriferico: boolean,
   ): string {
     const titulo = esPeriferico
@@ -126,7 +126,9 @@ export class EquipmentLoansService {
       `*Categoria:* ${this.formatCategoria(equipment.category)}`,
       equipment.serialNumber ? `*Serial:* ${equipment.serialNumber}` : '',
       loan.reason ? `*Motivo:* ${loan.reason}` : '',
-      `*Devolucion esperada:* ${this.formatFecha(loan.expectedReturnDate)}`,
+      loan.expectedReturnDate
+        ? `*Devolucion esperada:* ${this.formatFecha(loan.expectedReturnDate)}`
+        : '',
       '',
       'Revisa el portal para aprobar o rechazar.',
     ];
@@ -147,7 +149,7 @@ export class EquipmentLoansService {
       category: EquipmentCategory;
       serialNumber?: string | null;
     },
-    loan: { reason?: string | null; expectedReturnDate: Date },
+    loan: { reason?: string | null; expectedReturnDate: Date | null },
   ): Promise<void> {
     // Ignorar OTHER
     if (equipmentCategory === EquipmentCategory.OTHER) {
@@ -258,7 +260,6 @@ export class EquipmentLoansService {
     }
   }
 
-  // ===== EQUIPOS =====
   async createEquipment(data: EquipmentDto) {
     const cleanData = this.cleanObject(data);
     return this.prisma.equipment.create({
@@ -267,17 +268,59 @@ export class EquipmentLoansService {
     });
   }
 
-  async findAllEquipment() {
-    return this.prisma.equipment.findMany({
-      include: {
-        location: true,
-        loans: {
-          where: { status: LoanStatus.APPROVED },
-          include: { user: true },
-          orderBy: { createdAt: 'desc' },
-          take: 1, // solo el préstamo activo más reciente
+  async findAllEquipment(user: {
+    userId: string;
+    role: string;
+    isLeader: boolean;
+  }) {
+    const isPrivileged =
+      user.role === 'ADMIN' ||
+      user.role === 'MANAGER' ||
+      user.role === 'LEADER' ||
+      user.isLeader === true;
+
+    const include = {
+      location: true,
+      loans: {
+        where: {
+          status: { in: [LoanStatus.APPROVED, LoanStatus.PENDING] },
         },
+        include: { user: true },
       },
+    };
+
+    // Líderes/managers/admins ven todos los equipos
+    if (isPrivileged) {
+      return this.prisma.equipment.findMany({ include });
+    }
+
+    // Empleados normales solo ven:
+    // - AVAILABLE
+    // - MAINTENANCE
+    // - DAMAGED
+    // - LOANED que ellos mismos tienen
+    return this.prisma.equipment.findMany({
+      where: {
+        OR: [
+          { status: EquipmentStatus.AVAILABLE },
+          { status: EquipmentStatus.MAINTENANCE },
+          { status: EquipmentStatus.DAMAGED },
+          {
+            AND: [
+              { status: EquipmentStatus.LOANED },
+              {
+                loans: {
+                  some: {
+                    userId: user.userId,
+                    status: LoanStatus.APPROVED,
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      include,
     });
   }
   async findOneEquipment(id: string) {
@@ -330,10 +373,11 @@ export class EquipmentLoansService {
       userId,
       reason: data.reason,
       observation: data.observation,
-      expectedReturnDate: new Date(data.expectedReturnDate),
+      expectedReturnDate: data.expectedReturnDate
+        ? new Date(data.expectedReturnDate)
+        : undefined,
       status: LoanStatus.PENDING,
     };
-
     const newLoan = await this.prisma.equipmentLoan.create({
       data: loanData,
       include: {

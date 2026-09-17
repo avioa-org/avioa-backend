@@ -1,0 +1,28 @@
+[
+  {
+    "_rowIndex": 118,
+    "assetTagId": "AVIOAPC080",
+    "description": "PORTATIL ASUS VIVOBOOK",
+    "serialNumber": "SBN0CV145764489",
+    "location": "MARINILLA",
+    "assignedToRaw": "Lorena Cardona Osorno",
+    "category": "LAPTOP",
+    "isAvailable": false,
+    "assignedToUserName": "LORENA CARDONA OSORNO",
+    "needsReview": true,
+    "reviewReason": "Serial duplicado con fila 80 (SBN0CV145764489). Se omite la fila 80 y se queda esta"
+  },
+  {
+    "_rowIndex": 190,
+    "assetTagId": "AVIOAPC052",
+    "description": "TODO EN UNO HP",
+    "serialNumber": "8CC1280TJ6",
+    "location": "MARINILLA",
+    "assignedToRaw": "TATIANA DUQUE CORTÉS",
+    "category": "LAPTOP",
+    "isAvailable": false,
+    "assignedToUserName": "TATIANA DUQUE CORTÉS",
+    "needsReview": true,
+    "reviewReason": "Serial duplicado con fila 53 (8CC1280TJ6). Se omite esta fila"
+  }
+]
