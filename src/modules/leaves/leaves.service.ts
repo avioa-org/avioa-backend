@@ -156,7 +156,7 @@ export class LeavesService {
     });
 
     const notificationData = {
-      type: NotificationType.APPROVAL,
+      type: 'LEAVE_REQUEST_RECEIVED',
       title: 'Nueva solicitud de ausencia',
       message: `${user.name} solicitó ${businessDays} día(s) hábiles de ${this.humanType(dto.type)}`,
       leaveRequestId: leave.leaveRequestId,
@@ -175,7 +175,7 @@ export class LeavesService {
           userId: leaderId,
           title: notificationData.title,
           message: notificationData.message,
-          type: notificationData.type,
+          type: notificationData.type as NotificationType,
         },
       });
     });
@@ -474,7 +474,7 @@ export class LeavesService {
     const endStr = record.endDate.toLocaleDateString('es-CO');
 
     const notificationData = {
-      type: isApproved ? NotificationType.APPROVAL : NotificationType.REJECTION,
+      type: isApproved ? 'LEAVE_REQUEST_APPROVED' : 'LEAVE_REQUEST_REJECTED',
       title: isApproved ? 'Ausencia aprobada' : 'Ausencia rechazada',
       message: isApproved
         ? `Tu ausencia del ${startStr} al ${endStr} fue aprobada`
@@ -492,7 +492,7 @@ export class LeavesService {
           userId: record.userId,
           title: notificationData.title,
           message: notificationData.message,
-          type: notificationData.type,
+          type: notificationData.type as NotificationType,
         },
       });
     });
