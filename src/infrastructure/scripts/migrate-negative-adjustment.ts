@@ -76,7 +76,7 @@ async function migrateNegativeAdjustment(dryRun = true) {
   console.log(results);
 }
 
-migrateNegativeAdjustment(dryRun).then(() => {
+migrateNegativeAdjustment(dryRun).finally(() => {
   prisma.$disconnect();
   process.exit(0);
 });
