@@ -659,11 +659,13 @@ export class LeavesService {
     entry: HistoricalVacationEntryDto,
     dryRun: boolean,
   ): Promise<EntryResult> {
+    const LOTE_TAG = 'lote-3-programados-rrhh';
     const already = await this.prisma.leaveRequest.findFirst({
       where: {
         userId: entry.userId,
         type: LeaveType.VACACIONES,
-        reason: { contains: HISTORICAL_MIGRATION_TAG },
+        reason: { contains: LOTE_TAG },
+        status: entry.status,
       },
       select: { leaveRequestId: true },
     });
@@ -711,10 +713,12 @@ export class LeavesService {
         });
       }
 
-      await tx.user.update({
-        where: { userId: entry.userId },
-        data: { vacationDaysAdjustment: entry.newAdjustment },
-      });
+      if (entry.newAdjustment !== 0) {
+        await tx.user.update({
+          where: { userId: entry.userId },
+          data: { vacationDaysAdjustment: entry.newAdjustment },
+        });
+      }
     });
 
     return { userId: entry.userId, status: 'ok' };
