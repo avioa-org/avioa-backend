@@ -44,58 +44,6 @@ const OUT_PATH = process.argv[4] ?? '/tmp/bulk-migrate-payload.json';
 const LEADER_ID: string | null = null; // fallback opcional; null = no usar
 const FECHA_CORTE: string | null = '2026-09-09'; // YYYY-MM-DD; null = ayer
 
-// Alternativa con argv (descomentar si querés pasar por CLI):
-//
-// interface Args {
-//   exportPortal: string;
-//   reconciliacion: string;
-//   leaderId: string | null;
-//   fechaCorte: string | null;
-//   out: string;
-// }
-//
-// function parseArgs(argv: string[]): Args {
-//   const partial: Partial<Args> = {
-//     leaderId: null,
-//     fechaCorte: null,
-//     out: 'bulk-migrate-payload.json',
-//   };
-//   for (let i = 0; i < argv.length; i++) {
-//     const a = argv[i];
-//     const takeNext = (): string => {
-//       i++;
-//       if (i >= argv.length) throw new Error(`Falta valor para ${a}`);
-//       return argv[i];
-//     };
-//     if (a === '--export-portal') partial.exportPortal = takeNext();
-//     else if (a === '--reconciliacion') partial.reconciliacion = takeNext();
-//     else if (a === '--leader-id') partial.leaderId = takeNext();
-//     else if (a === '--fecha-corte') partial.fechaCorte = takeNext();
-//     else if (a === '--out') partial.out = takeNext();
-//     else if (a.startsWith('--export-portal='))
-//       partial.exportPortal = a.slice('--export-portal='.length);
-//     else if (a.startsWith('--reconciliacion='))
-//       partial.reconciliacion = a.slice('--reconciliacion='.length);
-//     else if (a.startsWith('--leader-id='))
-//       partial.leaderId = a.slice('--leader-id='.length);
-//     else if (a.startsWith('--fecha-corte='))
-//       partial.fechaCorte = a.slice('--fecha-corte='.length);
-//     else if (a.startsWith('--out='))
-//       partial.out = a.slice('--out='.length);
-//     else throw new Error(`Argumento desconocido: ${a}`);
-//   }
-//   if (!partial.exportPortal || !partial.reconciliacion) {
-//     throw new Error(
-//       'Faltan argumentos requeridos: --export-portal y --reconciliacion',
-//     );
-//   }
-//   return partial as Args;
-// }
-
-// ─────────────────────────────────────────────────────────────
-// Tipos
-// ─────────────────────────────────────────────────────────────
-
 interface PortalUser {
   user: {
     userId: string;
@@ -114,10 +62,6 @@ interface Entry {
   newAdjustment: number;
 }
 
-// ─────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────
-
 function norm(s: string): string {
   let r = s.toUpperCase();
   // Equivalente a unicodedata.normalize('NFKD', s).encode('ascii','ignore').decode()
@@ -126,10 +70,6 @@ function norm(s: string): string {
   return r.replace(/\s+/g, ' ').trim();
 }
 
-/**
- * Replica el round() de Python 3 (banker's rounding).
- * round(0.5)=0, round(1.5)=2, round(2.5)=2, round(3.5)=4.
- */
 function pythonRound(x: number): number {
   const floor = Math.floor(x);
   const frac = x - floor;
