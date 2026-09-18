@@ -77,7 +77,6 @@ export class LeavesController {
     @Param('userId') userId: string,
     @Body() dto: UpdateVacationAdjustmentDto,
   ) {
-    console.log('updateUserVacationAdjustment', userId, dto);
     return this.leavesService.updateUserVacationAdjustment(
       userId,
       dto.vacationDaysAdjustment,

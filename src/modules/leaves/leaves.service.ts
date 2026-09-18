@@ -316,7 +316,8 @@ export class LeavesService {
     const calculatedAccrued = Math.floor(
       (daysWorked * VACATIONS_DAYS_PER_YEAR) / 360,
     );
-    const accrued = Math.floor(calculatedAccrued + adjustment);
+    // const accrued = Math.floor(calculatedAccrued + adjustment);
+    const accrued = Math.floor(calculatedAccrued);
 
     // vacaciones aprobadas
     // se consideran todas las vacaciones aprobadas
@@ -354,7 +355,7 @@ export class LeavesService {
     // accrued = 30
     // taken = 35
     // available = -5
-    const available = accrued - taken;
+    const available = accrued + adjustment - taken;
 
     // saldo proyectado
     // se tienen en cuenta las solicitudes pendientes
