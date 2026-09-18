@@ -705,8 +705,8 @@ export class LeavesService {
             endDate: new Date(entry.endDate),
             businessDays: entry.businessDays,
             reason: `${entry.reason ?? 'Migración de saldo histórico de vacaciones'} ${HISTORICAL_MIGRATION_TAG}`,
-            status: LeaveStatus.APPROVED,
             reviewedAt: new Date(),
+            status: entry.status,
           },
         });
       }
