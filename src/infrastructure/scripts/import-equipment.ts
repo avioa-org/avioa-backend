@@ -58,8 +58,6 @@ async function findUserByName(
   return userCI || null;
 }
 
-
-
 async function importEquipment() {
   // Leer el JSON
   if (!fs.existsSync(JSON_PATH)) {
@@ -237,11 +235,13 @@ async function importEquipment() {
       `Reporte de no asignados: ${path.join(REPORTS_DIR, 'unassigned-users.json')}`,
     );
   }
-
-  await prisma.$disconnect();
 }
 
-importEquipment().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+importEquipment()
+  .catch((e) => {
+    console.error(e);
+  })
+  .finally(() => {
+    prisma.$disconnect();
+    process.exit(0);
+  });
