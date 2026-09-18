@@ -273,9 +273,12 @@ export class UsersService {
       });
     }
 
-    this.logger.log(`User ${user.email} deleted successfully`);
+    this.logger.log(`User ${user.email} incactivated successfully`);
 
-    return await this.prisma.user.delete({ where: { userId } });
+    return await this.prisma.user.update({
+      where: { userId },
+      data: { status: 'INACTIVE' },
+    });
   }
 
   public async getUserDirectory(userId: string) {
