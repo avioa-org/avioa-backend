@@ -274,8 +274,6 @@ export class AuthService {
       purpose?: string;
     };
 
-    console.log('dto.temporaryToken', dto.temporaryToken);
-
     try {
       payload = verify(dto.temporaryToken, envs.JWT_SECRET) as typeof payload;
     } catch {

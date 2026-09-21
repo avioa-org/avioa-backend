@@ -9,7 +9,6 @@ import { SocketGateway } from '../points/gateway/points.gateway';
 import { EmailService } from 'src/infrastructure/email/email.infra';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 import { CreateLeaveDto } from './dto/create-leave.dto';
-import holidaysColombia from 'festivos-colombianos';
 import { countBusinessDays } from './helpers/business-days.helper';
 import {
   LeaveStatus,
@@ -390,7 +389,10 @@ export class LeavesService {
   }
 
   public async findMyRequests(userId: string, query: LeaveQueryDto) {
-    const where: any = { userId };
+    const where: any = {
+      userId,
+      NOT: { reason: { contains: 'MIGRACION_HISTORICA_VACACIONES_2026' } },
+    };
 
     if (query.status) where.status = query.status;
     if (query.type) where.type = query.type;
@@ -500,11 +502,7 @@ export class LeavesService {
       });
     });
 
-    console.log(notificationCreated.notificationId);
-
     notificationData.notificationId = notificationCreated.notificationId;
-
-    console.log(notificationData);
 
     await this.socketGateway.notifyEmployee(
       record.userId,
