@@ -103,6 +103,7 @@ export class NominaService {
           ...(filtros.department && { department: filtros.department }),
           ...(filtros.legalEntity && { legalEntity: filtros.legalEntity }),
           ...(filtros.office && { office: filtros.office }),
+          AND: { NOT: { isUserTest: true } },
         },
       },
       include: {

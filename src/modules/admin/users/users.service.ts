@@ -275,9 +275,8 @@ export class UsersService {
 
     this.logger.log(`User ${user.email} incactivated successfully`);
 
-    return await this.prisma.user.update({
+    return await this.prisma.user.delete({
       where: { userId },
-      data: { status: 'INACTIVE' },
     });
   }
 
