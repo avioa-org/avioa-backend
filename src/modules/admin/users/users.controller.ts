@@ -95,31 +95,3 @@ export class UsersController {
     return await this.usersService.deleteUser(userId);
   }
 }
-
-@Controller('users')
-// @UseGuards(JwtAuthGuard)
-export class UsersBirthdayController {
-  constructor(private readonly usersService: UsersService) {}
-
-  @Get('birthday-posts')
-  async getBirthdayPosts() {
-    try {
-      const data = await this.usersService.getBirthdayPosts();
-
-      return {
-        success: true,
-        data: data,
-        message: 'Publicaciones de cumpleaños obtenidas correctamente',
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : 'Error al obtener publicaciones de cumpleaños',
-        data: null,
-      };
-    }
-  }
-}
