@@ -194,7 +194,7 @@ export class AuthService {
   }
 
   public async login(loginDto: LoginDto) {
-    const { email, password, documentNumber } = loginDto;
+    const { password, documentNumber } = loginDto;
 
     const user = await this.prisma.user.findUnique({
       // where: { email, status: 'ACTIVE' },
