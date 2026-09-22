@@ -23,50 +23,46 @@ import {
   CurrentUser,
   type ICurrentUser,
 } from '../../common/decorator/current-user.decorator';
-
+import { ModulePermissionGuard } from 'src/common/guards/module-permission.guard';
+import { RequireModule } from 'src/common/decorator/modules-permission.decorator';
+import { Modules } from 'src/common/enum/modules.enum';
 @Controller('maintenance')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, ModulePermissionGuard)
 export class MaintenanceController {
   constructor(private readonly service: MaintenanceService) {}
 
-  //CREAR SOLICITUD (cualquier usuario autenticado)
+  // CREAR SOLICITUD (cualquier usuario autenticado)
   @Post()
-  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
   @HttpCode(HttpStatus.CREATED)
-  create(
-    @CurrentUser() user: ICurrentUser,
-    @Body() dto: CreateMaintenanceDto,
-  ) {
+  create(@CurrentUser() user: ICurrentUser, @Body() dto: CreateMaintenanceDto) {
     return this.service.create(user.userId, dto);
   }
 
   // MIS SOLICITUDES
   @Get('my')
-  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   findMyRequests(@CurrentUser() user: ICurrentUser) {
     return this.service.findMyRequests(user.userId);
   }
 
-  //TODAS (solo soporte + líderes + admin)
+  // TODAS (requiere módulo MAINTENANCE)
   @Get()
-  @Roles(Role.LEADER, Role.MANAGER, Role.ADMIN)
+  @RequireModule(Modules.MAINTENANCE)
   @HttpCode(HttpStatus.OK)
   findAll(@Query() query: MaintenanceQueryDto) {
     return this.service.findAll(query);
   }
 
-  // VER UNA
+  // VER UNA (cualquier autenticado, pero el service debe validar acceso)
   @Get(':id')
-  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);
   }
 
-  //  ACTUALIZAR ESTADO (solo soporte + líderes + admin) 
+  // ACTUALIZAR ESTADO (requiere módulo MAINTENANCE)
   @Patch(':id/status')
-  @Roles(Role.LEADER, Role.MANAGER, Role.ADMIN)
+  @RequireModule(Modules.MAINTENANCE)
   @HttpCode(HttpStatus.OK)
   updateStatus(
     @Param('id') id: string,
@@ -76,14 +72,10 @@ export class MaintenanceController {
     return this.service.updateStatus(id, dto, user.userId);
   }
 
-  // CANCELAR (solo el creador)
+  // CANCELAR (cualquier autenticado, el service valida que sea el creador)
   @Patch(':id/cancel')
-  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
-  cancel(
-    @Param('id') id: string,
-    @CurrentUser() user: ICurrentUser,
-  ) {
+  cancel(@Param('id') id: string, @CurrentUser() user: ICurrentUser) {
     return this.service.cancel(id, user.userId);
   }
 }

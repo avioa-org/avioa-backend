@@ -350,7 +350,6 @@ export class FormsService {
    * Obtener un formulario específico
    */
   async findOne(formId: string): Promise<any> {
-    console.log('formId', formId);
     try {
       // Validar que formId sea un UUID válido
       this.validateUUID(formId);

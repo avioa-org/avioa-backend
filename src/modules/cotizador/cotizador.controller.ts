@@ -10,8 +10,12 @@ import {
 import { CotizadorService } from './cotizador.service';
 import { CotizadorDto } from './dto/cotizador.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { ModulePermissionGuard } from 'src/common/guards/module-permission.guard';
+import { RequireModule } from 'src/common/decorator/modules-permission.decorator';
+import { Modules } from 'src/common/enum/modules.enum';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ModulePermissionGuard)
+@RequireModule(Modules.COTIZADOR)
 @Controller('cotizador')
 export class CotizadorController {
   constructor(private readonly cotizadorService: CotizadorService) {}
