@@ -19,74 +19,61 @@ import {
   UpdateSubmissionStatusDto,
 } from './dto/create-form.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
-import { RolesGuard } from 'src/common/guards/roles.guard';
-import { Roles } from '../auth/decorator/roles.decorator';
-import { Role } from 'src/common/enum/roles.enum';
 import {
   CurrentUser,
   type ICurrentUser,
 } from 'src/common/decorator/current-user.decorator';
+import { ModulePermissionGuard } from 'src/common/guards/module-permission.guard';
+import { RequireModule, RequireAction } from 'src/common/decorator/modules-permission.decorator';
+import { Modules } from 'src/common/enum/modules.enum';
 
 @Controller('forms')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, ModulePermissionGuard)
 export class FormsController {
   constructor(private formsService: FormsService) {}
 
   @Post()
-  @Roles(Role.LEADER, Role.MANAGER, Role.ADMIN)
+  @RequireModule(Modules.FORMS)
+  @RequireAction('create')
   @HttpCode(HttpStatus.CREATED)
   create(@Body() createFormDto: CreateFormDto) {
     return this.formsService.create(createFormDto);
   }
 
   @Get()
-  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
   findAll(
     @Query('category') category?: string,
     @Query('status') status?: string,
     @Query('type') type?: string,
   ) {
-    return this.formsService.findAll({ category, status, type });
+    return this.formsService.findAll({
+      category,
+      status,
+      type,
+    });
   }
 
-  @Get(':formId')
-  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
+  @Get('submissions/:submissionId')
+  @RequireModule(Modules.FORMS)
   @HttpCode(HttpStatus.OK)
-  findOne(@Param('formId') formId: string) {
-    return this.formsService.findOne(formId);
+  getSubmission(@Param('submissionId') submissionId: string) {
+    return this.formsService.getSubmission(submissionId);
   }
 
-  @Put(':formId')
-  @Roles(Role.LEADER, Role.MANAGER, Role.ADMIN)
+  @Put('submissions/:submissionId/status')
+  @RequireModule(Modules.FORMS)
+  @RequireAction('update')
   @HttpCode(HttpStatus.OK)
-  update(
-    @Param('formId') formId: string,
-    @Body() updateFormDto: UpdateFormDto,
+  updateSubmissionStatus(
+    @Param('submissionId') submissionId: string,
+    @Body() statusDto: UpdateSubmissionStatusDto,
   ) {
-    return this.formsService.update(formId, updateFormDto);
-  }
-
-  @Delete(':formId')
-  @Roles(Role.MANAGER, Role.ADMIN)
-  @HttpCode(HttpStatus.OK)
-  delete(@Param('formId') formId: string) {
-    return this.formsService.delete(formId);
-  }
-
-  @Post(':formId/submit')
-  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
-  @HttpCode(HttpStatus.CREATED)
-  submitForm(
-    @Param('formId') formId: string,
-    @Body() submitFormDto: SubmitFormDto,
-    @CurrentUser() user: ICurrentUser,
-  ) {
-    return this.formsService.submitForm(formId, user.userId, submitFormDto);
+    return this.formsService.updateSubmissionStatus(submissionId, statusDto);
   }
 
   @Get(':formId/submissions')
-  @Roles(Role.LEADER, Role.MANAGER, Role.ADMIN)
+  @RequireModule(Modules.FORMS)
   @HttpCode(HttpStatus.OK)
   getSubmissions(
     @Param('formId') formId: string,
@@ -96,20 +83,38 @@ export class FormsController {
     return this.formsService.getSubmissions(formId, { status, userId });
   }
 
-  @Get('submissions/:submissionId')
-  @Roles(Role.LEADER, Role.MANAGER, Role.ADMIN)
+  @Put(':formId')
+  @RequireModule(Modules.FORMS)
+  @RequireAction('update')
   @HttpCode(HttpStatus.OK)
-  getSubmission(@Param('submissionId') submissionId: string) {
-    return this.formsService.getSubmission(submissionId);
+  update(
+    @Param('formId') formId: string,
+    @Body() updateFormDto: UpdateFormDto,
+  ) {
+    return this.formsService.update(formId, updateFormDto);
   }
 
-  @Put('submissions/:submissionId/status')
-  @Roles(Role.MANAGER, Role.ADMIN)
+  @Delete(':formId')
+  @RequireModule(Modules.FORMS)
+  @RequireAction('delete')
   @HttpCode(HttpStatus.OK)
-  updateSubmissionStatus(
-    @Param('submissionId') submissionId: string,
-    @Body() statusDto: UpdateSubmissionStatusDto,
+  delete(@Param('formId') formId: string) {
+    return this.formsService.delete(formId);
+  }
+
+  @Get(':formId')
+  @HttpCode(HttpStatus.OK)
+  findOne(@Param('formId') formId: string) {
+    return this.formsService.findOne(formId);
+  }
+
+  @Post(':formId/submit')
+  @HttpCode(HttpStatus.CREATED)
+  submitForm(
+    @Param('formId') formId: string,
+    @Body() submitFormDto: SubmitFormDto,
+    @CurrentUser() user: ICurrentUser,
   ) {
-    return this.formsService.updateSubmissionStatus(submissionId, statusDto);
+    return this.formsService.submitForm(formId, user.userId, submitFormDto);
   }
 }

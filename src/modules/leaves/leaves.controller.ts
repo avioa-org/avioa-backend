@@ -23,26 +23,23 @@ import { ReviewLeaveDto } from './dto/review-leave.dto';
 import { UpdateVacationAdjustmentDto } from './dto/update-vacation-adjustment.dto';
 import { BulkMigrateVacationsDto } from './dto/bulk-migration-vacations.dto';
 import { Public } from 'src/common/decorator/public.decorator';
+import { ModulePermissionGuard } from 'src/common/guards/module-permission.guard';
+import { RequireModule } from 'src/common/decorator/modules-permission.decorator';
+import { Modules } from 'src/common/enum/modules.enum';
 
 @Controller('leaves')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, ModulePermissionGuard)
 export class LeavesController {
   constructor(private readonly leavesService: LeavesService) {}
 
+  // ========== USUARIO ==========
+
   @Post()
-  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
   create(@Body() dto: CreateLeaveDto, @CurrentUser('userId') userId: string) {
     return this.leavesService.create(userId, dto);
   }
 
-  @Post('bulk-migrate-historical')
-  @Public()
-  async bulkMigrateVacations(@Body() dto: BulkMigrateVacationsDto) {
-    return await this.leavesService.bulkMigrate(dto);
-  }
-
   @Get('my')
-  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
   findMyRequests(
     @CurrentUser('userId') userId: string,
     @Query() query: LeaveQueryDto,
@@ -51,13 +48,14 @@ export class LeavesController {
   }
 
   @Get('my/balance')
-  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
   getMyBalance(@CurrentUser('userId') userId: string) {
     return this.leavesService.getMyBalance(userId);
   }
 
+  // ========== LÍDER ==========
+
   @Get('team')
-  @Roles(Role.LEADER, Role.MANAGER, Role.ADMIN)
+  @RequireModule(Modules.LEAVES)
   findTeamRequests(
     @CurrentUser('userId') userId: string,
     @Query() query: LeaveQueryDto,
@@ -65,14 +63,23 @@ export class LeavesController {
     return this.leavesService.findTeamRequests(userId, query);
   }
 
+  @Patch(':id/review')
+  @RequireModule(Modules.LEAVES)
+  @UseGuards(LeaveLeaderGuard)
+  review(@Req() req, @Body() dto: ReviewLeaveDto) {
+    return this.leavesService.review(req.leaveRecord, dto);
+  }
+
+  // ========== ADMIN / RRHH ==========
+
   @Get('admin/balances')
-  @Roles(Role.ADMIN, Role.RRHH)
+  @RequireModule(Modules.LEAVES, Modules.USERS_ADMIN_VACATIONS)
   getAllEmployeeBalances() {
     return this.leavesService.getAllEmployeeBalances();
   }
 
   @Patch('admin/adjustment/:userId')
-  @Roles(Role.ADMIN)
+  @RequireModule(Modules.LEAVES, Modules.USERS_ADMIN_VACATIONS)
   updateUserVacationAdjustment(
     @Param('userId') userId: string,
     @Body() dto: UpdateVacationAdjustmentDto,
@@ -83,21 +90,22 @@ export class LeavesController {
     );
   }
 
+  // ========== MIGRACIÓN ==========
+
+  @Post('bulk-migrate-historical')
+  @Public()
+  async bulkMigrateVacations(@Body() dto: BulkMigrateVacationsDto) {
+    return await this.leavesService.bulkMigrate(dto);
+  }
+
+  // ========== RUTAS DINÁMICAS: SIEMPRE AL FINAL ==========
+
   @Get(':id')
-  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
   findOne(@Param('id') id: string, @CurrentUser('userId') userId: string) {
     return this.leavesService.findOne(id, userId);
   }
 
-  @Patch(':id/review')
-  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
-  @UseGuards(LeaveLeaderGuard)
-  review(@Req() req, @Body() dto: ReviewLeaveDto) {
-    return this.leavesService.review(req.leaveRecord, dto);
-  }
-
   @Delete(':id')
-  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
   cancel(@Param('id') id: string, @CurrentUser('userId') userId: string) {
     return this.leavesService.cancel(id, userId);
   }

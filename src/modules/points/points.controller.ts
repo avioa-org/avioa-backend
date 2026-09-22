@@ -26,8 +26,12 @@ import { RequestPointsDto } from './dto/request-points';
 import { ApprovePointRequestDto } from './dto/approve-point-request.dto';
 import { RejectPointRequestDto } from './dto/reject-point-request.dto';
 import { FormDataRequest } from 'nestjs-form-data';
+import { ModulePermissionGuard } from 'src/common/guards/module-permission.guard';
+import { RequireModule } from 'src/common/decorator/modules-permission.decorator';
+import { Modules } from 'src/common/enum/modules.enum';
 
 @Controller('points')
+@UseGuards(JwtAuthGuard) // auth global
 export class PointsController {
   constructor(
     private readonly pointsService: PointsService,
@@ -37,49 +41,28 @@ export class PointsController {
     private readonly rewardService: RewardService,
   ) {}
 
-  @UseGuards(JwtAuthGuard)
+  // ========== USUARIO (autenticado) ==========
+
   @Get('my-requests')
   public async getMyRequests(@CurrentUser() user: ICurrentUser) {
     return await this.pointRequestService.getMyRequests(user.userId);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Get('pending') // Con este endpoint el lider puede ver las solicitudes pendientes
-  public async getPendingRequests(@CurrentUser() user: ICurrentUser) {
-    return await this.pointRequestService.getPendingRequests(user.userId);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get('pending/:pointRequestId')
-  public async getPendingRequest(
-    @CurrentUser() user: ICurrentUser,
-    @Param('pointRequestId') pointRequestId: string,
-  ) {
-    return await this.pointRequestService.getPendingRequest(
-      user.userId,
-      pointRequestId,
-    );
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get('wallet') // Puntos actuales
+  @Get('wallet')
   public async getWallet(@CurrentUser() user: ICurrentUser) {
     return await this.pointWalletService.getWallet(user.userId);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Get('history') // Historial de transacciones
+  @Get('history')
   public async getHistory(@CurrentUser() user: ICurrentUser) {
     return await this.pointTransactionService.getHistory(user.userId);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Get('rewards') // Todos los recompensas
+  @Get('rewards')
   public async getRewards() {
     return await this.rewardService.getRewards();
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('request')
   public async requestPoints(
     @CurrentUser() user: ICurrentUser,
@@ -91,15 +74,63 @@ export class PointsController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, ValidateAdminGuard)
+  // ========== LÍDERES (aprobar/rechazar) ==========
+
+  @Get('pending')
+  public async getPendingRequests(@CurrentUser() user: ICurrentUser) {
+    return await this.pointRequestService.getPendingRequests(user.userId);
+  }
+
+  @Get('pending/:pointRequestId')
+  public async getPendingRequest(
+    @CurrentUser() user: ICurrentUser,
+    @Param('pointRequestId') pointRequestId: string,
+  ) {
+    return await this.pointRequestService.getPendingRequest(
+      user.userId,
+      pointRequestId,
+    );
+  }
+
+  @Patch(':pointRequestId/approve')
+  public async approveRequest(
+    @CurrentUser() user: ICurrentUser,
+    @Param('pointRequestId') pointRequestId: string,
+    @Body() approvePointRequestDto: ApprovePointRequestDto,
+  ) {
+    return await this.pointRequestService.approvePointRequest(
+      user.userId,
+      pointRequestId,
+      approvePointRequestDto,
+    );
+  }
+
+  @Patch(':pointRequestId/reject')
+  public async rejectRequest(
+    @CurrentUser() user: ICurrentUser,
+    @Param('pointRequestId') pointRequestId: string,
+    @Body() rejectPointRequestDto: RejectPointRequestDto,
+  ) {
+    return await this.pointRequestService.rejectPointRequest(
+      user.userId,
+      pointRequestId,
+      rejectPointRequestDto,
+    );
+  }
+
+  // ========== ADMIN (gestión de recompensas) ==========
+
   @Post('reward/create')
+  @RequireModule(Modules.POINTS, Modules.USERS_ADMIN_REWARDS)
+  @UseGuards(ModulePermissionGuard)
   public async createReward(@Body() createRewardDto: CreateRewardDto) {
     return await this.rewardService.createReward(createRewardDto);
   }
 
-  @UseGuards(JwtAuthGuard, ValidateAdminGuard)
-  @FormDataRequest()
   @Post('rewards/create/bulk')
+  @RequireModule(Modules.POINTS, Modules.USERS_ADMIN_REWARDS)
+  @UseGuards(ModulePermissionGuard)
+  @FormDataRequest()
   public async createBulkRewards(
     @Body() rewards: CreateBulkRewardDto,
     @Req() req: any,
@@ -123,36 +154,9 @@ export class PointsController {
     return await this.rewardService.createBulkRewards(parsedData, files);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Patch(':pointRequestId/approve')
-  public async approveRequest(
-    @CurrentUser() user: ICurrentUser,
-    @Param('pointRequestId') pointRequestId: string,
-    @Body() approvePointRequestDto: ApprovePointRequestDto,
-  ) {
-    return await this.pointRequestService.approvePointRequest(
-      user.userId,
-      pointRequestId,
-      approvePointRequestDto,
-    );
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Patch(':pointRequestId/reject')
-  public async rejectRequest(
-    @CurrentUser() user: ICurrentUser,
-    @Param('pointRequestId') pointRequestId: string,
-    @Body() rejectPointRequestDto: RejectPointRequestDto,
-  ) {
-    return await this.pointRequestService.rejectPointRequest(
-      user.userId,
-      pointRequestId,
-      rejectPointRequestDto,
-    );
-  }
-
-  @UseGuards(JwtAuthGuard, ValidateAdminGuard)
   @Delete('rewards/delete/:rewardId')
+  @RequireModule(Modules.POINTS, Modules.USERS_ADMIN_REWARDS)
+  @UseGuards(ModulePermissionGuard)
   public async deleteReward(@Param('rewardId') rewardId: string) {
     return await this.rewardService.deleteReward(rewardId);
   }

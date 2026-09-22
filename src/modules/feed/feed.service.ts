@@ -119,11 +119,15 @@ export class FeedService {
   }
 
   async create(dto: CreatePostDto, user: ICurrentUser) {
-    if (dto.type === 'ANNOUNCEMENT' && user.role !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Solo el lider y el admin pueden publicar anuncios',
-      );
-    }
+    // if (
+    //   dto.type === 'ANNOUNCEMENT' &&
+    //   (user.role !== 'ADMIN' ||
+    //     !user.modulePermissions.some((p) => p.module === 'FEED'))
+    // ) {
+    //   throw new ForbiddenException(
+    //     'Solo el lider y el admin pueden publicar anuncios',
+    //   );
+    // }
 
     const post = await this.prisma.feedPost.create({
       data: {

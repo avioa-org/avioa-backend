@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -15,6 +16,9 @@ import { EmailService } from 'src/infrastructure/email/email.infra';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.infra';
 import { BirthdayPostsResponseDto } from './dto/birthday-posts.dto';
+import { SetUserModulesDto } from './dto/set-user-modules.dto';
+import { Role } from 'generated/prisma/enums';
+import { Modules } from 'src/common/enum/modules.enum';
 
 @Injectable()
 export class UsersService {
@@ -210,6 +214,55 @@ export class UsersService {
         }),
       },
     });
+  }
+
+  public async updateUserPermissions(
+    userId: string,
+    dto: SetUserModulesDto,
+    grantedBy: string,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { userId },
+      select: { userId: true, role: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException({
+        message: 'Usuario no encontrado',
+        error: 'USER_NOT_FOUND',
+      });
+    }
+
+    if (user.role === Role.ADMIN) {
+      throw new ConflictException({
+        message:
+          'Loas ADMIN ya tienen acceso total; no se gestionan permisos por módulo.',
+        error: 'USER_IS_ADMIN',
+      });
+    }
+
+    const modules = [...new Set(dto.modules ?? [])];
+
+    const invalid = modules.filter((m) => !Modules);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.modulePermission.deleteMany({ where: { userId } });
+
+      if (modules.length === 0) return;
+
+      await tx.modulePermission.createMany({
+        data: modules.map((module) => ({
+          userId,
+          module,
+          canAccess: true,
+          actions: dto.actions?.[module] ?? [],
+          grantedBy,
+        })),
+        skipDuplicates: true,
+      });
+    });
+
+    return await this.getUserPermissions(userId);
   }
 
   public async getLeaders() {
@@ -455,9 +508,41 @@ export class UsersService {
     return (first + last).toUpperCase();
   }
 
-  // Obtener todos los usuarios (puedes reutilizar el método existente)
   async getUsers() {
     return this.prisma.user.findMany();
+  }
+
+  public async getUserPermissions(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { userId },
+      select: { userId: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException({
+        message: 'Usuario no encontrado',
+        error: 'USER_NOT_FOUND',
+      });
+    }
+
+    const perms = await this.prisma.modulePermission.findMany({
+      where: { userId, canAccess: true },
+      select: { module: true, actions: true },
+      orderBy: { module: 'asc' },
+    });
+
+    const actionsRecord: Record<string, string[]> = {};
+    perms.forEach((p) => {
+      if (p.actions && p.actions.length > 0) {
+        actionsRecord[p.module] = p.actions;
+      }
+    });
+
+    return {
+      userId,
+      modules: perms.map((p) => p.module),
+      actions: actionsRecord,
+    };
   }
 
   // Obtener cumpleaños del mes actual

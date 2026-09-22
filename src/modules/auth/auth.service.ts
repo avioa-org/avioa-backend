@@ -25,6 +25,7 @@ import { OTP } from 'otplib';
 import { Enable2faDto, Verify2faDto } from './dto/2fa.dto';
 import { customAlphabet } from 'nanoid';
 import { ChangeTemporaryPasswordDto } from './dto/change-temporary-password';
+import { ModulePermission } from 'generated/prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -171,6 +172,7 @@ export class AuthService {
   public async validateInviteToken(token: string) {
     const user = await this.prisma.user.findUnique({
       where: { inviteToken: token },
+      include: { modulePermissions: true },
     });
 
     if (!user || !user.inviteExpires || user.inviteExpires < new Date()) {
@@ -199,7 +201,10 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       // where: { email, status: 'ACTIVE' },
       where: { documentNumber, status: 'ACTIVE' },
-      include: { leader: { select: { name: true, userId: true } } },
+      include: {
+        leader: { select: { name: true, userId: true } },
+        modulePermissions: true,
+      },
     });
 
     if (!user) {
@@ -263,6 +268,12 @@ export class AuthService {
       leaderName: user.leader?.name,
       twoFactorEnabled: user.twoFactorEnabled,
       documentNumber: user.documentNumber as string,
+      modulePermissions: user.modulePermissions
+        .filter((permission) => permission.canAccess)
+        .map((permission) => ({
+          module: permission.module,
+          actions: permission.actions,
+        })),
     });
 
     return tokens;
@@ -292,7 +303,7 @@ export class AuthService {
       where: {
         userId: payload.userId,
       },
-      include: { leader: { select: { name: true } } },
+      include: { leader: { select: { name: true } }, modulePermissions: true },
     });
 
     if (!user) {
@@ -329,6 +340,12 @@ export class AuthService {
       leaderName: user.leader?.name,
       twoFactorEnabled: user.twoFactorEnabled,
       documentNumber: user.documentNumber as string,
+      modulePermissions: user.modulePermissions
+        .filter((permission) => permission.canAccess)
+        .map((permission) => ({
+          module: permission.module,
+          actions: permission.actions,
+        })),
     });
 
     return {
@@ -424,6 +441,7 @@ export class AuthService {
     leaderName: string | null | undefined;
     twoFactorEnabled?: boolean;
     documentNumber: string;
+    modulePermissions: { module: string; actions: string[] }[];
   }) {
     const payload = {
       userId: user.userId,
@@ -436,6 +454,7 @@ export class AuthService {
       leaderName: user.leaderName,
       twoFactorEnabled: user.twoFactorEnabled,
       documentNumber: user.documentNumber,
+      modulePermissions: user.modulePermissions,
     };
 
     const access_token = this.jwt.sign(payload);
@@ -486,7 +505,7 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { userId: decoded.userId, status: 'ACTIVE' },
-      include: { leader: { select: { name: true } } },
+      include: { leader: { select: { name: true } }, modulePermissions: true },
     });
 
     if (!user || !user.refreshToken) {
@@ -510,6 +529,12 @@ export class AuthService {
       leaderId: user.leaderId,
       leaderName: user.leader?.name,
       documentNumber: user.documentNumber as string,
+      modulePermissions: user.modulePermissions
+        .filter((permission) => permission.canAccess)
+        .map((permission) => ({
+          module: permission.module,
+          actions: permission.actions,
+        })),
     });
 
     return tokens;
@@ -600,7 +625,10 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { userId, status: 'ACTIVE' },
-      include: { leader: { select: { name: true, userId: true } } },
+      include: {
+        leader: { select: { name: true, userId: true } },
+        modulePermissions: true,
+      },
     });
 
     if (!user?.twoFactorEnabled) {
@@ -648,6 +676,12 @@ export class AuthService {
       leaderName: user.leader?.name,
       twoFactorEnabled: user.twoFactorEnabled,
       documentNumber: user.documentNumber as string,
+      modulePermissions: user.modulePermissions
+        .filter((permission) => permission.canAccess)
+        .map((permission) => ({
+          module: permission.module,
+          actions: permission.actions,
+        })),
     });
 
     return tokens;
