@@ -89,7 +89,7 @@ model EquipmentLoan {
 
   // Fechas
   loanDate           DateTime  @default(now()) @map("loan_date")
-  expectedReturnDate DateTime?  @map("expected_return_date")
+  expectedReturnDate DateTime? @map("expected_return_date")
   actualReturnDate   DateTime? @map("actual_return_date")
 
   // Motivos
@@ -326,8 +326,28 @@ model User {
   cesantiasHistorials          CesantiasHistorial[]
   cesantiasRequests            CesantiasRequest[]
   cesantiasRequestsResponsable CesantiasRequest[]   @relation("CesantiasResponsable")
+  modulePermissions            ModulePermission[]
 
   @@map("users")
+}
+
+model ModulePermission {
+  modulePermissionId String   @id @default(uuid()) @map("module_permission_id")
+  userId             String   @map("user_id")
+  module             String   @map("module")
+  canAccess          Boolean  @default(true) @map("can_access")
+  actions            String[]
+
+  grantedBy String?  @map("granted_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@unique([userId, module])
+  @@index([userId])
+  @@index([module])
+  @@map("module_permissions")
 }
 
 model Template {
@@ -1030,6 +1050,7 @@ enum Role {
   EMPLOYEE
   LEADER
   RRHH
+  ACCOUNTING
 }
 
 enum UserStatus {

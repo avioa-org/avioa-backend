@@ -209,8 +209,6 @@ export class NominaService {
         endTime: this.formatDateLocal(r.endTime),
       }));
 
-    console.log('rr', rr);
-
     return registros.map((ot) => ({
       id: ot.overtimeRequestId,
       origen: 'OVERTIME' as const,
