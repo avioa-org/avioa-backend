@@ -327,6 +327,7 @@ model User {
   cesantiasRequests            CesantiasRequest[]
   cesantiasRequestsResponsable CesantiasRequest[]   @relation("CesantiasResponsable")
   modulePermissions            ModulePermission[]
+  hrValidatedLeaves            LeaveRequest[]       @relation("HRValidatorLeave")
 
   @@map("users")
 }
@@ -634,17 +635,30 @@ model LeaveRequest {
   // true = compensadas (se pagan en dinero)
   esCompensada Boolean @default(false) @map("es_compensada")
 
+  // estos campos no se si los voy a utilizar en un futuro
+  externalApprovalRef String?   @map("external_approval_ref")
+  externalApprovedAt  DateTime? @map("external_approved_at")
+
+  // para las compensadas
+  hrValidatedById String?   @map("hr_validated_by_id")
+  hrValidatedAt   DateTime? @map("hr_validated_at")
+  hrComment       String?   @map("hr_comment") @db.Text
+
+  notifiedAccountingAt DateTime? @map("notified_accounting_at")
+
   createdAt  DateTime  @default(now()) @map("created_at")
   reviewedAt DateTime? @map("reviewed_at")
 
-  user   User @relation("EmployeeLeave", fields: [userId], references: [userId])
-  leader User @relation("LeaderLeave", fields: [leaderId], references: [userId])
+  user          User  @relation("EmployeeLeave", fields: [userId], references: [userId])
+  leader        User  @relation("LeaderLeave", fields: [leaderId], references: [userId])
+  hrValidatedBy User? @relation("HRValidatorLeave", fields: [hrValidatedById], references: [userId])
 
   @@index([userId])
   @@index([leaderId])
   @@index([status])
   @@index([type])
   @@index([startDate])
+  @@index([status, esCompensada])
   @@map("leave_requests")
 }
 
@@ -1110,6 +1124,7 @@ enum NotificationType {
   LEAVE_REQUEST_APPROVED
   LEAVE_REQUEST_RECEIVED
   LEAVE_REQUEST_REJECTED
+  COMPENSATED_LEAVE_PENDING_HR
 }
 
 enum RewardType {
@@ -1175,10 +1190,12 @@ enum LeaveType {
   DILIGENCIA_PERSONAL
   OBLIGACION_COMO_ACUDIENTE
   CITA_MEDICA_PARTICULAR
+  CITA_MEDICA_CON_ESPECIALISTA_EPS
   OTRO
 }
 
 enum LeaveStatus {
+  PENDING_HR_VALIDATION
   PENDING
   APPROVED
   REJECTED

@@ -14,6 +14,7 @@ import {
   LeaveStatus,
   LeaveType,
   NotificationType,
+  Role,
 } from 'generated/prisma/enums';
 import { LeaveQueryDto } from './dto/leave-query.dto';
 import { LeaveRequest } from 'generated/prisma/browser';
@@ -22,6 +23,11 @@ import {
   BulkMigrateVacationsDto,
   HistoricalVacationEntryDto,
 } from './dto/bulk-migration-vacations.dto';
+import { ValidateCompensatedLeaveDto } from './dto/validate-compensated-leave.dto';
+import { renderAccountantCompensatedApprovedEmail } from 'src/common/templates/render-accountant-compensated-approved-email';
+import { renderLeaderCompensatedPendingEmail } from 'src/common/templates/render-leader-compensated-pending-email';
+import { renderEmployeeCompensatedRejectedEmail } from 'src/common/templates/render-employee-compensated-rejected-email';
+import { renderHRCompensatedPendingEmail } from 'src/common/templates/render-hr-compensated-pending-email';
 
 const VACATIONS_DAYS_PER_YEAR = 15;
 const MIN_VACATIONS_DAYS_PER_YEAR = -15;
@@ -69,6 +75,12 @@ export class LeavesService {
 
     const esCompensada =
       dto.type === 'VACACIONES' ? (dto.esCompensada ?? false) : false;
+
+    if (dto.esCompensada && dto.type !== 'VACACIONES') {
+      throw new BadRequestException(
+        'Solo las vacaciones pueden marcarse como compensadas',
+      );
+    }
 
     const [ys, ms, ds] = dto.startDate.split('-').map(Number);
     const [ye, me, de] = dto.endDate.split('-').map(Number);
@@ -139,6 +151,10 @@ export class LeavesService {
       }
     }
 
+    const initialStatus = esCompensada
+      ? LeaveStatus.PENDING_HR_VALIDATION
+      : LeaveStatus.PENDING;
+
     const leave = await this.prisma.leaveRequest.create({
       data: {
         userId,
@@ -149,34 +165,139 @@ export class LeavesService {
         businessDays,
         reason: dto.reason,
         attachmentUrl: dto.attachmentUrl ?? null,
-        status: LeaveStatus.PENDING,
+        status: initialStatus,
         esCompensada,
+        // externalApprovalRef: dto.externalApprovalRef ?? null,
+        // externalApprovedAt: dto.externalApprovedAt
+        //   ? new Date(dto.externalApprovedAt)
+        //   : null,
       },
     });
 
+    if (esCompensada) {
+      await this.notifyHRNewCompensated(leave, user, businessDays);
+    } else {
+      await this.notifyLeaderNewLeave(leave, user, businessDays, leaderId);
+    }
+
+    // const notificationData = {
+    //   type: NotificationType.LEAVE_REQUEST_RECEIVED,
+    //   title: 'Nueva solicitud de ausencia',
+    //   message: `${user.name} solicitó ${businessDays} día(s) hábiles de ${this.humanType(dto.type)}`,
+    //   leaveRequestId: leave.leaveRequestId,
+    //   leaveType: dto.type,
+    //   businessDays,
+    //   startDate: leave.startDate,
+    //   endDate: leave.endDate,
+    //   createdAt: new Date(),
+    //   esCompensada,
+    //   notificationId: '',
+    // };
+
+    // const notificationCreate = await this.prisma.$transaction(async (tx) => {
+    //   return await this.prisma.notification.create({
+    //     data: {
+    //       userId: leaderId,
+    //       title: notificationData.title,
+    //       message: notificationData.message,
+    //       type: notificationData.type as NotificationType,
+    //     },
+    //   });
+    // });
+
+    // notificationData.notificationId = notificationCreate.notificationId;
+
+    // await this.socketGateway.notifyLeader(
+    //   leaderId,
+    //   'leave_request_received',
+    //   notificationData,
+    // );
+
+    return leave;
+  }
+
+  private async notifyHRNewCompensated(
+    leave: LeaveRequest,
+    user: { name: string },
+    businessDays: number,
+  ) {
+    const hrUsers = await this.prisma.user.findMany({
+      where: {
+        role: Role.RRHH,
+        isLeader: true,
+      },
+      select: { userId: true, email: true },
+    });
+
+    if (hrUsers.length === 0) {
+      this.logger.warn(
+        'No hay usuarios RRHH+isLeader para notificar compensada',
+      );
+      return;
+    }
+
+    const userIds = hrUsers.map((h) => h.userId);
+
+    await this.prisma.notification.createMany({
+      data: userIds.map((userId) => ({
+        userId,
+        title: 'Nueva solicitud de vacaciones compensadas',
+        message: `${user.name} solicitó ${businessDays} día(s) compensados. Requiere tu validación.`,
+        type: NotificationType.COMPENSATED_LEAVE_PENDING_HR,
+      })),
+    });
+
+    await this.socketGateway.notifyUsers(
+      userIds,
+      'compensated_leave_pending_hr',
+      {
+        leaveRequestId: leave.leaveRequestId,
+        employeeName: user.name,
+        businessDays,
+        startDate: leave.startDate,
+        endDate: leave.endDate,
+        externalApprovalRef: leave.externalApprovalRef,
+      },
+    );
+
+    await this.emailService.send(
+      hrUsers.map((h) => h.email as string),
+      `Validación pendiente: vacaciones compensadas de ${user.name}`,
+      renderHRCompensatedPendingEmail({
+        leave,
+        employeeName: user.name,
+        businessDays,
+      }),
+    );
+  }
+
+  private async notifyLeaderNewLeave(
+    leave: LeaveRequest,
+    user: { name: string },
+    businessDays: number,
+    leaderId: string,
+  ) {
     const notificationData = {
       type: NotificationType.LEAVE_REQUEST_RECEIVED,
       title: 'Nueva solicitud de ausencia',
-      message: `${user.name} solicitó ${businessDays} día(s) hábiles de ${this.humanType(dto.type)}`,
+      message: `${user.name} solicitó ${businessDays} día(s) hábiles de ${this.humanType(leave.type)}`,
       leaveRequestId: leave.leaveRequestId,
-      leaveType: dto.type,
+      leaveType: leave.type,
       businessDays,
       startDate: leave.startDate,
       endDate: leave.endDate,
       createdAt: new Date(),
-      esCompensada,
+      esCompensada: false,
       notificationId: '',
     };
 
-    const notificationCreate = await this.prisma.$transaction(async (tx) => {
-      return await this.prisma.notification.create({
-        data: {
-          userId: leaderId,
-          title: notificationData.title,
-          message: notificationData.message,
-          type: notificationData.type as NotificationType,
-        },
-      });
+    const notificationCreate = await this.prisma.notification.create({
+      data: {
+        userId: leaderId,
+        title: notificationData.title,
+        message: notificationData.message,
+        type: notificationData.type as NotificationType,
+      },
     });
 
     notificationData.notificationId = notificationCreate.notificationId;
@@ -186,60 +307,154 @@ export class LeavesService {
       'leave_request_received',
       notificationData,
     );
-
-    return leave;
   }
 
-  /**
-   *
-   * Saldo = (dias devengados desde ingreso) - (dias ya aprobados este ciclo)
-   * Devengados = 15 dias habiles por año completo trabajando, proporcional a
-   * los meses. Fuente de verdad: se calcula, no se guarda
-   */
-  // public async calculateVacationBalance(
-  //   userId: string,
-  //   startDate: Date | null,
-  // ) {
-  //   if (!startDate) {
-  //     return { accrued: 0, taken: 0, available: 0, pending: 0 };
-  //   }
+  public async validateByHR(
+    leaveRequestId: string,
+    hrUserId: string,
+    dto: ValidateCompensatedLeaveDto,
+  ) {
+    const leave = await this.prisma.leaveRequest.findUnique({
+      where: { leaveRequestId },
+      include: {
+        user: { select: { userId: true, name: true, email: true } },
+        leader: { select: { userId: true, name: true, email: true } },
+      },
+    });
 
-  //   const now = new Date();
-  //   const monthsWorked =
-  //     (now.getFullYear() - startDate.getFullYear()) * 12 +
-  //     (now.getMonth() - startDate.getMonth());
+    if (!leave) throw new NotFoundException('Solicitud no encontrada');
+    if (!leave.esCompensada) {
+      throw new BadRequestException('Esta solicitud no es compensada');
+    }
+    if (leave.status !== LeaveStatus.PENDING_HR_VALIDATION) {
+      throw new BadRequestException(
+        `La solicitud no está pendiente de validación de GH (estado: ${leave.status})`,
+      );
+    }
 
-  //   const accrued = Math.floor((monthsWorked * VACATIONS_DAYS_PER_YEAR) / 12);
+    if (dto.action === 'REJECT') {
+      const rejected = await this.prisma.leaveRequest.update({
+        where: { leaveRequestId },
+        data: {
+          status: LeaveStatus.REJECTED,
+          hrValidatedById: hrUserId,
+          hrValidatedAt: new Date(),
+          hrComment: dto.comment!,
+          reviewedAt: new Date(),
+        },
+      });
 
-  //   const approvedAgg = await this.prisma.leaveRequest.aggregate({
-  //     where: {
-  //       userId,
-  //       type: LeaveType.VACACIONES,
-  //       status: LeaveStatus.APPROVED,
-  //     },
-  //     _sum: { businessDays: true },
-  //   });
+      await this.prisma.notification.create({
+        data: {
+          userId: leave.userId,
+          title: 'Vacaciones compensadas rechazadas',
+          message: `Tu solicitud de vacaciones compensadas fue rechazada por GH. Motivo: ${dto.comment}`,
+          type: NotificationType.LEAVE_REQUEST_REJECTED,
+        },
+      });
 
-  //   const taken = approvedAgg._sum.businessDays ?? 0;
+      await this.socketGateway.notifyEmployee(
+        leave.userId,
+        'compensated_leave_rejected_by_hr',
+        {
+          leaveRequestId,
+          comment: dto.comment,
+          reviewedAt: rejected.reviewedAt,
+        },
+      );
 
-  //   const pendingAgg = await this.prisma.leaveRequest.aggregate({
-  //     where: {
-  //       userId,
-  //       type: LeaveType.VACACIONES,
-  //       status: LeaveStatus.PENDING,
-  //     },
-  //     _sum: { businessDays: true },
-  //   });
+      if (leave.user.email) {
+        this.logger.log(
+          `Vacaciones compensadas rechazadas: ${leave.user.email}`,
+        );
+        await this.emailService.send(
+          leave.user.email,
+          'Tu solicitud de vacaciones compensadas fue rechazada',
+          renderEmployeeCompensatedRejectedEmail({
+            leave: rejected,
+            comment: dto.comment!,
+          }),
+        );
+      }
 
-  //   const pending = pendingAgg._sum.businessDays ?? 0;
+      return rejected;
+    }
 
-  //   return {
-  //     accrued,
-  //     taken,
-  //     pending,
-  //     available: accrued - taken,
-  //   };
-  // }
+    const validated = await this.prisma.leaveRequest.update({
+      where: { leaveRequestId },
+      data: {
+        status: LeaveStatus.PENDING,
+        hrValidatedById: hrUserId,
+        hrValidatedAt: new Date(),
+        hrComment: dto.comment ?? null,
+      },
+    });
+
+    await this.notifyLeaderCompensatedValidated(leave, validated);
+
+    await this.prisma.notification.create({
+      data: {
+        userId: leave.userId,
+        title: 'Vacaciones compensadas validadas por GH',
+        message:
+          'Tu solicitud fue validada por GH y está en revisión de tu líder.',
+        type: NotificationType.LEAVE_REQUEST_RECEIVED,
+      },
+    });
+
+    await this.socketGateway.notifyEmployee(
+      leave.userId,
+      'compensated_leave_validated_by_hr',
+      { leaveRequestId },
+    );
+
+    return validated;
+  }
+
+  private async notifyLeaderCompensatedValidated(
+    leave: LeaveRequest & {
+      user: { name: string; email: string | null };
+      leader: { userId: string; name: string; email: string | null };
+    },
+    updated: LeaveRequest,
+  ) {
+    const message = `${leave.user.name} solicitó ${leave.businessDays} día(s) de vacaciones compensadas (validadas por GH). Requiere tu aprobación.`;
+
+    await this.prisma.notification.create({
+      data: {
+        userId: leave.leaderId,
+        title: 'Vacaciones compensadas pendientes de tu aprobación',
+        message,
+        type: NotificationType.LEAVE_REQUEST_RECEIVED,
+      },
+    });
+
+    await this.socketGateway.notifyLeader(
+      leave.leaderId,
+      'compensated_leave_pending_leader',
+      {
+        leaveRequestId: updated.leaveRequestId,
+        esCompensada: true,
+        businessDays: updated.businessDays,
+        startDate: updated.startDate,
+        endDate: updated.endDate,
+        employeeName: leave.user.name,
+        hrValidatedAt: updated.hrValidatedAt,
+      },
+    );
+
+    if (leave.leader.email) {
+      await this.emailService.send(
+        leave.leader.email,
+        `Aprobación pendiente: vacaciones compensadas de ${leave.user.name}`,
+        renderLeaderCompensatedPendingEmail({
+          leave: updated,
+          employeeName: leave.user.name,
+        }),
+      );
+    }
+  }
+
   public async calculateVacationBalance(
     userId: string,
     startDate: Date | null,
@@ -462,53 +677,143 @@ export class LeavesService {
     return record;
   }
 
-  public async review(record: LeaveRequest, dto: ReviewLeaveDto) {
-    const updated = await this.prisma.leaveRequest.update({
-      where: { leaveRequestId: record.leaveRequestId },
-      data: {
-        status: dto.status,
-        comment: dto.comment,
-        reviewedAt: new Date(),
+  public async findPendingHRValidation() {
+    return this.prisma.leaveRequest.findMany({
+      where: {
+        esCompensada: true,
+        status: LeaveStatus.PENDING_HR_VALIDATION,
       },
+      include: {
+        user: {
+          select: {
+            userId: true,
+            name: true,
+            email: true,
+            documentNumber: true,
+            position: true,
+            area: true,
+          },
+        },
+        leader: { select: { userId: true, name: true } },
+      },
+      orderBy: { createdAt: 'asc' },
     });
+  }
+
+  public async review(record: LeaveRequest, dto: ReviewLeaveDto) {
+    if (record.esCompensada && !record.hrValidatedAt) {
+      throw new BadRequestException(
+        'Las vacaciones compensadas requieren validación previa de GH',
+      );
+    }
+
+    // const updated = await this.prisma.leaveRequest.update({
+    //   where: { leaveRequestId: record.leaveRequestId },
+    //   data: {
+    //     status: dto.status,
+    //     comment: dto.comment,
+    //     reviewedAt: new Date(),
+    //   },
+    // });
 
     const isApproved = dto.status === LeaveStatus.APPROVED;
     const startStr = record.startDate.toLocaleDateString('es-CO');
     const endStr = record.endDate.toLocaleDateString('es-CO');
 
-    const notificationData = {
-      type: isApproved
-        ? NotificationType.LEAVE_REQUEST_APPROVED
-        : NotificationType.LEAVE_REQUEST_REJECTED,
-      title: isApproved ? 'Ausencia aprobada' : 'Ausencia rechazada',
-      message: isApproved
-        ? `Tu ausencia del ${startStr} al ${endStr} fue aprobada`
-        : `Tu ausencia del ${startStr} al ${endStr} fue rechazada${dto.comment ? `. Motivo: ${dto.comment}` : ''}`,
-      leaveRequestId: record.leaveRequestId,
-      status: dto.status,
-      reviewedAt: updated.reviewedAt,
-      comment: dto.comment ?? null,
-      notificationId: '',
-    };
+    const { updated, notificationCreated } = await this.prisma.$transaction(
+      async (tx) => {
+        const updated = await tx.leaveRequest.update({
+          where: { leaveRequestId: record.leaveRequestId },
+          data: {
+            status: dto.status,
+            comment: dto.comment,
+            reviewedAt: new Date(),
+          },
+        });
 
-    const notificationCreated = await this.prisma.$transaction(async () => {
-      return await this.prisma.notification.create({
-        data: {
-          userId: record.userId,
-          title: notificationData.title,
-          message: notificationData.message,
-          type: notificationData.type as NotificationType,
-        },
-      });
-    });
+        const notificationCreated = await tx.notification.create({
+          data: {
+            userId: record.userId,
+            title: isApproved ? 'Ausencia aprobada' : 'Ausencia rechazada',
+            message: isApproved
+              ? `Tu ausencia del ${startStr} al ${endStr} fue aprobada`
+              : `Tu ausencia del ${startStr} al ${endStr} fue rechazada${
+                  dto.comment ? `. Motivo: ${dto.comment}` : ''
+                }`,
+            type: isApproved
+              ? NotificationType.LEAVE_REQUEST_APPROVED
+              : NotificationType.LEAVE_REQUEST_REJECTED,
+          },
+        });
 
-    notificationData.notificationId = notificationCreated.notificationId;
+        return { updated, notificationCreated };
+      },
+    );
+
+    // const notificationData = {
+    //   type: isApproved
+    //     ? NotificationType.LEAVE_REQUEST_APPROVED
+    //     : NotificationType.LEAVE_REQUEST_REJECTED,
+    //   title: isApproved ? 'Ausencia aprobada' : 'Ausencia rechazada',
+    //   message: isApproved
+    //     ? `Tu ausencia del ${startStr} al ${endStr} fue aprobada`
+    //     : `Tu ausencia del ${startStr} al ${endStr} fue rechazada${dto.comment ? `. Motivo: ${dto.comment}` : ''}`,
+    //   leaveRequestId: record.leaveRequestId,
+    //   status: dto.status,
+    //   reviewedAt: updated.reviewedAt,
+    //   comment: dto.comment ?? null,
+    //   notificationId: '',
+    // };
+
+    // const notificationCreated = await this.prisma.$transaction(async () => {
+    //   return await this.prisma.notification.create({
+    //     data: {
+    //       userId: record.userId,
+    //       title: notificationData.title,
+    //       message: notificationData.message,
+    //       type: notificationData.type as NotificationType,
+    //     },
+    //   });
+    // });
+
+    // notificationData.notificationId = notificationCreated.notificationId;
+
+    // await this.socketGateway.notifyEmployee(
+    //   record.userId,
+    //   isApproved ? 'leave_request_approved' : 'leave_request_rejected',
+    //   notificationData,
+    // );
 
     await this.socketGateway.notifyEmployee(
       record.userId,
       isApproved ? 'leave_request_approved' : 'leave_request_rejected',
-      notificationData,
+      {
+        type: isApproved
+          ? NotificationType.LEAVE_REQUEST_APPROVED
+          : NotificationType.LEAVE_REQUEST_REJECTED,
+        title: isApproved ? 'Ausencia aprobada' : 'Ausencia rechazada',
+        message: isApproved
+          ? `Tu ausencia del ${startStr} al ${endStr} fue aprobada`
+          : `Tu ausencia del ${startStr} al ${endStr} fue rechazada${
+              dto.comment ? `. Motivo: ${dto.comment}` : ''
+            }`,
+        leaveRequestId: record.leaveRequestId,
+        status: dto.status,
+        reviewedAt: updated.reviewedAt,
+        comment: dto.comment ?? null,
+        notificationId: notificationCreated.notificationId,
+      },
     );
+
+    if (record.esCompensada && isApproved) {
+      try {
+        await this.notifyAccountantByEmail(record, updated);
+      } catch (err) {
+        this.logger.error(
+          `Error notificando a Contabilidad para ${record.leaveRequestId}: ${err}`,
+        );
+      }
+    }
 
     return updated;
   }
@@ -586,6 +891,35 @@ export class LeavesService {
     return results;
   }
 
+  public async findOneForHR(leaveRequestId: string) {
+    const leave = await this.prisma.leaveRequest.findUnique({
+      where: { leaveRequestId },
+      include: {
+        user: {
+          select: {
+            name: true,
+            avatarUrl: true,
+            position: true,
+            department: true,
+            email: true,
+          },
+        },
+        leader: {
+          select: { name: true, avatarUrl: true, email: true },
+        },
+      },
+    });
+
+    if (!leave) throw new NotFoundException('Solicitud no encontrada');
+    if (!leave.esCompensada) {
+      throw new BadRequestException(
+        'Esta solicitud no es de vacaciones compensadas',
+      );
+    }
+
+    return leave;
+  }
+
   public async updateUserVacationAdjustment(
     userId: string,
     vacationDaysAdjustment: number,
@@ -651,6 +985,34 @@ export class LeavesService {
       errors: results.filter((r) => r.status === 'error'),
       details: results,
     };
+  }
+
+  private async notifyAccountantByEmail(
+    record: LeaveRequest,
+    updated: LeaveRequest,
+  ) {
+    const accountants = await this.prisma.user.findMany({
+      where: { role: Role.ACCOUNTING },
+      select: { email: true },
+    });
+
+    if (accountants.length === 0) {
+      this.logger.warn(
+        `No hay usuarios ACCOUNTING para notificar la solicitud ${record.leaveRequestId}`,
+      );
+      return;
+    }
+
+    await this.emailService.send(
+      accountants.map((a) => a.email as string),
+      `Nómina: vacaciones compensadas aprobadas`,
+      renderAccountantCompensatedApprovedEmail({ leave: updated }),
+    );
+
+    await this.prisma.leaveRequest.update({
+      where: { leaveRequestId: record.leaveRequestId },
+      data: { notifiedAccountingAt: new Date() },
+    });
   }
 
   private async migrateOne(
@@ -739,6 +1101,7 @@ export class LeavesService {
         'permiso para asistir a obligaciones escolares como acudiente',
       CITA_MEDICA_PARTICULAR: 'cita médica particular',
       OTRO: 'ausencia',
+      CITA_MEDICA_CON_ESPECIALISTA_EPS: 'cita médica con especialista (EPS)',
     };
 
     return map[type] ?? 'ausencia';

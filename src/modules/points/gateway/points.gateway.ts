@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -19,7 +19,9 @@ import { verify } from 'jsonwebtoken';
   },
   transports: ['websocket', 'polling'],
 })
-export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class SocketGateway
+  implements OnGatewayConnection, OnGatewayDisconnect, OnModuleDestroy
+{
   @WebSocketServer() server!: Server;
 
   private readonly logger = new Logger(SocketGateway.name);
@@ -29,17 +31,17 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.redis = new Redis(envs.REDIS_URL);
   }
 
+  async onModuleDestroy() {
+    await this.redis.quit();
+  }
+
   async handleConnection(socket: Socket) {
     const authHeader = socket.handshake.auth?.token as string | undefined;
     const bearerToken = authHeader?.startsWith('Bearer ')
       ? authHeader.slice(7).trim()
       : authHeader;
 
-    if (!bearerToken) {
-      this.logger.warn(`Socket ${socket.id} rejected: missing token`);
-      socket.disconnect();
-      return;
-    }
+    if (!bearerToken) return this.reject(socket, 'missing token');
 
     let userId: string | undefined;
     try {
@@ -48,53 +50,49 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
       };
       userId = decoded.userId;
     } catch {
-      this.logger.warn(`Socket ${socket.id} rejected: invalid token`);
-      socket.disconnect();
-      return;
+      return this.reject(socket, 'invalid token');
     }
 
-    if (!userId) {
-      this.logger.warn(`Socket ${socket.id} rejected: token without userId`);
-      socket.disconnect();
-      return;
-    }
+    if (!userId) return this.reject(socket, 'token without userId');
 
     socket.data.userId = userId;
-
-    // se va a cachear ne redis con este formato: user:{userId}:socket -> socketId
-    await this.redis.set(`user:${userId}:socketId`, socket.id, 'EX', 86400); // 24 horas expira
-
-    socket.join(`user:${userId}`);
+    await socket.join(`user:${userId}`);
     this.logger.debug(`Socket connected for user ${userId}`);
   }
 
   async handleDisconnect(socket: Socket) {
     const userId = socket.data.userId as string | undefined;
     if (userId) {
-      await this.redis.del(`user:${userId}:socketId`);
+      await socket.leave(`user:${userId}`);
+      this.logger.debug(`Socket disconnected for user ${userId}`);
     }
   }
 
-  // Notificar al lider
+  async notifyUser(userId: string, event: string, data: any) {
+    this.server.to(`user:${userId}`).emit(event, data);
+  }
+
+  async notifyUsers(userIds: string[], event: string, data: any) {
+    if (!userIds.length) return;
+    const rooms = userIds.map((id) => `user:${id}`);
+    this.server.to(rooms).emit(event, data);
+  }
+
   async notifyLeader(leaderId: string, event: string, data: any) {
-    const socketId = await this.redis.get(`user:${leaderId}:socketId`);
-
-    if (socketId) {
-      this.server.to(socketId).emit(event, data);
-    }
+    return this.notifyUser(leaderId, event, data);
   }
 
-  // Notificar al empleado
   async notifyEmployee(userId: string, event: string, data: any) {
-    const socketId = await this.redis.get(`user:${userId}:socketId`);
-
-    if (socketId) {
-      this.server.to(socketId).emit(event, data);
-    }
+    return this.notifyUser(userId, event, data);
   }
 
   async notifyHR(event: string, data: any) {
     // Aqui hay que buscar al usuario con rol RRHH
     this.server.emit(event, data);
+  }
+
+  private reject(socket: Socket, reason: string) {
+    this.logger.warn(`Socket ${socket.id} rejected: ${reason}`);
+    socket.disconnect();
   }
 }

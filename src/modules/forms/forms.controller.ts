@@ -24,7 +24,10 @@ import {
   type ICurrentUser,
 } from 'src/common/decorator/current-user.decorator';
 import { ModulePermissionGuard } from 'src/common/guards/module-permission.guard';
-import { RequireModule, RequireAction } from 'src/common/decorator/modules-permission.decorator';
+import {
+  RequireModule,
+  RequireAction,
+} from 'src/common/decorator/modules-permission.decorator';
 import { Modules } from 'src/common/enum/modules.enum';
 
 @Controller('forms')
