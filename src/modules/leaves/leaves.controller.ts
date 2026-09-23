@@ -26,6 +26,7 @@ import { Public } from 'src/common/decorator/public.decorator';
 import { ModulePermissionGuard } from 'src/common/guards/module-permission.guard';
 import { RequireModule } from 'src/common/decorator/modules-permission.decorator';
 import { Modules } from 'src/common/enum/modules.enum';
+import { ValidateCompensatedLeaveDto } from './dto/validate-compensated-leave.dto';
 
 @Controller('leaves')
 @UseGuards(JwtAuthGuard, ModulePermissionGuard)
@@ -63,11 +64,35 @@ export class LeavesController {
     return this.leavesService.findTeamRequests(userId, query);
   }
 
+  @Get('pending-hr-validation')
+  @RequireModule(Modules.LEAVES_HR_VALIDATION)
+  findPendingHRValidation() {
+    return this.leavesService.findPendingHRValidation();
+  }
+
+  @Get('hr-validation/:id')
+  @RequireModule(Modules.LEAVES_HR_VALIDATION)
+  findOneForHR(@Param('id') id: string) {
+    return this.leavesService.findOneForHR(id);
+  }
+
   @Patch(':id/review')
   @RequireModule(Modules.LEAVES)
   @UseGuards(LeaveLeaderGuard)
   review(@Req() req, @Body() dto: ReviewLeaveDto) {
     return this.leavesService.review(req.leaveRecord, dto);
+  }
+
+  // ========== RRHH ==========
+
+  @Patch(':id/validate-hr')
+  @RequireModule(Modules.LEAVES_HR_VALIDATION)
+  validateByHR(
+    @Param('id') id: string,
+    @Body() dto: ValidateCompensatedLeaveDto,
+    @CurrentUser('userId') hrUserId: string,
+  ) {
+    return this.leavesService.validateByHR(id, hrUserId, dto);
   }
 
   // ========== ADMIN / RRHH ==========

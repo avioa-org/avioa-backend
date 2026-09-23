@@ -47,7 +47,7 @@ export class ModulePermissionGuard implements CanActivate {
     if (
       (requiredModules.includes(Modules.OVERTIME) ||
         requiredModules.includes(Modules.LEAVES)) &&
-      user.role === Role.LEADER
+      (user.role === Role.LEADER || user.isLeader)
     )
       return true;
 

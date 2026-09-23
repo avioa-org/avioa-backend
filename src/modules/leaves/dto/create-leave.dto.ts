@@ -8,6 +8,7 @@ import {
   IsUrl,
   IsUUID,
   MaxLength,
+  ValidateIf,
 } from 'class-validator';
 import { LeaveType } from 'generated/prisma/enums';
 
@@ -42,4 +43,17 @@ export class CreateLeaveDto {
   @IsOptional()
   @IsBoolean()
   esCompensada?: boolean;
+
+  // @ValidateIf((o) => o.esCompensada === true && o.type === LeaveType.VACACIONES)
+  // @IsString()
+  // @IsNotEmpty({
+  //   message:
+  //     'El radicado del proceso externo es obligatorio para vacaciones compensadas',
+  // })
+  // @MaxLength(120)
+  // externalApprovalRef?: string;
+
+  // @IsOptional()
+  // @IsDateString()
+  // externalApprovedAt?: string;
 }

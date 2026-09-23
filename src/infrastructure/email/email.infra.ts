@@ -20,6 +20,17 @@ export class EmailService {
 
   async send(to: string | string[], subject: string, html: string) {
     try {
+      if (envs.NODE_ENV === 'development') {
+        this.logger.log('Correo enviado en desarrollo');
+        await this.resend.emails.send({
+          from: this.fromEmail,
+          to: 'apoyotecnologia02@gmail.com',
+          subject,
+          html,
+        });
+        return;
+      }
+
       await this.resend.emails.send({
         from: this.fromEmail,
         to,
