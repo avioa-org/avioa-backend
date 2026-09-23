@@ -14,8 +14,7 @@ import { ModulePermissionGuard } from 'src/common/guards/module-permission.guard
 import { RequireModule } from 'src/common/decorator/modules-permission.decorator';
 import { Modules } from 'src/common/enum/modules.enum';
 
-@UseGuards(JwtAuthGuard, ModulePermissionGuard)
-@RequireModule(Modules.COTIZADOR)
+@UseGuards(JwtAuthGuard)
 @Controller('cotizador')
 export class CotizadorController {
   constructor(private readonly cotizadorService: CotizadorService) {}
