@@ -43,4 +43,34 @@ export interface NovedadConsolidada {
   nombreAprobador: string;
   fechaRegistro: string;
   fechaAprobacion: string | null;
+
+  horaInicio: string | null;
+  horaFin: string | null;
+
+  createdAt: Date;
+}
+
+export interface ResumenColaborador {
+  userId: string;
+  nombreColaborador: string;
+  documentNumber: string | null;
+  position: string | null;
+  area: string | null;
+  legalEntity: string | null;
+  totalDiasAusencia: number;
+  totalDiasVacaciones: number;
+  totalHorasExtra: number;
+  diasNoRemunerados: number;
+  novedades: NovedadConsolidada[];
+}
+
+export interface TotalesNomina {
+  totalNovedades: number;
+  colaboradoresAfectados: number;
+  totalHorasExtra: number;
+  totalDiasVacaciones: number;
+  totalDiasAusencia: number;
+  totalDiasNoRemunerados: number;
+  novedadesQueCruzanPeriodo: number;
+  sinSoporte: number;
 }
