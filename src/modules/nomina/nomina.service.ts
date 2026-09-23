@@ -161,6 +161,9 @@ export class NominaService {
           cruzaPeriodoAnterior: recorte.cruzaPeriodoAnterior,
           cruzaPeriodoSiguiente: recorte.cruzaPeriodoSiguiente,
 
+          horaInicio: null,
+          horaFin: null,
+
           motivo: leave.reason,
           attachmentUrl: leave.attachmentUrl,
           comentarioAprobador: leave.comment,
@@ -170,9 +173,19 @@ export class NominaService {
           fechaAprobacion:
             (leave.reviewedAt && this.formatDateLocal(leave.reviewedAt)) ??
             null,
+          createdAt: leave.createdAt,
         };
       })
       .filter((n): n is NonNullable<typeof n> => n !== null);
+  }
+
+  private formatearHora(fecha: Date): string {
+    return fecha.toLocaleTimeString('es-CO', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'America/Bogota',
+    });
   }
 
   private async obtenerOvertimes(
@@ -201,14 +214,6 @@ export class NominaService {
       },
     });
 
-    const rr = registros
-      .filter((r) => r.userId === '5a41e6f3-33f0-46a0-a7ad-1fbd6613e94d')
-      .map((r) => ({
-        ...r,
-        startTime: this.formatDateLocal(r.startTime),
-        endTime: this.formatDateLocal(r.endTime),
-      }));
-
     return registros.map((ot) => ({
       id: ot.overtimeRequestId,
       origen: 'OVERTIME' as const,
@@ -236,6 +241,9 @@ export class NominaService {
       cruzaPeriodoAnterior: false,
       cruzaPeriodoSiguiente: false,
 
+      horaInicio: this.formatearHora(ot.startTime),
+      horaFin: this.formatearHora(ot.endTime),
+
       motivo: ot.description,
       attachmentUrl: null,
       comentarioAprobador: ot.comment,
@@ -244,6 +252,7 @@ export class NominaService {
       fechaRegistro: this.formatDateLocal(ot.createdAt),
       fechaAprobacion:
         (ot.reviewedAt && this.formatDateLocal(ot.reviewedAt)) ?? null,
+      createdAt: ot.createdAt,
     }));
   }
 
