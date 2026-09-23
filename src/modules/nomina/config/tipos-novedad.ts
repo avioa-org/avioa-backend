@@ -89,6 +89,12 @@ export const CONFIG_TIPOS: Record<
     afectaNomina: 'RESTA',
     contarHabiles: true,
   },
+  CITA_MEDICA_CON_ESPECIALISTA_EPS: {
+    label: 'Cita médica con especialista (EPS)',
+    esRemunerada: false,
+    afectaNomina: 'RESTA',
+    contarHabiles: true,
+  },
 };
 
 export function resolverConfigVacaciones(esCompensada: boolean): ConfigTipo {
