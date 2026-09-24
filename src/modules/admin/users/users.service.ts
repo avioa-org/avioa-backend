@@ -335,7 +335,7 @@ export class UsersService {
 
   public async getUserDirectory(userId: string) {
     const users = await this.prisma.user.findMany({
-      where: { status: 'ACTIVE', userId: { not: userId } },
+      where: { status: 'ACTIVE', userId: { not: userId }, isUserTest: false },
       select: {
         userId: true,
         name: true,
