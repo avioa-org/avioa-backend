@@ -40,6 +40,33 @@ export interface EntryResult {
 
 export const HISTORICAL_MIGRATION_TAG = '[MIGRACION_HISTORICA_VACACIONES_2026]';
 
+function parseHHmm(t: string): number | null {
+  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(t);
+  return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : null;
+}
+
+function computeTotalHours(
+  startTime?: string | null,
+  endTime?: string | null,
+): number | null {
+  if (!startTime || !endTime) return null;
+  const s = parseHHmm(startTime);
+  const e = parseHHmm(endTime);
+  if (s === null || e === null || e <= s) return null;
+  return Math.round(((e - s) / 60) * 100) / 100;
+}
+
+function enrichLeave<
+  T extends { startTime?: string | null; endTime?: string | null },
+>(leave: T) {
+  const totalHours = computeTotalHours(leave.startTime, leave.endTime);
+  return {
+    ...leave,
+    isPartialDay: totalHours !== null,
+    totalHours,
+  };
+}
+
 @Injectable()
 export class LeavesService {
   private readonly logger = new Logger(LeavesService.name);
@@ -82,32 +109,55 @@ export class LeavesService {
       );
     }
 
-    const [ys, ms, ds] = dto.startDate.split('-').map(Number);
-    const [ye, me, de] = dto.endDate.split('-').map(Number);
-    const startDate = new Date(ys, ms - 1, ds);
-    const endDate = new Date(ye, me - 1, de);
-    startDate.setHours(0, 0, 0, 0);
-    endDate.setHours(0, 0, 0, 0);
+    let startDate: Date;
+    let endDate: Date;
+    let businessDays: number;
 
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      throw new BadRequestException('Formato de fecha inválido');
-    }
+    if (esCompensada) {
+      if (!dto.compensatedDays || dto.compensatedDays < 1) {
+        throw new BadRequestException(
+          'Debes indicar cuántos días deseas compensar',
+        );
+      }
 
-    if (endDate < startDate) {
-      throw new BadRequestException(
-        'La fecha de fin no puede ser anteriro a la de inicio',
-      );
-    }
+      businessDays = dto.compensatedDays;
 
-    const businessDays = countBusinessDays(startDate, endDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      startDate = today;
+      endDate = today;
+    } else {
+      if (!dto.startDate || !dto.endDate) {
+        throw new BadRequestException(
+          'Debes indicar las fechas de inicio y fin',
+        );
+      }
 
-    if (businessDays === 0) {
-      throw new BadRequestException(
-        'El rango seleccionado no contiene dias hábiles',
-      );
-    }
+      const [ys, ms, ds] = dto.startDate.split('-').map(Number);
+      const [ye, me, de] = dto.endDate.split('-').map(Number);
+      startDate = new Date(ys, ms - 1, ds);
+      endDate = new Date(ye, me - 1, de);
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(0, 0, 0, 0);
 
-    if (!esCompensada) {
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        throw new BadRequestException('Formato de fecha inválido');
+      }
+
+      if (endDate < startDate) {
+        throw new BadRequestException(
+          'La fecha de fin no puede ser anteriro a la de inicio',
+        );
+      }
+
+      businessDays = countBusinessDays(startDate, endDate);
+
+      if (businessDays === 0) {
+        throw new BadRequestException(
+          'El rango seleccionado no contiene dias hábiles',
+        );
+      }
+
       const overlap = await this.prisma.leaveRequest.findFirst({
         where: {
           userId,
@@ -120,6 +170,34 @@ export class LeavesService {
       if (overlap) {
         throw new BadRequestException(
           'Ya tienes una solicitud activa que se cruza con estas fechas',
+        );
+      }
+    }
+
+    const hasHours = dto.startTime !== undefined || dto.endTime !== undefined;
+
+    if (hasHours) {
+      if (dto.type === LeaveType.VACACIONES) {
+        throw new BadRequestException(
+          'Las vacaciones no se registran por horas',
+        );
+      }
+
+      if (!dto.startTime || !dto.endTime) {
+        throw new BadRequestException(
+          'Debes indicar hora de inicio y hora de fin',
+        );
+      }
+
+      if (dto.startTime >= dto.endTime) {
+        throw new BadRequestException(
+          'La hora de fin debe ser posterior a la hora de inicio',
+        );
+      }
+
+      if (dto.startDate !== dto.endDate) {
+        throw new BadRequestException(
+          'Una ausencia por horas debe ser en un solo día',
         );
       }
     }
@@ -163,6 +241,8 @@ export class LeavesService {
         startDate,
         endDate,
         businessDays,
+        startTime: hasHours ? dto.startTime : null,
+        endTime: hasHours ? dto.endTime : null,
         reason: dto.reason,
         attachmentUrl: dto.attachmentUrl ?? null,
         status: initialStatus,
@@ -254,8 +334,8 @@ export class LeavesService {
         leaveRequestId: leave.leaveRequestId,
         employeeName: user.name,
         businessDays,
-        startDate: leave.startDate,
-        endDate: leave.endDate,
+        compensatedDays: businessDays,
+        requestedAt: leave.createdAt,
         externalApprovalRef: leave.externalApprovalRef,
       },
     );
@@ -277,15 +357,28 @@ export class LeavesService {
     businessDays: number,
     leaderId: string,
   ) {
+    const isPartialDay = !!leave.startTime && !!leave.endTime;
+
+    const timeRange = isPartialDay
+      ? `${leave.startTime} - ${leave.endTime}`
+      : '';
+
     const notificationData = {
       type: NotificationType.LEAVE_REQUEST_RECEIVED,
-      title: 'Nueva solicitud de ausencia',
-      message: `${user.name} solicitó ${businessDays} día(s) hábiles de ${this.humanType(leave.type)}`,
+      title: isPartialDay
+        ? 'Nueva solicitud de ausencia parcial'
+        : 'Nueva solicitud de ausencia',
+      message: isPartialDay
+        ? `${user.name} solicitó ${this.humanType(leave.type)} el ${leave.startDate.toLocaleDateString('es-CO')}${timeRange}`
+        : `${user.name} solicitó ${businessDays} día(s) hábiles de ${this.humanType(leave.type)}`,
       leaveRequestId: leave.leaveRequestId,
       leaveType: leave.type,
       businessDays,
       startDate: leave.startDate,
       endDate: leave.endDate,
+      startTime: leave.startTime,
+      endTime: leave.endTime,
+      isPartialDay,
       createdAt: new Date(),
       esCompensada: false,
       notificationId: '',
@@ -619,13 +712,23 @@ export class LeavesService {
       };
     }
 
-    return this.prisma.leaveRequest.findMany({
+    const rows = await this.prisma.leaveRequest.findMany({
       where,
       orderBy: { startDate: 'desc' },
       include: {
         leader: { select: { name: true, avatarUrl: true } },
       },
     });
+
+    // return this.prisma.leaveRequest.findMany({
+    //   where,
+    //   orderBy: { startDate: 'desc' },
+    //   include: {
+    //     leader: { select: { name: true, avatarUrl: true } },
+    //   },
+    // });
+
+    return rows.map(enrichLeave);
   }
 
   public async findTeamRequests(leaderId: string, query: LeaveQueryDto) {
@@ -641,7 +744,7 @@ export class LeavesService {
       };
     }
 
-    return this.prisma.leaveRequest.findMany({
+    const rows = await this.prisma.leaveRequest.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       include: {
@@ -655,6 +758,8 @@ export class LeavesService {
         },
       },
     });
+
+    return rows.map(enrichLeave);
   }
 
   public async findOne(leaveRequestId: string, userId: string) {
@@ -674,7 +779,7 @@ export class LeavesService {
       throw new ForbiddenException('No tienes permiso para ver esta solicitud');
     }
 
-    return record;
+    return enrichLeave(record);
   }
 
   public async findPendingHRValidation() {

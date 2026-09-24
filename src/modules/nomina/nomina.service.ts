@@ -18,6 +18,7 @@ export interface FiltrosNomina {
   office?: string;
   leaderId?: string;
   soloRemuneradas?: boolean;
+  esCompensada?: boolean;
 }
 
 const USER_SELECT = {
@@ -53,6 +54,13 @@ export class NominaService {
     const day = String(date.getUTCDate()).padStart(2, '0');
 
     return `${year}-${month}-${day}`;
+  }
+
+  private calcularHoras(startTime: string, endTime: string): number {
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    const minutos = eh * 60 + em - (sh * 60 + sm);
+    return Math.round((minutos / 60) * 100) / 100;
   }
 
   async consolidar(filtros: FiltrosNomina): Promise<NovedadConsolidada[]> {
@@ -98,6 +106,9 @@ export class NominaService {
         ...(filtros.userId && { userId: filtros.userId }),
         ...(filtros.leaderId && { leaderId: filtros.leaderId }),
         ...(tiposLeave?.length && { type: { in: tiposLeave } }),
+        ...(filtros.esCompensada !== undefined && {
+          esCompensada: filtros.esCompensada,
+        }),
         user: {
           ...(filtros.area && { area: filtros.area }),
           ...(filtros.department && { department: filtros.department }),
@@ -127,6 +138,14 @@ export class NominaService {
         );
 
         if (!recorte || recorte.cantidadEnPeriodo === 0) return null;
+
+        const hasHours = !!leave.startTime && !!leave.endTime;
+        const totalHoras = hasHours
+          ? this.calcularHoras(
+              leave.startTime! as string,
+              leave.endTime! as string,
+            )
+          : null;
 
         return {
           id: leave.leaveRequestId,
@@ -161,8 +180,10 @@ export class NominaService {
           cruzaPeriodoAnterior: recorte.cruzaPeriodoAnterior,
           cruzaPeriodoSiguiente: recorte.cruzaPeriodoSiguiente,
 
-          horaInicio: null,
-          horaFin: null,
+          horaInicio: hasHours ? leave.startTime! : null,
+          horaFin: hasHours ? leave.endTime! : null,
+          esParcial: hasHours,
+          totalHoras,
 
           motivo: leave.reason,
           attachmentUrl: leave.attachmentUrl,
@@ -194,6 +215,8 @@ export class NominaService {
   ): Promise<NovedadConsolidada[]> {
     if (filtros.tipos?.length && !filtros.tipos.includes('HORAS_EXTRA'))
       return [];
+
+    if (filtros.esCompensada === true) return [];
 
     const registros = await this.prisma.overtimeRequest.findMany({
       where: {
@@ -243,6 +266,10 @@ export class NominaService {
 
       horaInicio: this.formatearHora(ot.startTime),
       horaFin: this.formatearHora(ot.endTime),
+
+      esCompensada: false,
+      esParcial: false,
+      totalHoras: null,
 
       motivo: ot.description,
       attachmentUrl: null,
@@ -330,6 +357,9 @@ export class NominaService {
       totalDiasNoRemunerados: novedades
         .filter((n) => !n.esRemunerada)
         .reduce((s, n) => s + n.cantidadEnPeriodo, 0),
+      totalHorasParciales: novedades
+        .filter((n) => n.esParcial && n.totalHoras)
+        .reduce((s, n) => s + (n.totalHoras ?? 0), 0),
       novedadesQueCruzanPeriodo: novedades.filter(
         (n) => n.cruzaPeriodoAnterior || n.cruzaPeriodoSiguiente,
       ).length,

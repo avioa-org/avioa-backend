@@ -47,6 +47,10 @@ export interface NovedadConsolidada {
   horaInicio: string | null;
   horaFin: string | null;
 
+  esParcial: boolean;
+  totalHoras: number | null;
+  esCompensada: boolean;
+
   createdAt: Date;
 }
 
@@ -70,6 +74,7 @@ export interface TotalesNomina {
   totalHorasExtra: number;
   totalDiasVacaciones: number;
   totalDiasAusencia: number;
+  totalHorasParciales: number;
   totalDiasNoRemunerados: number;
   novedadesQueCruzanPeriodo: number;
   sinSoporte: number;

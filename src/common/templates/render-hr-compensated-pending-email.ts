@@ -9,8 +9,8 @@ export function renderHRCompensatedPendingEmail({
   employeeName: string;
   businessDays: number;
 }) {
-  const start = leave.startDate.toLocaleDateString('es-CO');
-  const end = leave.endDate.toLocaleDateString('es-CO');
+  // const start = leave.startDate.toLocaleDateString('es-CO');
+  // const end = leave.endDate.toLocaleDateString('es-CO');
   const portalUrl = `${process.env.FRONTEND_URL}/leaves/hr-validation`;
 
   return `
@@ -19,8 +19,7 @@ export function renderHRCompensatedPendingEmail({
       <p><strong>${employeeName}</strong> solicitó <strong>${businessDays} día(s)</strong> de vacaciones compensadas.</p>
 
       <table style="width:100%; border-collapse:collapse; margin: 16px 0;">
-        <tr><td style="padding:8px; background:#f1f5f9;"><strong>Fechas</strong></td><td style="padding:8px;">${start} → ${end}</td></tr>
-        <tr><td style="padding:8px; background:#f1f5f9;"><strong>Radicado externo</strong></td><td style="padding:8px;">${leave.externalApprovalRef ?? '—'}</td></tr>
+        <tr><td style="padding:8px; background:#f1f5f9;"><strong>Días compensados</strong></td><td style="padding:8px;"><strong>${businessDays}</strong></td></tr>
         <tr><td style="padding:8px; background:#f1f5f9;"><strong>Motivo</strong></td><td style="padding:8px;">${leave.reason}</td></tr>
       </table>
 

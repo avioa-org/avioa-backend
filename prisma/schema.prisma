@@ -620,6 +620,9 @@ model LeaveRequest {
   startDate DateTime @map("start_date")
   endDate   DateTime @map("end_date")
 
+  startTime String? @map("start_time") @db.VarChar(5)
+  endTime   String? @map("end_time") @db.VarChar(5)
+
   businessDays Int @map("business_days")
 
   reason String @map("reason") // motivo del empleado

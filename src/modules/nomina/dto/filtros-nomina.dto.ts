@@ -60,4 +60,9 @@ export class FiltrosNominaDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   soloRemuneradas?: boolean;
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  esCompensada?: boolean;
 }
