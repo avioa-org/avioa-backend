@@ -886,6 +886,14 @@ export class LeavesService {
             comment: dto.comment,
             reviewedAt: new Date(),
           },
+          include: {
+            user: {
+              select: { name: true },
+            },
+            leader: {
+              select: { name: true },
+            },
+          },
         });
 
         const notificationCreated = await tx.notification.create({
