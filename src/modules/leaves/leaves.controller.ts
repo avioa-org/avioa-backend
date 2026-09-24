@@ -11,10 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { LeavesService } from './leaves.service';
-import { RolesGuard } from 'src/common/guards/roles.guard';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
-import { Roles } from '../auth/decorator/roles.decorator';
-import { Role } from 'generated/prisma/enums';
 import { CreateLeaveDto } from './dto/create-leave.dto';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { LeaveQueryDto } from './dto/leave-query.dto';
