@@ -57,13 +57,34 @@ function computeTotalHours(
 }
 
 function enrichLeave<
-  T extends { startTime?: string | null; endTime?: string | null },
+  T extends {
+    startTime?: string | null;
+    endTime?: string | null;
+    hrValidatedBy?: { name: string } | null;
+    user?: { name: string } | null;
+    leader?: { name: string } | null;
+    hrValidatedAt?: Date | null;
+    hrValidatedById?: string | null;
+    hrComment?: string | null;
+    esCompensada?: boolean | null;
+    status?: LeaveStatus | null;
+  },
 >(leave: T) {
   const totalHours = computeTotalHours(leave.startTime, leave.endTime);
+
   return {
     ...leave,
     isPartialDay: totalHours !== null,
     totalHours,
+    hrValidation: leave.hrValidatedAt
+      ? {
+          validatedAt: leave.hrValidatedAt,
+          validatedBy: leave.hrValidatedBy?.name ?? null,
+          comment: leave.hrComment ?? null,
+          isRejection:
+            leave.esCompensada && leave.status === LeaveStatus.REJECTED,
+        }
+      : null,
   };
 }
 
@@ -294,6 +315,35 @@ export class LeavesService {
     // );
 
     return leave;
+  }
+
+  private toLeaveResponse(
+    leave: LeaveRequest & {
+      hrValidatedBy?: { name: string } | null;
+      user?: { name: string } | null;
+      leader?: { name: string } | null;
+    },
+  ) {
+    const {
+      hrValidatedById,
+      hrValidatedAt,
+      hrComment,
+      hrValidatedBy,
+      ...rest
+    } = leave;
+
+    return {
+      ...rest,
+      hrValidation: hrValidatedAt
+        ? {
+            validatedAt: hrValidatedAt,
+            validatedBy: hrValidatedBy?.name ?? null,
+            comment: hrComment ?? null,
+            isRejection:
+              leave.esCompensada && leave.status === LeaveStatus.REJECTED,
+          }
+        : null,
+    };
   }
 
   private async notifyHRNewCompensated(
@@ -716,6 +766,7 @@ export class LeavesService {
       where,
       orderBy: { startDate: 'desc' },
       include: {
+        hrValidatedBy: { select: { name: true } },
         leader: { select: { name: true, avatarUrl: true } },
       },
     });
@@ -748,6 +799,7 @@ export class LeavesService {
       where,
       orderBy: { createdAt: 'desc' },
       include: {
+        hrValidatedBy: { select: { name: true } },
         user: {
           select: {
             name: true,
@@ -833,6 +885,14 @@ export class LeavesService {
             status: dto.status,
             comment: dto.comment,
             reviewedAt: new Date(),
+          },
+          include: {
+            user: {
+              select: { name: true },
+            },
+            leader: {
+              select: { name: true },
+            },
           },
         });
 
