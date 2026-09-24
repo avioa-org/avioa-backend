@@ -129,6 +129,7 @@ export class NominaExportService {
       ['Días no remunerados', totales.totalDiasNoRemunerados],
       ['Novedades que cruzan periodo', totales.novedadesQueCruzanPeriodo],
       ['Incapacidades sin soporte', totales.sinSoporte],
+      ['Horas de ausencia parcial', totales.totalHorasParciales],
     ];
 
     for (const [label, valor] of indicadores) {
@@ -188,6 +189,7 @@ export class NominaExportService {
       { header: 'Cantidad total', key: 'cantidadTotal', width: 14 },
       { header: '¿Cruza periodo?', key: 'cruza', width: 14 },
       { header: 'Remunerada', key: 'esRemuneradaTexto', width: 12 },
+      { header: 'Compensada', key: 'esCompensadaTexto', width: 12 },
       { header: 'Efecto en nómina', key: 'afectaNomina', width: 14 },
       { header: 'Motivo', key: 'motivo', width: 36 },
       { header: 'Soporte', key: 'attachmentUrl', width: 30 },
@@ -200,6 +202,7 @@ export class NominaExportService {
       },
       { header: 'Hora inicio', key: 'horaInicio', width: 12 },
       { header: 'Hora fin', key: 'horaFin', width: 12 },
+      { header: 'Total horas', key: 'totalHorasTexto', width: 12 },
       {
         header: 'Solicitada el',
         key: 'fechaRegistro',
@@ -223,6 +226,9 @@ export class NominaExportService {
         horaInicio: n.horaInicio ?? '—',
         horaFin: n.horaFin ?? '—',
         fechaRegistro: this.formatter.format(new Date(n.createdAt)),
+        esCompensadaTexto: n.esCompensada ? 'Sí' : 'No',
+        totalHorasTexto:
+          n.esParcial && n.totalHoras ? `${n.totalHoras} h` : '-',
       });
 
       if (i % 2 === 1) {
@@ -259,6 +265,16 @@ export class NominaExportService {
         },
       };
 
+      const celdaComp = fila.getCell('esCompensadaTexto');
+      if (n.esCompensada) {
+        celdaComp.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE0F2FE' },
+        };
+        celdaComp.font = { bold: true, color: { argb: 'FF2563EB' } };
+      }
+
       if (n.cruzaPeriodoAnterior || n.cruzaPeriodoSiguiente) {
         fila.getCell('cruza').fill = {
           type: 'pattern',
@@ -278,7 +294,11 @@ export class NominaExportService {
     });
 
     if (novedades.length > 0) {
-      sheet.autoFilter = { from: 'A1', to: `X${novedades.length + 1}` };
+      const ultimaCol = sheet.getColumn(sheet.columnCount).letter;
+      sheet.autoFilter = {
+        from: 'A1',
+        to: `${ultimaCol}${novedades.length + 1}`,
+      };
     }
 
     sheet.views = [{ state: 'frozen', ySplit: 1 }];
