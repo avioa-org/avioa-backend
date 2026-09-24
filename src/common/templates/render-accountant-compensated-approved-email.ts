@@ -8,8 +8,6 @@ export function renderAccountantCompensatedApprovedEmail({
     leader?: { name: string };
   };
 }) {
-  const start = leave.startDate.toLocaleDateString('es-CO');
-  const end = leave.endDate.toLocaleDateString('es-CO');
   const approvedAt = leave.reviewedAt?.toLocaleDateString('es-CO') ?? '—';
 
   return `
@@ -21,8 +19,6 @@ export function renderAccountantCompensatedApprovedEmail({
         <tr><td style="padding:8px; background:#f1f5f9;"><strong>Colaborador</strong></td><td style="padding:8px;">${leave.user?.name ?? '—'}</td></tr>
         <tr><td style="padding:8px; background:#f1f5f9;"><strong>Líder aprobador</strong></td><td style="padding:8px;">${leave.leader?.name ?? '—'}</td></tr>
         <tr><td style="padding:8px; background:#f1f5f9;"><strong>Días compensados</strong></td><td style="padding:8px;"><strong>${leave.businessDays}</strong></td></tr>
-        <tr><td style="padding:8px; background:#f1f5f9;"><strong>Fechas</strong></td><td style="padding:8px;">${start} → ${end}</td></tr>
-        <tr><td style="padding:8px; background:#f1f5f9;"><strong>Radicado externo</strong></td><td style="padding:8px;">${leave.externalApprovalRef ?? '—'}</td></tr>
         <tr><td style="padding:8px; background:#f1f5f9;"><strong>Aprobado el</strong></td><td style="padding:8px;">${approvedAt}</td></tr>
       </table>
 
