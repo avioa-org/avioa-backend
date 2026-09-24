@@ -106,14 +106,14 @@ export class NominaService {
         ...(filtros.userId && { userId: filtros.userId }),
         ...(filtros.leaderId && { leaderId: filtros.leaderId }),
         ...(tiposLeave?.length && { type: { in: tiposLeave } }),
+        ...(filtros.esCompensada !== undefined && {
+          esCompensada: filtros.esCompensada,
+        }),
         user: {
           ...(filtros.area && { area: filtros.area }),
           ...(filtros.department && { department: filtros.department }),
           ...(filtros.legalEntity && { legalEntity: filtros.legalEntity }),
           ...(filtros.office && { office: filtros.office }),
-          ...(filtros.esCompensada !== undefined && {
-            esCompensada: filtros.esCompensada,
-          }),
           AND: { NOT: { isUserTest: true } },
         },
       },
