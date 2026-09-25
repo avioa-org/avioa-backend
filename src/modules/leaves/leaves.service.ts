@@ -783,7 +783,17 @@ export class LeavesService {
   }
 
   public async findTeamRequests(leaderId: string, query: LeaveQueryDto) {
-    const where: any = { leaderId };
+    const where: any = {
+      leaderId,
+      OR: [
+        {
+          reason: null,
+        },
+        {
+          NOT: { reason: { contains: 'MIGRACION_HISTORICA_VACACIONES_2026' } },
+        },
+      ],
+    };
     if (query.status) where.status = query.status;
     if (query.type) where.type = query.type;
     if (query.employeeId) where.employeeId = query.employeeId;
