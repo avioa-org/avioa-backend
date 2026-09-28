@@ -873,16 +873,21 @@ model FeedReaction {
 }
 
 model FeedComment {
-  feedCommentId String    @id @default(uuid()) @map("feed_comment_id")
-  postId        String    @map("post_id")
-  post          FeedPost  @relation(fields: [postId], references: [feedPostId], onDelete: Cascade)
-  authorId      String    @map("author_id")
-  author        User      @relation(fields: [authorId], references: [userId])
+  feedCommentId String   @id @default(uuid()) @map("feed_comment_id")
+  postId        String   @map("post_id")
+  post          FeedPost @relation(fields: [postId], references: [feedPostId], onDelete: Cascade)
+  authorId      String   @map("author_id")
+  author        User     @relation(fields: [authorId], references: [userId])
   content       String
-  createdAt     DateTime  @default(now()) @map("created_at")
-  deletedAt     DateTime? @map("deleted_at")
 
-  @@index([postId])
+  parentId String?       @map("parent_id")
+  parent   FeedComment?  @relation("CommentReplies", fields: [parentId], references: [feedCommentId], onDelete: Cascade)
+  replies  FeedComment[] @relation("CommentReplies")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([postId, parentId, createdAt])
   @@map("feed_comment")
 }
 
@@ -1030,6 +1035,7 @@ enum ReactionType {
   CELEBRATE
   SUPPORT
   LOVE
+  INSIGHTFUL
 }
 
 enum FeedPostType {
