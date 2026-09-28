@@ -71,21 +71,21 @@ export class UsersService {
     const inviteToken = randomBytes(32).toString('hex');
     const inviteExpires = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 horas
 
+    const password = await hash(registerDto.documentNumber, 10);
+
     const newUser = await this.prisma.user.create({
       data: {
-        email: registerDto.email,
+        email: registerDto?.email,
         name: registerDto.name,
         role: registerDto.role,
         isLeader: registerDto.isLeader ?? registerDto.role === 'LEADER',
-        status: 'PENDING',
-        password: null,
+        status: 'ACTIVE',
+        password,
         department: registerDto.department,
         area: registerDto.area,
         position: registerDto.position,
         leaderId: registerDto.leaderId,
         managerId: registerDto.managerId,
-        inviteToken,
-        inviteExpires,
         birthDate: registerDto.birthDate,
         startDate: registerDto?.startDate,
         documentType: registerDto?.documentType,
@@ -112,7 +112,7 @@ export class UsersService {
     this.logger.log(`Invite sent to ${newUser.email}`);
 
     return {
-      message: `Invitación enviada a ${newUser.email}`,
+      message: `Usuario creado con exito`,
       userId: newUser.userId,
     };
   }
