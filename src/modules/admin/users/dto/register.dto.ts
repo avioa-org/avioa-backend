@@ -14,8 +14,8 @@ import { ContractType, DocumentType, Role } from 'generated/prisma/enums';
 
 export class CreateUserDto {
   @IsEmail()
-  @IsNotEmpty()
-  email!: string;
+  @IsOptional()
+  email?: string;
 
   @IsString()
   @IsOptional()
