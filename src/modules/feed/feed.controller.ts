@@ -43,8 +43,6 @@ export class FeedController {
   }
 
   @Delete('comments/:commentId')
-  @RequireModule(Modules.FEED)
-  @RequireAction('delete')
   removeComment(
     @Param('commentId') commentId: string,
     @CurrentUser() user: ICurrentUser,
@@ -61,15 +59,11 @@ export class FeedController {
   }
 
   @Post()
-  @RequireModule(Modules.FEED)
-  @RequireAction('create')
   create(@Body() dto: CreatePostDto, @CurrentUser() user: ICurrentUser) {
     return this.feedService.create(dto, user);
   }
 
   @Patch(':feedPostId')
-  @RequireModule(Modules.FEED)
-  @RequireAction('update')
   update(
     @Param('feedPostId') feedPostId: string,
     @Body() dto: UpdatePostDto,
@@ -79,8 +73,6 @@ export class FeedController {
   }
 
   @Delete(':feedPostId')
-  @RequireModule(Modules.FEED)
-  @RequireAction('delete')
   remove(
     @Param('feedPostId') feedPostId: string,
     @CurrentUser() user: ICurrentUser,
@@ -89,8 +81,6 @@ export class FeedController {
   }
 
   @Patch(':feedPostId/pin')
-  @RequireModule(Modules.FEED)
-  @RequireAction('update')
   togglePin(
     @Param('feedPostId') feedPostId: string,
     @CurrentUser() user: ICurrentUser,
