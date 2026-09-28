@@ -44,7 +44,10 @@ export class FeedGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return;
       }
 
-      const payload = this.jwtService.verify<{ userId: string }>(token);
+      const payload = this.jwtService.verify<{ userId: string }>(token, {
+        secret: envs.JWT_SECRET,
+      });
+
       if (!payload?.userId) {
         this.logger.warn(`[connect] token sin userId → ${client.id}`);
         client.disconnect(true);

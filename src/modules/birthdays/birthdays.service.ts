@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 import { FeedService } from '../feed/feed.service';
 import { FeedGateway } from '../feed/feed.gateway';
-import { Cron } from '@nestjs/schedule';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { envs } from 'src/config/env.config';
 import { DEFAULT_TEMPLATES } from './birthday-template';
 
@@ -16,7 +16,7 @@ export class BirthdaysService {
     private readonly feedGateway: FeedGateway,
   ) {}
 
-  @Cron('* * * * *', {
+  @Cron(CronExpression.EVERY_MINUTE, {
     timeZone: 'America/Bogota',
     name: 'daily-birthdays',
   })
