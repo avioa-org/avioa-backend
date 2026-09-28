@@ -275,6 +275,8 @@ model User {
 
   vacationDaysAdjustment Int @default(0) @map("vacation_days_adjustment")
 
+  birthdayCelebrationSeenAt DateTime? @map("birthday_celebration_seen_at")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -330,6 +332,18 @@ model User {
   hrValidatedLeaves            LeaveRequest[]       @relation("HRValidatorLeave")
 
   @@map("users")
+}
+
+model BirthdayTemplate {
+  modelBirthdayTemplateId String   @id @default(uuid()) @map("model_birthday_template_id")
+  name                    String
+  body                    String
+  isActive                Boolean  @default(true) @map("is_active")
+  weight                  Int      @default(1) // para randomizar (mayor = más probable)
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  @@map("birthday_template")
 }
 
 model ModulePermission {
@@ -1036,12 +1050,14 @@ enum ReactionType {
   SUPPORT
   LOVE
   INSIGHTFUL
+  BIRTHDAY
 }
 
 enum FeedPostType {
   PUBLICATION // comunicado normal
   RECOGNITION // reconocimiento a un colaborador
   ANNOUNCEMENT // comunicado oficial de RRHH
+  BIRTHDAY
 }
 
 enum RedemptionStatus {
