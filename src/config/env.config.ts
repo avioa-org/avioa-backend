@@ -56,6 +56,7 @@ const envSchema = z.object({
   RESEND_RESET_PASSWORD_TEMPLATE_ALIAS: z.string(),
   EVOLUTION_NUMERO_SOPORTE: z.string().min(12),
   SOPORTE_DOCUMENT_NUMBER: z.string().min(1),
+  BIRTHDAY_SYSTEM_USER_ID: z.string().optional(),
 });
 
 let envs: z.infer<typeof envSchema>;
