@@ -1,31 +1,37 @@
 // para ejecutar este script usa esto (MODO DRY-RUN: npx tsx src/infrastructure/scripts/reassign-unassigned.ts)
 
 //(MODO: APPLY: npx tsx src/infrastructure/scripts/reassign-unassigned.ts --apply)
-
-
+import 'dotenv/config';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as dotenv from 'dotenv';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../../generated/prisma/client';
 import { EquipmentStatus, LoanStatus } from '../../../generated/prisma/enums';
-
-dotenv.config({ path: path.resolve(process.cwd(), '.env.development') });
+import { envs } from '../../config/env.config';
 
 const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: envs.DATABASE_URL,
 });
 const prisma = new PrismaClient({ adapter });
 
-const REPORT_INPUT = path.resolve(
-  process.cwd(),
-  'src/infrastructure/scripts/reports/unassigned-users.json',
-);
+// const REPORT_INPUT = path.resolve(
+//   process.cwd(),
+//   'src/infrastructure/scripts/reports/unassigned-users.json',
+// );
 
-const REPORTS_DIR = path.resolve(
-  process.cwd(),
-  'src/infrastructure/scripts/reports',
-);
+// const REPORTS_DIR = path.resolve(
+//   process.cwd(),
+//   'src/infrastructure/scripts/reports',
+// );
+
+const REPORT_INPUT = process.argv[2];
+
+if (!REPORT_INPUT) {
+  console.error('❌ Debes proporcionar la ruta del archivo de reporte.');
+  process.exit(1);
+}
+
+const REPORTS_DIR = process.argv[3] ?? '/reports';
 
 const APPLY_MODE = process.argv.includes('--apply');
 const MIN_SCORE = 0.7;
@@ -90,7 +96,11 @@ function findBestUserMatch(excelName: string, users: User[]): MatchResult {
     (u) => normalizeForMatching(u.name) === excelNormalized,
   );
   if (exactMatch) {
-    return { user: exactMatch, score: 1.0, candidates: [{ user: exactMatch, score: 1.0 }] };
+    return {
+      user: exactMatch,
+      score: 1.0,
+      candidates: [{ user: exactMatch, score: 1.0 }],
+    };
   }
 
   // 2 y 3. Match por tokens
@@ -139,10 +149,13 @@ function findBestUserMatch(excelName: string, users: User[]): MatchResult {
   return { user: candidates[0].user, score: candidates[0].score, candidates };
 }
 
-
 async function reassignUnassigned() {
   console.log('═══════════════════════════════════════════════');
-  console.log(APPLY_MODE ? ' MODO APPLY (va a modificar la BD)' : ' MODO DRY-RUN (solo preview)');
+  console.log(
+    APPLY_MODE
+      ? ' MODO APPLY (va a modificar la BD)'
+      : ' MODO DRY-RUN (solo preview)',
+  );
   console.log('═══════════════════════════════════════════════\n');
 
   // 1. Leer el reporte
@@ -212,11 +225,11 @@ async function reassignUnassigned() {
 
       if (!match.user && match.candidates.length >= 2) {
         // Ambigüedad
-        console.warn(
-          `   AMBIGUO (${match.candidates.length} candidatos):`,
-        );
+        console.warn(`   AMBIGUO (${match.candidates.length} candidatos):`);
         match.candidates.slice(0, 3).forEach((c) => {
-          console.warn(`      - ${c.user.name} (${(c.score * 100).toFixed(0)}%)`);
+          console.warn(
+            `      - ${c.user.name} (${(c.score * 100).toFixed(0)}%)`,
+          );
         });
         ambiguous++;
         ambiguousReport.push({
@@ -299,11 +312,7 @@ async function reassignUnassigned() {
   if (ambiguousReport.length > 0) {
     fs.writeFileSync(
       path.join(REPORTS_DIR, 'ambiguous-users.json'),
-      JSON.stringify(
-        { total: ambiguous, ambiguous: ambiguousReport },
-        null,
-        2,
-      ),
+      JSON.stringify({ total: ambiguous, ambiguous: ambiguousReport }, null, 2),
     );
   }
 
