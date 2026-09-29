@@ -6,6 +6,12 @@ import { LeavesController } from '../leaves/leaves.controller';
 import { LeaveStatus, LeaveType, OvertimeStatus } from 'generated/prisma/enums';
 import { CONFIG_TIPOS, resolverConfigVacaciones } from './config/tipos-novedad';
 import { HISTORICAL_MIGRATION_TAG } from '../leaves/leaves.service';
+import { FiltrosSolicitudesDto } from './dto/fiiltro-solicitudes.dto';
+import {
+  SolicitudesPaginadas,
+  SolicitudResumen,
+} from './types/solicitud-resumen.type';
+import { Prisma } from 'generated/prisma/browser';
 
 export interface FiltrosNomina {
   desde: string; // YYYY-MM-DD
@@ -31,6 +37,34 @@ const USER_SELECT = {
   legalEntity: true,
   office: true,
 } as const;
+
+const ESTADOS_LEAVE_VALIDOS: LeaveStatus[] = [
+  'PENDING_HR_VALIDATION',
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+  'CANCELLED',
+] as LeaveStatus[];
+
+const ESTADOS_OVERTIME_VALIDOS: OvertimeStatus[] = [
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+];
+
+const LEAVE_STATUS_LABELS: Record<LeaveStatus, string> = {
+  PENDING_HR_VALIDATION: 'Pendiente validación GH',
+  PENDING: 'Pendiente de líder',
+  APPROVED: 'Aprobada',
+  REJECTED: 'Rechazada',
+  CANCELLED: 'Cancelada',
+};
+
+const OVERTIME_STATUS_LABELS: Record<OvertimeStatus, string> = {
+  PENDING: 'Pendiente',
+  APPROVED: 'Aprobada',
+  REJECTED: 'Rechazada',
+};
 
 @Injectable()
 export class NominaService {
@@ -82,6 +116,90 @@ export class NominaService {
       if (porNombre !== 0) return porNombre;
       return a.fechaInicioEnPeriodo.localeCompare(b.fechaInicioEnPeriodo);
     });
+  }
+
+  async findAllSolicitudes(
+    filtros: FiltrosSolicitudesDto,
+  ): Promise<SolicitudesPaginadas> {
+    const page = filtros.page ?? 1;
+    const pageSize = filtros.pageSize ?? 20;
+
+    const tiposLeave = filtros.tipos?.filter(
+      (t) => t !== 'HORAS_EXTRA',
+    ) as LeaveType[];
+
+    console.log('[findAllSolicitudes] filtros.tipos =', filtros.tipos);
+
+    const incluirLeaves = !filtros.tipos?.length || tiposLeave.length > 0;
+
+    const incluirOvertime =
+      !filtros.tipos?.length || filtros.tipos.includes('HORAS_EXTRA');
+
+    console.log('[findAllSolicitudes]', {
+      tiposLeave,
+      incluirLeaves,
+      incluirOvertime,
+    });
+
+    const estadosLeave = filtros.estados?.filter((e) =>
+      ESTADOS_LEAVE_VALIDOS.includes(e as LeaveStatus),
+    ) as LeaveStatus[] | undefined;
+
+    const estadosOvertime = filtros.estados?.filter((e) =>
+      ESTADOS_OVERTIME_VALIDOS.includes(e as OvertimeStatus),
+    ) as OvertimeStatus[] | undefined;
+
+    const debeConsultarLeaves =
+      incluirLeaves && (!filtros.estados?.length || !!estadosLeave?.length);
+    const debeConsultarOvertime =
+      incluirOvertime &&
+      (!filtros.estados?.length || !!estadosOvertime?.length);
+
+    const rangoFechas = this.buildRangoFechas(filtros.desde, filtros.hasta);
+    const filtroUsuario: Prisma.UserWhereInput = {
+      ...(filtros.area && { area: filtros.area }),
+      ...(filtros.department && { department: filtros.department }),
+      ...(filtros.legalEntity && { legalEntity: filtros.legalEntity }),
+      isUserTest: false,
+    };
+
+    const [leaves, overtimes] = await Promise.all([
+      debeConsultarLeaves
+        ? this.queryLeaves(
+            filtros,
+            tiposLeave,
+            estadosLeave,
+            rangoFechas,
+            filtroUsuario,
+          )
+        : [],
+      debeConsultarOvertime
+        ? this.queryOvertimes(
+            filtros,
+            estadosOvertime,
+            rangoFechas,
+            filtroUsuario,
+          )
+        : [],
+    ]);
+
+    const todas = [...leaves, ...overtimes].sort(
+      (a, b) =>
+        new Date(b.fechaRegistro).getTime() -
+        new Date(a.fechaRegistro).getTime(),
+    );
+
+    const total = todas.length;
+    const start = (page - 1) * pageSize;
+    const data = todas.slice(start, start + pageSize);
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize) || 1,
+    };
   }
 
   private async obtenerLeaves(
@@ -141,10 +259,7 @@ export class NominaService {
 
         const hasHours = !!leave.startTime && !!leave.endTime;
         const totalHoras = hasHours
-          ? this.calcularHoras(
-              leave.startTime! as string,
-              leave.endTime! as string,
-            )
+          ? this.calcularHoras(leave.startTime!, leave.endTime!)
           : null;
 
         return {
@@ -384,5 +499,153 @@ export class NominaService {
     return (
       tipo === LeaveType.INCAPACIDAD_EPS || tipo === LeaveType.INCAPACIDAD_ARL
     );
+  }
+
+  private buildRangoFechas(desde?: string, hasta?: string) {
+    if (!desde && !hasta) return null;
+    return {
+      gte: desde ? new Date(`${desde}T00:00:00`) : undefined,
+      lte: hasta ? new Date(`${hasta}T23:59:59.999`) : undefined,
+    };
+  }
+
+  private async queryLeaves(
+    filtros: FiltrosSolicitudesDto,
+    tipos: LeaveType[] | undefined,
+    estados: LeaveStatus[] | undefined,
+    rangoFechas: { gte?: Date; lte?: Date } | null,
+    filtroUsuario: Prisma.UserWhereInput,
+  ): Promise<SolicitudResumen[]> {
+    const registros = await this.prisma.leaveRequest.findMany({
+      where: {
+        ...(filtros.userId && { userId: filtros.userId }),
+        ...(tipos?.length && { type: { in: tipos } }),
+        ...(estados?.length && { status: { in: estados } }),
+        ...(rangoFechas && { startDate: rangoFechas }),
+        NOT: { reason: { contains: 'MIGRACION_HISTORICA_VACACIONES_2026' } },
+        user: Object.keys(filtroUsuario).length ? filtroUsuario : undefined,
+      },
+      include: {
+        user: {
+          select: {
+            userId: true,
+            name: true,
+            documentNumber: true,
+            position: true,
+            area: true,
+            department: true,
+            legalEntity: true,
+          },
+        },
+        leader: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return registros.map((leave) => {
+      const config =
+        leave.type === LeaveType.VACACIONES
+          ? resolverConfigVacaciones(leave.esCompensada)
+          : CONFIG_TIPOS[leave.type];
+
+      return {
+        id: leave.leaveRequestId,
+        origen: 'LEAVE',
+        tipo: leave.type,
+        tipoLabel: config.label,
+        unidad: 'DIAS',
+        status: leave.status,
+        statusLabel: LEAVE_STATUS_LABELS[leave.status],
+
+        userId: leave.user.userId,
+        nombreColaborador: leave.user.name,
+        documentNumber: leave.user.documentNumber,
+        position: leave.user.position,
+        area: leave.user.area,
+        department: leave.user.department,
+        legalEntity: leave.user.legalEntity,
+
+        fechaInicio: leave.startDate.toISOString(),
+        fechaFin: leave.endDate.toISOString(),
+        cantidad: leave.businessDays,
+
+        horaInicio: leave.startTime ?? null,
+        horaFin: leave.endTime ?? null,
+
+        esCompensada: leave.esCompensada,
+        motivo: leave.reason,
+        attachmentUrl: leave.attachmentUrl,
+        comentario: leave.comment ?? leave.hrComment,
+
+        nombreAprobador: leave.leader?.name ?? null,
+        fechaRegistro: leave.createdAt.toISOString(),
+        fechaDecision: leave.reviewedAt?.toISOString() ?? null,
+      };
+    });
+  }
+
+  private async queryOvertimes(
+    filtros: FiltrosSolicitudesDto,
+    estados: OvertimeStatus[] | undefined,
+    rangoFechas: { gte?: Date; lte?: Date } | null,
+    filtroUsuario: Prisma.UserWhereInput,
+  ): Promise<SolicitudResumen[]> {
+    const registros = await this.prisma.overtimeRequest.findMany({
+      where: {
+        ...(filtros.userId && { userId: filtros.userId }),
+        ...(estados?.length && { status: { in: estados } }),
+        ...(rangoFechas && { date: rangoFechas }),
+        user: Object.keys(filtroUsuario).length ? filtroUsuario : undefined,
+      },
+      include: {
+        user: {
+          select: {
+            userId: true,
+            name: true,
+            documentNumber: true,
+            position: true,
+            area: true,
+            department: true,
+            legalEntity: true,
+          },
+        },
+        leader: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return registros.map((ot) => ({
+      id: ot.overtimeRequestId,
+      origen: 'OVERTIME',
+      tipo: 'HORAS_EXTRA',
+      tipoLabel: 'Horas extra',
+      unidad: 'HORAS',
+      status: ot.status,
+      statusLabel: OVERTIME_STATUS_LABELS[ot.status],
+
+      userId: ot.user.userId,
+      nombreColaborador: ot.user.name,
+      documentNumber: ot.user.documentNumber,
+      position: ot.user.position,
+      area: ot.user.area,
+      department: ot.user.department,
+      legalEntity: ot.user.legalEntity,
+
+      fechaInicio: ot.date.toISOString(),
+      fechaFin: ot.date.toISOString(),
+      cantidad: ot.totalHours,
+
+      horaInicio: this.formatearHora(ot.startTime),
+      horaFin: this.formatearHora(ot.endTime),
+
+      esCompensada: false,
+      motivo: ot.description,
+      attachmentUrl: null,
+      comentario: ot.comment,
+
+      nombreAprobador: ot.leader?.name ?? null,
+      fechaRegistro: ot.createdAt.toISOString(),
+      fechaDecision: ot.reviewedAt?.toISOString() ?? null,
+    }));
   }
 }
