@@ -1,7 +1,6 @@
-// src/infrastructure/scripts/import-equipment.ts
+import 'dotenv/config';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as dotenv from 'dotenv';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../../generated/prisma/client';
 import {
@@ -9,25 +8,32 @@ import {
   EquipmentStatus,
   LoanStatus,
 } from '../../../generated/prisma/enums';
-
-// Cargar variables de entorno ANTES de crear el cliente
-dotenv.config({ path: path.resolve(process.cwd(), '.env.development') });
+import { envs } from '../../config/env.config';
 
 const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: envs.DATABASE_URL,
 });
 
 const prisma = new PrismaClient({ adapter });
 
-const JSON_PATH = path.resolve(
-  process.cwd(),
-  'src/infrastructure/scripts/data/equipos-classified.json',
-);
+// const JSON_PATH = path.resolve(
+//   process.cwd(),
+//   'src/infrastructure/scripts/data/equipos-classified.json',
+// );
 
-const REPORTS_DIR = path.resolve(
-  process.cwd(),
-  'src/infrastructure/scripts/reports',
-);
+// const REPORTS_DIR = path.resolve(
+//   process.cwd(),
+//   'src/infrastructure/scripts/reports',
+// );
+
+const JSON_PATH = process.argv[2];
+
+if (!JSON_PATH) {
+  console.error('❌ Debes proporcionar la ruta del JSON.');
+  process.exit(1);
+}
+
+const REPORTS_DIR = process.argv[3] ?? '/reports';
 
 // ===== HELPERS =====
 
@@ -241,7 +247,7 @@ importEquipment()
   .catch((e) => {
     console.error(e);
   })
-  .finally(() => {
-    prisma.$disconnect();
+  .finally(async () => {
+    await prisma.$disconnect();
     process.exit(0);
   });
