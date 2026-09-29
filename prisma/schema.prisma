@@ -330,6 +330,7 @@ model User {
   cesantiasRequestsResponsable CesantiasRequest[]   @relation("CesantiasResponsable")
   modulePermissions            ModulePermission[]
   hrValidatedLeaves            LeaveRequest[]       @relation("HRValidatorLeave")
+  notificationsCreated         Notification[]       @relation("NotificationActor")
 
   @@map("users")
 }
@@ -479,17 +480,33 @@ model PointWallet {
 model Notification {
   notificationId String @id @default(uuid()) @map("notification_id")
 
-  userId  String @map("user_id")
-  title   String @map("title")
-  message String @map("message")
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [userId])
 
-  type NotificationType @map("type")
-  read Boolean          @default(false) @map("read")
+  actorId String? @map("actor_id")
+  actor   User?   @relation("NotificationActor", fields: [actorId], references: [userId])
+
+  title   String           @map("title")
+  message String           @map("message")
+  type    NotificationType @map("type")
+
+  entityType String?              @map("entity_type") // "leave_request", "post", "comment"
+  entityId   String?              @map("entity_id")
+  priority   NotificationPriority @default(NORMAL)
+  metadata   Json                 @default("{}")
+
+  // Estados
+  seenAt      DateTime? @map("seen_at") // el badge desaparece
+  readAt      DateTime? @map("read_at") // el usuario hizo clic
+  dismissedAt DateTime? @map("dismissed_at") // el usuario la descartó
+
+  read Boolean? @default(false) @map("read")
 
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  user User @relation(fields: [userId], references: [userId])
-
+  @@index([userId, readAt, createdAt(sort: Desc)])
+  @@index([userId, seenAt])
   @@map("notifications")
 }
 
@@ -1150,6 +1167,12 @@ enum NotificationType {
   LEAVE_REQUEST_RECEIVED
   LEAVE_REQUEST_REJECTED
   COMPENSATED_LEAVE_PENDING_HR
+}
+
+enum NotificationPriority {
+  HIGH
+  NORMAL
+  LOW
 }
 
 enum RewardType {
