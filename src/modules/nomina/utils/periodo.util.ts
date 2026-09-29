@@ -26,7 +26,7 @@ export function recortarAlPeriodo(
   contarHabiles: boolean,
 ): RecorteResultado | null {
   if (inicioNovedad > periodo.hasta || finNovedad < periodo.desde) {
-    return null;
+    return null; // no intersecta
   }
 
   const inicioRecortado =
@@ -40,8 +40,8 @@ export function recortarAlPeriodo(
     fechaFinEnPeriodo: finRecortado,
     cantidadEnPeriodo: contar(inicioRecortado, finRecortado),
     cantidadTotal: contar(inicioNovedad, finNovedad),
-    cruzaPeriodoAnterior: inicioRecortado < periodo.desde,
-    cruzaPeriodoSiguiente: finRecortado > periodo.hasta,
+    cruzaPeriodoAnterior: inicioNovedad < periodo.desde,
+    cruzaPeriodoSiguiente: finNovedad > periodo.hasta,
   };
 }
 

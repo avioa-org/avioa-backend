@@ -89,7 +89,7 @@ model EquipmentLoan {
 
   // Fechas
   loanDate           DateTime  @default(now()) @map("loan_date")
-  expectedReturnDate DateTime?  @map("expected_return_date")
+  expectedReturnDate DateTime? @map("expected_return_date")
   actualReturnDate   DateTime? @map("actual_return_date")
 
   // Motivos
@@ -275,6 +275,8 @@ model User {
 
   vacationDaysAdjustment Int @default(0) @map("vacation_days_adjustment")
 
+  birthdayCelebrationSeenAt DateTime? @map("birthday_celebration_seen_at")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -326,8 +328,41 @@ model User {
   cesantiasHistorials          CesantiasHistorial[]
   cesantiasRequests            CesantiasRequest[]
   cesantiasRequestsResponsable CesantiasRequest[]   @relation("CesantiasResponsable")
+  modulePermissions            ModulePermission[]
+  hrValidatedLeaves            LeaveRequest[]       @relation("HRValidatorLeave")
 
   @@map("users")
+}
+
+model BirthdayTemplate {
+  modelBirthdayTemplateId String   @id @default(uuid()) @map("model_birthday_template_id")
+  name                    String
+  body                    String
+  isActive                Boolean  @default(true) @map("is_active")
+  weight                  Int      @default(1) // para randomizar (mayor = más probable)
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  @@map("birthday_template")
+}
+
+model ModulePermission {
+  modulePermissionId String   @id @default(uuid()) @map("module_permission_id")
+  userId             String   @map("user_id")
+  module             String   @map("module")
+  canAccess          Boolean  @default(true) @map("can_access")
+  actions            String[]
+
+  grantedBy String?  @map("granted_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@unique([userId, module])
+  @@index([userId])
+  @@index([module])
+  @@map("module_permissions")
 }
 
 model Template {
@@ -599,6 +634,9 @@ model LeaveRequest {
   startDate DateTime @map("start_date")
   endDate   DateTime @map("end_date")
 
+  startTime String? @map("start_time") @db.VarChar(5)
+  endTime   String? @map("end_time") @db.VarChar(5)
+
   businessDays Int @map("business_days")
 
   reason String @map("reason") // motivo del empleado
@@ -614,17 +652,30 @@ model LeaveRequest {
   // true = compensadas (se pagan en dinero)
   esCompensada Boolean @default(false) @map("es_compensada")
 
+  // estos campos no se si los voy a utilizar en un futuro
+  externalApprovalRef String?   @map("external_approval_ref")
+  externalApprovedAt  DateTime? @map("external_approved_at")
+
+  // para las compensadas
+  hrValidatedById String?   @map("hr_validated_by_id")
+  hrValidatedAt   DateTime? @map("hr_validated_at")
+  hrComment       String?   @map("hr_comment") @db.Text
+
+  notifiedAccountingAt DateTime? @map("notified_accounting_at")
+
   createdAt  DateTime  @default(now()) @map("created_at")
   reviewedAt DateTime? @map("reviewed_at")
 
-  user   User @relation("EmployeeLeave", fields: [userId], references: [userId])
-  leader User @relation("LeaderLeave", fields: [leaderId], references: [userId])
+  user          User  @relation("EmployeeLeave", fields: [userId], references: [userId])
+  leader        User  @relation("LeaderLeave", fields: [leaderId], references: [userId])
+  hrValidatedBy User? @relation("HRValidatorLeave", fields: [hrValidatedById], references: [userId])
 
   @@index([userId])
   @@index([leaderId])
   @@index([status])
   @@index([type])
   @@index([startDate])
+  @@index([status, esCompensada])
   @@map("leave_requests")
 }
 
@@ -836,16 +887,21 @@ model FeedReaction {
 }
 
 model FeedComment {
-  feedCommentId String    @id @default(uuid()) @map("feed_comment_id")
-  postId        String    @map("post_id")
-  post          FeedPost  @relation(fields: [postId], references: [feedPostId], onDelete: Cascade)
-  authorId      String    @map("author_id")
-  author        User      @relation(fields: [authorId], references: [userId])
+  feedCommentId String   @id @default(uuid()) @map("feed_comment_id")
+  postId        String   @map("post_id")
+  post          FeedPost @relation(fields: [postId], references: [feedPostId], onDelete: Cascade)
+  authorId      String   @map("author_id")
+  author        User     @relation(fields: [authorId], references: [userId])
   content       String
-  createdAt     DateTime  @default(now()) @map("created_at")
-  deletedAt     DateTime? @map("deleted_at")
 
-  @@index([postId])
+  parentId String?       @map("parent_id")
+  parent   FeedComment?  @relation("CommentReplies", fields: [parentId], references: [feedCommentId], onDelete: Cascade)
+  replies  FeedComment[] @relation("CommentReplies")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([postId, parentId, createdAt])
   @@map("feed_comment")
 }
 
@@ -993,12 +1049,15 @@ enum ReactionType {
   CELEBRATE
   SUPPORT
   LOVE
+  INSIGHTFUL
+  BIRTHDAY
 }
 
 enum FeedPostType {
   PUBLICATION // comunicado normal
   RECOGNITION // reconocimiento a un colaborador
   ANNOUNCEMENT // comunicado oficial de RRHH
+  BIRTHDAY
 }
 
 enum RedemptionStatus {
@@ -1030,6 +1089,7 @@ enum Role {
   EMPLOYEE
   LEADER
   RRHH
+  ACCOUNTING
 }
 
 enum UserStatus {
@@ -1086,6 +1146,10 @@ enum NotificationType {
   EQUIPMENT_LOAN_RETURNED
   MAINTENANCE_REQUEST
   MAINTENANCE_STATUS_CHANGE
+  LEAVE_REQUEST_APPROVED
+  LEAVE_REQUEST_RECEIVED
+  LEAVE_REQUEST_REJECTED
+  COMPENSATED_LEAVE_PENDING_HR
 }
 
 enum RewardType {
@@ -1151,10 +1215,12 @@ enum LeaveType {
   DILIGENCIA_PERSONAL
   OBLIGACION_COMO_ACUDIENTE
   CITA_MEDICA_PARTICULAR
+  CITA_MEDICA_CON_ESPECIALISTA_EPS
   OTRO
 }
 
 enum LeaveStatus {
+  PENDING_HR_VALIDATION
   PENDING
   APPROVED
   REJECTED

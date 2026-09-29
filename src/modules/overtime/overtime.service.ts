@@ -549,7 +549,11 @@ export class OvertimeService {
     // }
 
     // registrar en N8N si fue aprobado
-    if (isApproved && !updated.user.isUserTest) {
+    if (
+      isApproved &&
+      !updated.user.isUserTest &&
+      envs.NODE_ENV === 'production'
+    ) {
       if (updated.user.documentNumber) {
         await this.sendToN8N(updated, {
           name: updated.user.name,

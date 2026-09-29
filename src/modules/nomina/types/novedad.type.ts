@@ -12,35 +12,70 @@ export interface NovedadConsolidada {
   esRemunerada: boolean;
   afectaNomina: 'SUMA' | 'RESTA' | 'NEUTRO';
 
-  // colaborador
+  // Colaborador
   userId: string;
   nombreColaborador: string;
-  documentNumber: string;
+  documentNumber: string | null;
   position: string | null;
   area: string | null;
   department: string | null;
   legalEntity: string | null;
   office: string | null;
 
-  // fechas
+  // Fechas reales (sin recortar)
   fechaInicio: string;
   fechaFin: string;
 
-  // recortado al periodo liquidado
+  // Recortado al periodo liquidado
   fechaInicioEnPeriodo: string;
   fechaFinEnPeriodo: string;
   cantidadEnPeriodo: number;
   cantidadTotal: number;
 
-  cruzaPeriodoAnterioro: boolean;
+  cruzaPeriodoAnterior: boolean;
   cruzaPeriodoSiguiente: boolean;
 
-  // esto es para trazabilidad
+  // Soporte y trazabilidad
   motivo: string;
-  attachmentUr: string | null;
+  attachmentUrl: string | null;
   comentarioAprobador: string | null;
   aprobadorId: string;
   nombreAprobador: string;
   fechaRegistro: string;
   fechaAprobacion: string | null;
+
+  horaInicio: string | null;
+  horaFin: string | null;
+
+  esParcial: boolean;
+  totalHoras: number | null;
+  esCompensada: boolean;
+
+  createdAt: Date;
+}
+
+export interface ResumenColaborador {
+  userId: string;
+  nombreColaborador: string;
+  documentNumber: string | null;
+  position: string | null;
+  area: string | null;
+  legalEntity: string | null;
+  totalDiasAusencia: number;
+  totalDiasVacaciones: number;
+  totalHorasExtra: number;
+  diasNoRemunerados: number;
+  novedades: NovedadConsolidada[];
+}
+
+export interface TotalesNomina {
+  totalNovedades: number;
+  colaboradoresAfectados: number;
+  totalHorasExtra: number;
+  totalDiasVacaciones: number;
+  totalDiasAusencia: number;
+  totalHorasParciales: number;
+  totalDiasNoRemunerados: number;
+  novedadesQueCruzanPeriodo: number;
+  sinSoporte: number;
 }

@@ -1,4 +1,5 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import { ModulePermission } from 'generated/prisma/browser';
 import { Role, UserStatus } from 'generated/prisma/enums';
 
 export interface ICurrentUser {
@@ -13,6 +14,7 @@ export interface ICurrentUser {
   department: string | null;
   leaderId: string | null;
   managerId: string | null;
+  modulePermissions: ModulePermission[];
 }
 
 export const CurrentUser = createParamDecorator(

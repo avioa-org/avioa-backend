@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -15,6 +16,9 @@ import { EmailService } from 'src/infrastructure/email/email.infra';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.infra';
 import { BirthdayPostsResponseDto } from './dto/birthday-posts.dto';
+import { SetUserModulesDto } from './dto/set-user-modules.dto';
+import { Role } from 'generated/prisma/enums';
+import { Modules } from 'src/common/enum/modules.enum';
 
 @Injectable()
 export class UsersService {
@@ -67,21 +71,21 @@ export class UsersService {
     const inviteToken = randomBytes(32).toString('hex');
     const inviteExpires = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 horas
 
+    const password = await hash(registerDto.documentNumber, 10);
+
     const newUser = await this.prisma.user.create({
       data: {
-        email: registerDto.email,
+        email: registerDto?.email,
         name: registerDto.name,
         role: registerDto.role,
         isLeader: registerDto.isLeader ?? registerDto.role === 'LEADER',
-        status: 'PENDING',
-        password: null,
+        status: 'ACTIVE',
+        password,
         department: registerDto.department,
         area: registerDto.area,
         position: registerDto.position,
         leaderId: registerDto.leaderId,
         managerId: registerDto.managerId,
-        inviteToken,
-        inviteExpires,
         birthDate: registerDto.birthDate,
         startDate: registerDto?.startDate,
         documentType: registerDto?.documentType,
@@ -108,7 +112,7 @@ export class UsersService {
     this.logger.log(`Invite sent to ${newUser.email}`);
 
     return {
-      message: `Invitación enviada a ${newUser.email}`,
+      message: `Usuario creado con exito`,
       userId: newUser.userId,
     };
   }
@@ -212,6 +216,55 @@ export class UsersService {
     });
   }
 
+  public async updateUserPermissions(
+    userId: string,
+    dto: SetUserModulesDto,
+    grantedBy: string,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { userId },
+      select: { userId: true, role: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException({
+        message: 'Usuario no encontrado',
+        error: 'USER_NOT_FOUND',
+      });
+    }
+
+    if (user.role === Role.ADMIN) {
+      throw new ConflictException({
+        message:
+          'Loas ADMIN ya tienen acceso total; no se gestionan permisos por módulo.',
+        error: 'USER_IS_ADMIN',
+      });
+    }
+
+    const modules = [...new Set(dto.modules ?? [])];
+
+    const invalid = modules.filter((m) => !Modules);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.modulePermission.deleteMany({ where: { userId } });
+
+      if (modules.length === 0) return;
+
+      await tx.modulePermission.createMany({
+        data: modules.map((module) => ({
+          userId,
+          module,
+          canAccess: true,
+          actions: dto.actions?.[module] ?? [],
+          grantedBy,
+        })),
+        skipDuplicates: true,
+      });
+    });
+
+    return await this.getUserPermissions(userId);
+  }
+
   public async getLeaders() {
     return await this.prisma.user.findMany({
       where: {
@@ -273,80 +326,82 @@ export class UsersService {
       });
     }
 
-    this.logger.log(`User ${user.email} deleted successfully`);
+    this.logger.log(`User ${user.email} incactivated successfully`);
 
-    return await this.prisma.user.delete({ where: { userId } });
+    return await this.prisma.user.delete({
+      where: { userId },
+    });
   }
 
-public async getUserDirectory(userId: string) {
-  const users = await this.prisma.user.findMany({
-    where: { status: 'ACTIVE', userId: { not: userId } },
-    select: {
-      userId: true,
-      name: true,
-      email: true,
-      avatarUrl: true,
-      department: true,
-      area: true,
-      birthDate: true,
-      phone: true,
-      position: true,
-      office: true,
-      startDate: true,
-      contractType: true,
-      documentType: true,
-      documentNumber: true,
-      address: true,
-      emergencyContactName: true,
-      emergencyContactPhone: true,
-      emergencyContactRel: true,
-      role: true,
-      leaderId: true,
-      managerId: true,
-      leader: {
-        select: {
-          userId: true,
-          name: true,
+  public async getUserDirectory(userId: string) {
+    const users = await this.prisma.user.findMany({
+      where: { status: 'ACTIVE', userId: { not: userId }, isUserTest: false },
+      select: {
+        userId: true,
+        name: true,
+        email: true,
+        avatarUrl: true,
+        department: true,
+        area: true,
+        birthDate: true,
+        phone: true,
+        position: true,
+        office: true,
+        startDate: true,
+        contractType: true,
+        documentType: true,
+        documentNumber: true,
+        address: true,
+        emergencyContactName: true,
+        emergencyContactPhone: true,
+        emergencyContactRel: true,
+        role: true,
+        leaderId: true,
+        managerId: true,
+        leader: {
+          select: {
+            userId: true,
+            name: true,
+          },
+        },
+        manager: {
+          select: {
+            userId: true,
+            name: true,
+          },
         },
       },
-      manager: {
-        select: {
-          userId: true,
-          name: true,
-        },
-      },
-    },
-    orderBy: { name: 'asc' },
-  });
+      orderBy: { name: 'asc' },
+    });
 
-  // Transformar para que el frontend reciba los campos planos que espera
-  return users.map((u) => ({
-    id: u.userId,
-    name: u.name,
-    email: u.email,
-    avatar: u.avatarUrl,
-    avatarUrl: u.avatarUrl,
-    department: u.department,
-    area: u.area,
-    birthDate: u.birthDate,
-    phone: u.phone,
-    position: u.position,
-    office: u.office,
-    startDate: u.startDate,
-    contractType: u.contractType,
-    documentType: u.documentType,
-    documentNumber: u.documentNumber,
-    address: u.address,
-    emergencyContactName: u.emergencyContactName,
-    emergencyContactPhone: u.emergencyContactPhone,
-    emergencyContactRel: u.emergencyContactRel,
-    role: u.role,
-    leaderId: u.leaderId,
-    leaderName: u.leader?.name || null,      // ← NUEVO
-    managerId: u.managerId,
-    managerName: u.manager?.name || null,     // ← NUEVO
-  }));
-}
+    // Transformar para que el frontend reciba los campos planos que espera
+    return users.map((u) => ({
+      userId: u.userId,
+      name: u.name,
+      email: u.email,
+      avatar: u.avatarUrl,
+      avatarUrl: u.avatarUrl,
+      department: u.department,
+      area: u.area,
+      birthDate: u.birthDate,
+      phone: u.phone,
+      position: u.position,
+      office: u.office,
+      startDate: u.startDate,
+      contractType: u.contractType,
+      documentType: u.documentType,
+      documentNumber: u.documentNumber,
+      address: u.address,
+      emergencyContactName: u.emergencyContactName,
+      emergencyContactPhone: u.emergencyContactPhone,
+      emergencyContactRel: u.emergencyContactRel,
+      role: u.role,
+      leaderId: u.leaderId,
+      leaderName: u.leader?.name || null,
+      managerId: u.managerId,
+      managerName: u.manager?.name || null,
+    }));
+  }
 
   public async updateProfile(
     updateProfileDto: UpdateProfileDto,
@@ -453,9 +508,41 @@ public async getUserDirectory(userId: string) {
     return (first + last).toUpperCase();
   }
 
-  // Obtener todos los usuarios (puedes reutilizar el método existente)
   async getUsers() {
     return this.prisma.user.findMany();
+  }
+
+  public async getUserPermissions(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { userId },
+      select: { userId: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException({
+        message: 'Usuario no encontrado',
+        error: 'USER_NOT_FOUND',
+      });
+    }
+
+    const perms = await this.prisma.modulePermission.findMany({
+      where: { userId, canAccess: true },
+      select: { module: true, actions: true },
+      orderBy: { module: 'asc' },
+    });
+
+    const actionsRecord: Record<string, string[]> = {};
+    perms.forEach((p) => {
+      if (p.actions && p.actions.length > 0) {
+        actionsRecord[p.module] = p.actions;
+      }
+    });
+
+    return {
+      userId,
+      modules: perms.map((p) => p.module),
+      actions: actionsRecord,
+    };
   }
 
   // Obtener cumpleaños del mes actual

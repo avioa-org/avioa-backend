@@ -1,4 +1,5 @@
-import { Logger } from '@nestjs/common';
+// feed.gateway.ts
+import { Logger, UsePipes, ValidationPipe } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
   OnGatewayConnection,
@@ -8,6 +9,13 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { envs } from 'src/config/env.config';
+import { MappedComment, MappedPost, ReactionPayload } from './types/feed.types';
+
+interface AuthenticatedSocket extends Socket {
+  data: {
+    userId: string;
+  };
+}
 
 @WebSocketGateway({
   namespace: '/feed',
@@ -15,83 +23,133 @@ import { envs } from 'src/config/env.config';
     origin: envs.FRONTEND_URL ?? '*',
     credentials: true,
   },
+  transports: ['websocket', 'polling'],
 })
+@UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
 export class FeedGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   private readonly logger = new Logger(FeedGateway.name);
+  private readonly ROOM = 'feed';
 
-  constructor(private readonly jwtService: JwtService) {
-    this.server = new Server();
-  }
+  constructor(private readonly jwtService: JwtService) {}
 
-  handleDisconnect(client: Socket) {
-    this.logger.log(`Cliente desconectado del feed: ${client.data.userId}`);
-  }
   async handleConnection(client: Socket) {
     try {
       const token = this.extractToken(client);
       if (!token) {
-        client.disconnect();
+        this.logger.warn(`[connect] sin token → ${client.id}`);
+        client.disconnect(true);
         return;
       }
 
-      const payload = this.jwtService.verify(token);
-      client.data.userId = payload.userId;
+      const payload = this.jwtService.verify<{ userId: string }>(token, {
+        secret: envs.JWT_SECRET,
+      });
 
-      await client.join('feed');
+      if (!payload?.userId) {
+        this.logger.warn(`[connect] token sin userId → ${client.id}`);
+        client.disconnect(true);
+        return;
+      }
 
-      this.logger.log(`Cliente conectado al feed: ${client.data.userId}`);
-    } catch (error: any) {
-      this.logger.warn(`Conexión rechazada: ${error.message}`);
-      client.disconnect();
+      (client as AuthenticatedSocket).data.userId = payload.userId;
+      await client.join(this.ROOM);
+
+      this.logger.log(
+        `[connect] user=${payload.userId} socket=${client.id} room=${this.ROOM}`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown';
+      this.logger.warn(`[connect] rechazado (${message}) → ${client.id}`);
+      client.disconnect(true);
     }
   }
 
-  private extractToken(client: Socket): string | null {
-    const authHeader =
-      client.handshake.auth?.token || client.handshake.headers?.authorization;
-    if (!authHeader) return null;
-    return authHeader.replace('Bearer ', '');
+  handleDisconnect(client: Socket) {
+    const userId = (client as AuthenticatedSocket).data?.userId;
+    this.logger.log(
+      userId
+        ? `[disconnect] user=${userId} socket=${client.id}`
+        : `[disconnect] socket=${client.id} (sin sesión)`,
+    );
   }
 
-  // EMISORES
-  emitNewPost(post: any) {
-    this.logger.log(`Nuevo post emitido: ${post.feedPostId}`);
-    this.server.to('feed').emit('feed:post:new', post);
+  private extractToken(client: Socket): string | null {
+    const raw =
+      client.handshake.auth?.token ||
+      client.handshake.headers?.authorization ||
+      null;
+
+    if (!raw || typeof raw !== 'string') return null;
+    return raw.startsWith('Bearer ') ? raw.slice(7) : raw;
+  }
+
+  emitNewPost(post: MappedPost, excludeUserId?: string) {
+    this.broadcast('feed:post:new', post, excludeUserId);
+  }
+
+  emitPostUpdated(post: MappedPost) {
+    this.broadcast('feed:post:updated', post);
   }
 
   emitPostDeleted(postId: string) {
-    this.server.to('feed').emit('feed:post:deleted', { postId });
-  }
-
-  emitPostUpdated(post: any) {
-    this.server.to('feed').emit('feed:post:updated', post);
+    this.broadcast('feed:post:deleted', { postId });
   }
 
   emitPinToggled(postId: string, pinned: boolean) {
-    this.server.to('feed').emit('feed:post:pinned', { postId, pinned });
+    this.broadcast('feed:post:pinned', { postId, pinned });
   }
 
-  emitReaction(postId: string, reactionsCount: number) {
-    this.server
-      .to('feed')
-      .emit('feed:post:reaction', { postId, reactionsCount });
+  emitReaction(postId: string, payload: ReactionPayload) {
+    this.broadcast('feed:post:reaction', { postId, ...payload });
   }
 
-  emitNewComment(postId: string, comment: any, commentsCount: number) {
-    this.logger.log(
-      `Nuevo comentario emitido: ${comment.feedCommentId} para ${postId}`,
-    );
-    this.server
-      .to('feed')
-      .emit('feed:comment:new', { postId, comment, commentsCount });
+  emitNewComment(
+    postId: string,
+    comment: MappedComment,
+    commentsCount: number,
+  ) {
+    this.broadcast('feed:comment:new', {
+      postId,
+      comment,
+      commentsCount,
+      parentId: comment.parentId ?? null,
+    });
   }
 
-  emitCommentDeleted(postId: string, commentId: string, commentsCount: number) {
-    this.server
-      .to('feed')
-      .emit('feed:comment:deleted', { postId, commentId, commentsCount });
+  emitCommentDeleted(
+    postId: string,
+    commentId: string,
+    parentId: string | null,
+    commentsCount: number,
+  ) {
+    this.broadcast('feed:comment:deleted', {
+      postId,
+      commentId,
+      parentId,
+      commentsCount,
+    });
+  }
+  s;
+  private broadcast(event: string, payload: unknown, excludeUserId?: string) {
+    const room = this.server.to(this.ROOM);
+
+    if (excludeUserId) {
+      this.server
+        .in(this.ROOM)
+        .fetchSockets()
+        .then((sockets) => {
+          for (const s of sockets) {
+            if ((s.data as { userId?: string })?.userId === excludeUserId)
+              continue;
+            s.emit(event, payload);
+          }
+        });
+      return;
+    }
+
+    room.emit(event, payload);
   }
 }

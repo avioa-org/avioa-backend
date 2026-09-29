@@ -14,6 +14,6 @@ import { FeedGateway } from './feed.gateway';
   ],
   controllers: [FeedController],
   providers: [FeedService, PrismaService, FeedGateway],
-  exports: [FeedService],
+  exports: [FeedService, FeedGateway],
 })
 export class FeedModule {}

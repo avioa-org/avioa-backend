@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsDate,
   IsDateString,
+  IsEnum,
   IsInt,
   IsOptional,
   IsString,
@@ -12,6 +13,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { LeaveStatus } from 'generated/prisma/enums';
 
 export class HistoricalVacationEntryDto {
   @IsUUID()
@@ -38,6 +40,10 @@ export class HistoricalVacationEntryDto {
 
   @IsInt()
   newAdjustment!: number;
+
+  @IsOptional()
+  @IsEnum(LeaveStatus)
+  status?: LeaveStatus;
 }
 
 export class BulkMigrateVacationsDto {

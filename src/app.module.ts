@@ -29,6 +29,7 @@ import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { CesantiasModule } from './modules/cesantias/cesantias.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { NominaModule } from './modules/nomina/nomina.module';
+import { BirthdaysModule } from './modules/birthdays/birthdays.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { NominaModule } from './modules/nomina/nomina.module';
     CesantiasModule,
     MaintenanceModule,
     NominaModule,
+    BirthdaysModule,
   ],
   controllers: [],
   providers: [
