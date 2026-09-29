@@ -16,7 +16,7 @@ export class BirthdaysService {
     private readonly feedGateway: FeedGateway,
   ) {}
 
-  @Cron(CronExpression.EVERY_MINUTE, {
+  @Cron(CronExpression.EVERY_DAY_AT_9AM, {
     timeZone: 'America/Bogota',
     name: 'daily-birthdays',
   })
