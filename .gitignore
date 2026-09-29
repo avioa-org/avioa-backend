@@ -60,3 +60,5 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 /generated/prisma
 
 /src/infrastructure/scripts/data/
+/src/infrastructure/scripts/reports/
+
