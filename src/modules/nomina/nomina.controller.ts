@@ -9,6 +9,7 @@ import { ExportarNominaDto } from './dto/exportar-nomina.dto';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { NominaExportService } from './nomina-export.service';
 import { type Response } from 'express';
+import { FiltrosSolicitudesDto } from './dto/fiiltro-solicitudes.dto';
 
 @Controller('nomina')
 @UseGuards(JwtAuthGuard, ModulePermissionGuard)
@@ -17,6 +18,12 @@ export class NominaController {
     private readonly nominaService: NominaService,
     private readonly nominaExportService: NominaExportService,
   ) {}
+
+  @Get('solicitudes')
+  @RequireModule(Modules.NOMINA_SOLICITUDES)
+  findAllSolicitudes(@Query() filtros: FiltrosSolicitudesDto) {
+    return this.nominaService.findAllSolicitudes(filtros);
+  }
 
   @Get('novedades')
   @RequireModule(Modules.NOMINA)
