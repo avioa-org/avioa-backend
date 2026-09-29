@@ -14,7 +14,7 @@ import { LeaveType } from 'generated/prisma/enums';
 const TIPOS_VALIDOS = [...Object.values(LeaveType), 'HORAS_EXTRA'];
 const ESTADOS_VALIDOS = [
   'PENDING_HR_VALIDATION',
-  'PENDDING',
+  'PENDING',
   'APPROVED',
   'REJECTED',
   'CANCELLED',
