@@ -55,7 +55,11 @@ export class CotizadorProcessor extends WorkerHost {
 
       return response.data;
     } catch (error) {
-      this.logger.error(`Error procesando cotización ${job.id}`, error);
+      const err = error as Error;
+      this.logger.error(
+        `Error procesando cotización ${job.id}: ${err.message}`,
+        err.stack,
+      );
       throw error;
     }
   }

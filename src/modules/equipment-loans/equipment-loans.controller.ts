@@ -26,7 +26,10 @@ import {
 import { Public } from 'src/common/decorator/public.decorator';
 import { CreateLocationDto } from './dto/location.dto';
 import { ModulePermissionGuard } from 'src/common/guards/module-permission.guard';
-import { RequireModule, RequireAction } from 'src/common/decorator/modules-permission.decorator';
+import {
+  RequireModule,
+  RequireAction,
+} from 'src/common/decorator/modules-permission.decorator';
 import { Modules } from 'src/common/enum/modules.enum';
 
 @Controller('equipment-loans')

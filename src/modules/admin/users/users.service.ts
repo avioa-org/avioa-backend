@@ -36,7 +36,9 @@ export class UsersService {
     });
 
     if (existingUser) {
-      this.logger.error(`User with email ${registerDto.email} alreadt exists`);
+      this.logger.warn(
+        `User invite rejected: User with document number ${registerDto.documentNumber} already exists (${registerDto.email})`,
+      );
       throw new BadRequestException({
         message: `El usuario con el correo ${registerDto.email} ya existe`,
         error: 'USER_ALREADY_EXISTS',
