@@ -51,12 +51,16 @@ export class MaintenanceGateway {
       CANCELLED: 'Tu solicitud de mantenimiento ha sido cancelada',
     };
 
-    await this.socketGateway.notifyEmployee(userId, 'maintenance:statusChange', {
-      maintenanceRequestId,
-      status,
-      equipmentName,
-      message: messages[status] || `Estado: ${status}`,
-      timestamp: new Date().toISOString(),
-    });
+    await this.socketGateway.notifyEmployee(
+      userId,
+      'maintenance:statusChange',
+      {
+        maintenanceRequestId,
+        status,
+        equipmentName,
+        message: messages[status] || `Estado: ${status}`,
+        timestamp: new Date().toISOString(),
+      },
+    );
   }
 }

@@ -9,17 +9,8 @@ import { WebsocketsModule } from '../websockets/websockets.module';
 import { EvolutionApiService } from '../../infrastructure/evolution-api/evolution-api.service';
 
 @Module({
-  imports: [
-    PrismaModule,
-    AuthorizationModule,
-    WebsocketsModule,
-    HttpModule,
-  ],
+  imports: [PrismaModule, AuthorizationModule, WebsocketsModule, HttpModule],
   controllers: [MaintenanceController],
-  providers: [
-    MaintenanceService,
-    MaintenanceGateway,
-    EvolutionApiService,
-  ],
+  providers: [MaintenanceService, MaintenanceGateway, EvolutionApiService],
 })
 export class MaintenanceModule {}

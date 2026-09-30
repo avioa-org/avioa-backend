@@ -15,12 +15,22 @@ export class CronService {
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async handleCron() {
+    if (envs.CRON_ACTIVE && envs.CRON_ACTIVE === 'false') {
+      this.logger.debug('Gmail scan cron is inactive (CRON_ACTIVE=false)');
+      return;
+    }
+
+    const startTime = Date.now();
+    this.logger.log('Starting scheduled Gmail scan cron...');
+
     try {
-      if (envs.CRON_ACTIVE && envs.CRON_ACTIVE === 'false') return;
       await this.gmailService.scan();
+      const duration = Date.now() - startTime;
+      this.logger.log(`Scheduled Gmail scan cron completed in ${duration}ms`);
     } catch (err) {
+      const duration = Date.now() - startTime;
       this.logger.error(
-        `Error en cron de escaneo de correos: ${(err as Error).message}`,
+        `Gmail scan cron failed after ${duration}ms: ${(err as Error).message}`,
         (err as Error).stack,
       );
     }
@@ -28,6 +38,21 @@ export class CronService {
 
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async handlePurgeExpiredPasswords() {
-    await this.passwordVaultService.purgeExpiredTrash();
+    const startTime = Date.now();
+    this.logger.log('Starting daily purge of expired vault passwords...');
+
+    try {
+      await this.passwordVaultService.purgeExpiredTrash();
+      const duration = Date.now() - startTime;
+      this.logger.log(
+        `Expired vault passwords purge completed in ${duration}ms`,
+      );
+    } catch (err) {
+      const duration = Date.now() - startTime;
+      this.logger.error(
+        `Purge expired passwords cron failed after ${duration}ms: ${(err as Error).message}`,
+        (err as Error).stack,
+      );
+    }
   }
 }
