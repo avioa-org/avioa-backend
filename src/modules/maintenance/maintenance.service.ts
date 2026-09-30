@@ -321,10 +321,7 @@ export class MaintenanceService {
         data: {
           userId: request.userId,
           title: 'Actualizacion de mantenimiento',
-          message: this.getStatusMessage(
-            dto.status,
-            updated.equipment.name,
-          ),
+          message: this.getStatusMessage(dto.status, updated.equipment.name),
           type: 'MAINTENANCE_STATUS_CHANGE' as any,
         },
       });
@@ -411,10 +408,7 @@ export class MaintenanceService {
         MaintenanceStatus.REJECTED,
         MaintenanceStatus.CANCELLED,
       ],
-      IN_REVIEW: [
-        MaintenanceStatus.IN_PROGRESS,
-        MaintenanceStatus.REJECTED,
-      ],
+      IN_REVIEW: [MaintenanceStatus.IN_PROGRESS, MaintenanceStatus.REJECTED],
       IN_PROGRESS: [MaintenanceStatus.RESOLVED],
       RESOLVED: [],
       REJECTED: [],

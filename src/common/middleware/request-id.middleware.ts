@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { NextFunction, Request, Response } from 'express';
+import { requestContextStorage } from '../context/request-context.store';
 
 export function requestIdMiddleware(
   req: Request,
@@ -12,5 +13,14 @@ export function requestIdMiddleware(
   req['requestId'] = requestId;
   res.setHeader('x-request-id', requestId);
 
-  next();
+  const contextStore = {
+    requestId,
+    ip: req.ip || req.socket?.remoteAddress,
+    method: req.method,
+    path: req.originalUrl || req.url,
+  };
+
+  requestContextStorage.run(contextStore, () => {
+    next();
+  });
 }

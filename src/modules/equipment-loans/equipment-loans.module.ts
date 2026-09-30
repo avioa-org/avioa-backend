@@ -9,12 +9,7 @@ import { WebsocketsModule } from '../websockets/websockets.module';
 import { EvolutionApiService } from '../../infrastructure/evolution-api/evolution-api.service';
 
 @Module({
-  imports: [
-    PrismaModule,
-    AuthorizationModule,
-    WebsocketsModule,
-    HttpModule,
-  ],
+  imports: [PrismaModule, AuthorizationModule, WebsocketsModule, HttpModule],
   controllers: [EquipmentLoansController],
   providers: [
     EquipmentLoansService,
