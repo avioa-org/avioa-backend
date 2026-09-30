@@ -670,11 +670,12 @@ export class LeavesService {
     // const calculatedAccrued =
     //   Math.floor(((daysWorked * VACATIONS_DAYS_PER_YEAR) / 360) * 100) / 100;
 
-    const calculatedAccrued = Math.floor(
-      (daysWorked * VACATIONS_DAYS_PER_YEAR) / 360,
-    );
+    const calculatedAccrued =
+      Math.floor(((daysWorked * VACATIONS_DAYS_PER_YEAR) / 360) * 100) / 100;
     // const accrued = Math.floor(calculatedAccrued + adjustment);
-    const accrued = Math.floor(calculatedAccrued);
+    const roundHalfUp = (n: number) => Math.floor(n + 0.5);
+    // const accrued = Math.round(calculatedAccrued);
+    const accrued = roundHalfUp(calculatedAccrued);
 
     // vacaciones aprobadas
     // se consideran todas las vacaciones aprobadas
