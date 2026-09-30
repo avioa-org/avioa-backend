@@ -26,7 +26,10 @@ import {
 import { Public } from 'src/common/decorator/public.decorator';
 import { CreateLocationDto } from './dto/location.dto';
 import { ModulePermissionGuard } from 'src/common/guards/module-permission.guard';
-import { RequireModule, RequireAction } from 'src/common/decorator/modules-permission.decorator';
+import {
+  RequireModule,
+  RequireAction,
+} from 'src/common/decorator/modules-permission.decorator';
 import { Modules } from 'src/common/enum/modules.enum';
 
 @Controller('equipment-loans')
@@ -52,6 +55,14 @@ export class EquipmentLoansController {
       role: user.role,
       isLeader: user.isLeader,
     });
+  }
+
+  // ⚠️ IMPORTANTE: esta ruta va ANTES de 'equipment/:id'
+  @Get('equipment/my-loaned')
+  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  findMyLoanedEquipment(@CurrentUser() user: ICurrentUser) {
+    return this.service.findMyLoanedEquipment(user.userId);
   }
 
   @Get('equipment/:id')

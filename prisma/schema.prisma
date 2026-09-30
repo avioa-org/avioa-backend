@@ -14,29 +14,31 @@ datasource db {
 }
 
 model MaintenanceRequest {
-  maintenanceRequestId String            @id @default(uuid()) @map("maintenance_request_id")
-  equipmentId          String            @map("equipment_id")
-  userId               String            @map("user_id")
+  maintenanceRequestId String                 @id @default(uuid()) @map("maintenance_request_id")
+  requestType          MaintenanceRequestType @default(EQUIPMENT) @map("request_type")
+  equipmentId          String?                @map("equipment_id")
+  locationId           String?                @map("location_id")
+  userId               String                 @map("user_id")
   reason               String
   description          String?
-  status               MaintenanceStatus @default(PENDING)
-  assignedToId         String?           @map("assigned_to_id")
-  resolvedAt           DateTime?         @map("resolved_at")
-  resolutionNotes      String?           @map("resolution_notes")
-  rejectedReason       String?           @map("rejected_reason")
-  createdAt            DateTime          @default(now()) @map("created_at")
-  updatedAt            DateTime          @updatedAt @map("updated_at")
+  status               MaintenanceStatus       @default(PENDING)
+  assignedToId         String?                @map("assigned_to_id")
+  resolvedAt           DateTime?              @map("resolved_at")
+  resolutionNotes      String?                @map("resolution_notes")
+  rejectedReason       String?                @map("rejected_reason")
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
 
-  equipment          Equipment @relation(fields: [equipmentId], references: [equipmentId], onDelete: Cascade)
-  user               User      @relation("MaintenanceRequester", fields: [userId], references: [userId], onDelete: Cascade)
-  assignedTo         User?     @relation("MaintenanceAssignee", fields: [assignedToId], references: [userId], onDelete: SetNull)
-  location           Location? @relation(fields: [locationLocationId], references: [locationId])
-  locationLocationId String?
+  equipment  Equipment? @relation(fields: [equipmentId], references: [equipmentId], onDelete: SetNull)
+  location   Location?  @relation(fields: [locationId], references: [locationId], onDelete: SetNull)
+  user       User       @relation("MaintenanceRequester", fields: [userId], references: [userId], onDelete: Cascade)
+  assignedTo User?      @relation("MaintenanceAssignee", fields: [assignedToId], references: [userId], onDelete: SetNull)
 
   @@index([userId])
   @@index([equipmentId])
+  @@index([locationId])
   @@index([status])
-  @@index([assignedToId])
+  @@index([requestType])
   @@map("maintenance_requests")
 }
 
@@ -1254,4 +1256,10 @@ enum MaintenanceStatus {
   RESOLVED
   REJECTED
   CANCELLED
+}
+
+
+enum MaintenanceRequestType {
+  EQUIPMENT
+  GENERAL
 }

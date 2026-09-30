@@ -535,6 +535,33 @@ export class EquipmentLoansService {
     });
   }
 
+  async findMyLoanedEquipment(userId: string) {
+  return this.prisma.equipment.findMany({
+    where: {
+      status: EquipmentStatus.LOANED,
+      loans: {
+        some: {
+          userId,
+          status: LoanStatus.APPROVED,
+        },
+      },
+    },
+    include: {
+      location: true,
+      loans: {
+        where: {
+          userId,
+          status: LoanStatus.APPROVED,
+        },
+        include: {
+          user: true,
+        },
+      },
+    },
+    orderBy: { name: 'asc' },
+  });
+}
+
   async findAllLoans(filters?: {
     status?: LoanStatus;
     userId?: string;
