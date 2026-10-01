@@ -30,6 +30,7 @@ import { CesantiasModule } from './modules/cesantias/cesantias.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { NominaModule } from './modules/nomina/nomina.module';
 import { BirthdaysModule } from './modules/birthdays/birthdays.module';
+import { AssistantModule } from './modules/assistant/assistant.module';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { BirthdaysModule } from './modules/birthdays/birthdays.module';
     MaintenanceModule,
     NominaModule,
     BirthdaysModule,
+    AssistantModule,
   ],
   controllers: [],
   providers: [
