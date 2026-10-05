@@ -8,4 +8,7 @@ export const AssistantState = Annotation.Root({
     reducer: (current, update) => [...current, ...update],
     default: () => [],
   }),
+  userId: Annotation<string>,
+  role: Annotation<string>,
+  isLeader: Annotation<boolean>,
 });

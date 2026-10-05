@@ -279,10 +279,6 @@ export class LeavesService {
         attachmentUrl: dto.attachmentUrl ?? null,
         status: initialStatus,
         esCompensada,
-        // externalApprovalRef: dto.externalApprovalRef ?? null,
-        // externalApprovedAt: dto.externalApprovedAt
-        //   ? new Date(dto.externalApprovedAt)
-        //   : null,
       },
     });
 
@@ -291,39 +287,6 @@ export class LeavesService {
     } else {
       await this.notifyLeaderNewLeave(leave, user, businessDays, leaderId);
     }
-
-    // const notificationData = {
-    //   type: NotificationType.LEAVE_REQUEST_RECEIVED,
-    //   title: 'Nueva solicitud de ausencia',
-    //   message: `${user.name} solicitó ${businessDays} día(s) hábiles de ${this.humanType(dto.type)}`,
-    //   leaveRequestId: leave.leaveRequestId,
-    //   leaveType: dto.type,
-    //   businessDays,
-    //   startDate: leave.startDate,
-    //   endDate: leave.endDate,
-    //   createdAt: new Date(),
-    //   esCompensada,
-    //   notificationId: '',
-    // };
-
-    // const notificationCreate = await this.prisma.$transaction(async (tx) => {
-    //   return await this.prisma.notification.create({
-    //     data: {
-    //       userId: leaderId,
-    //       title: notificationData.title,
-    //       message: notificationData.message,
-    //       type: notificationData.type as NotificationType,
-    //     },
-    //   });
-    // });
-
-    // notificationData.notificationId = notificationCreate.notificationId;
-
-    // await this.socketGateway.notifyLeader(
-    //   leaderId,
-    //   'leave_request_received',
-    //   notificationData,
-    // );
 
     return leave;
   }
