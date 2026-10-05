@@ -30,6 +30,9 @@ export interface SolicitudResumen {
   nombreAprobador: string | null;
   fechaRegistro: string;
   fechaDecision: string | null;
+
+  notTakenAt: string | null;
+  notTakenReason: string | null;
 }
 
 export interface SolicitudesPaginadas {

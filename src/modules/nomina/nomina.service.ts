@@ -44,6 +44,7 @@ const ESTADOS_LEAVE_VALIDOS: LeaveStatus[] = [
   'APPROVED',
   'REJECTED',
   'CANCELLED',
+  'NO TAKEN',
 ] as LeaveStatus[];
 
 const ESTADOS_OVERTIME_VALIDOS: OvertimeStatus[] = [
@@ -128,18 +129,10 @@ export class NominaService {
       (t) => t !== 'HORAS_EXTRA',
     ) as LeaveType[];
 
-    console.log('[findAllSolicitudes] filtros.tipos =', filtros.tipos);
-
     const incluirLeaves = !filtros.tipos?.length || tiposLeave.length > 0;
 
     const incluirOvertime =
       !filtros.tipos?.length || filtros.tipos.includes('HORAS_EXTRA');
-
-    console.log('[findAllSolicitudes]', {
-      tiposLeave,
-      incluirLeaves,
-      incluirOvertime,
-    });
 
     const estadosLeave = filtros.estados?.filter((e) =>
       ESTADOS_LEAVE_VALIDOS.includes(e as LeaveStatus),
@@ -215,9 +208,9 @@ export class NominaService {
     const registros = await this.prisma.leaveRequest.findMany({
       where: {
         status: LeaveStatus.APPROVED,
-
         startDate: { lte: periodo.hasta },
         endDate: { gte: periodo.desde },
+        notTakenAt: null,
         NOT: {
           reason: { contains: HISTORICAL_MIGRATION_TAG },
         },
@@ -580,6 +573,9 @@ export class NominaService {
         nombreAprobador: leave.leader?.name ?? null,
         fechaRegistro: leave.createdAt.toISOString(),
         fechaDecision: leave.reviewedAt?.toISOString() ?? null,
+
+        notTakenAt: leave.notTakenAt?.toISOString() ?? null,
+        notTakenReason: leave.notTakenReason,
       };
     });
   }
@@ -646,6 +642,9 @@ export class NominaService {
       nombreAprobador: ot.leader?.name ?? null,
       fechaRegistro: ot.createdAt.toISOString(),
       fechaDecision: ot.reviewedAt?.toISOString() ?? null,
+
+      notTakenAt: null,
+      notTakenReason: null,
     }));
   }
 }
