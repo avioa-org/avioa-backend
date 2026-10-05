@@ -1206,9 +1206,21 @@ export class LeavesService {
       );
     }
 
-    if (new Date(leave.endDate) > new Date()) {
+    // if (new Date(leave.endDate) > new Date()) {
+    //   throw new BadRequestException(
+    //     'No puedes marcar como no tomada una vacación que aún no ha ocurrido. Si el colaborador ya no la va a tomar, cancela la solicitud en su lugar.',
+    //   );
+    // }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const startDate = new Date(leave.startDate);
+    startDate.setHours(0, 0, 0, 0);
+
+    if (startDate <= today) {
       throw new BadRequestException(
-        'No puedes marcar como no tomada una vacación que aún no ha ocurrido. Si el colaborador ya no la va a tomar, cancela la solicitud en su lugar.',
+        'Solo puedes marcar como no tomadas las vacaciones antes de que inicien. El plazo vence el día anterior a la fecha de inicio.',
       );
     }
 
