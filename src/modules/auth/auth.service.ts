@@ -278,6 +278,9 @@ export class AuthService {
           module: permission.module,
           actions: permission.actions,
         })),
+      office: user?.office,
+      birthDate: user.birthDate,
+      phone: user?.phone,
     });
 
     return tokens;
@@ -350,6 +353,9 @@ export class AuthService {
           module: permission.module,
           actions: permission.actions,
         })),
+      office: user?.office,
+      birthDate: user.birthDate,
+      phone: user?.phone,
     });
 
     return {
@@ -444,8 +450,11 @@ export class AuthService {
     leaderId: string | null;
     leaderName: string | null | undefined;
     twoFactorEnabled?: boolean;
-    documentNumber: string;
+    documentNumber?: string;
     modulePermissions: { module: string; actions: string[] }[];
+    office?: string | null;
+    birthDate?: Date | null;
+    phone?: string | null;
   }) {
     const payload = {
       userId: user.userId,
@@ -459,6 +468,10 @@ export class AuthService {
       twoFactorEnabled: user.twoFactorEnabled,
       documentNumber: user.documentNumber,
       modulePermissions: user.modulePermissions,
+      office: user.office,
+      birthDate: user.birthDate,
+      phone: user.phone,
+      email: user.email,
     };
 
     const access_token = this.jwt.sign(payload);
@@ -539,6 +552,9 @@ export class AuthService {
           module: permission.module,
           actions: permission.actions,
         })),
+      office: user.office,
+      birthDate: user.birthDate,
+      phone: user.phone,
     });
 
     return tokens;
@@ -686,6 +702,9 @@ export class AuthService {
           module: permission.module,
           actions: permission.actions,
         })),
+      office: user.office,
+      birthDate: user.birthDate,
+      phone: user.phone,
     });
 
     return tokens;
