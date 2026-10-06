@@ -230,7 +230,7 @@ model User {
   arl String? @map("arl") // riesgos laborales
 
   // salario (solo dueño/ADMIN)
-  salary Decimal? @map("salary") @db.Decimal(12, 2)
+  salary String? @map("salary") @db.Text
 
   // contacto de emergencia
   emergencyContactName  String? @map("emergency_contact_name")
