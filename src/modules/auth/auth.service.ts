@@ -436,6 +436,7 @@ export class AuthService {
     avatarUrl: string | null;
     role: string;
     isLeader?: boolean;
+    isSupport?: boolean;
     area: string | null;
     leaderId: string | null;
     leaderName: string | null | undefined;
@@ -449,6 +450,7 @@ export class AuthService {
       avatar: user.avatarUrl,
       role: user.role,
       isLeader: user.isLeader ?? false,
+      isSupport: user.isSupport,
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leaderName,

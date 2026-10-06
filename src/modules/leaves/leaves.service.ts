@@ -19,6 +19,7 @@ import {
 import { LeaveQueryDto } from './dto/leave-query.dto';
 import { LeaveRequest } from 'generated/prisma/browser';
 import { ReviewLeaveDto } from './dto/review-leave.dto';
+import { ActiveLeavesQueryDto } from './dto/active-leaves-query.dto';
 import {
   BulkMigrateVacationsDto,
   HistoricalVacationEntryDto,
@@ -863,6 +864,54 @@ export class LeavesService {
       orderBy: { createdAt: 'asc' },
     });
   }
+
+
+  public async findActiveToday(query: ActiveLeavesQueryDto) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const where: any = {
+    status: LeaveStatus.APPROVED,
+    startDate: { lt: tomorrow },
+    endDate: { gte: today },
+    NOT: {
+      reason: { contains: 'MIGRACION_HISTORICA_VACACIONES_2026' },
+    },
+  };
+
+  if (query.type) where.type = query.type;
+
+  const rows = await this.prisma.leaveRequest.findMany({
+    where,
+    orderBy: { startDate: 'asc' },
+    select: {
+      leaveRequestId: true,
+      type: true,
+      startDate: true,
+      endDate: true,
+      startTime: true,
+      endTime: true,
+      businessDays: true,
+      status: true,
+      esCompensada: true,
+      user: {
+        select: {
+          userId: true,
+          name: true,
+          avatarUrl: true,
+          position: true,
+          department: true,
+          area: true,
+        },
+      },
+    },
+  });
+
+  return rows.map((r) => enrichLeave(r));
+}
 
   public async review(record: LeaveRequest, dto: ReviewLeaveDto) {
     if (record.esCompensada && !record.hrValidatedAt) {

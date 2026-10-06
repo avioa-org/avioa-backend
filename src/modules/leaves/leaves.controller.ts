@@ -24,6 +24,7 @@ import { ModulePermissionGuard } from 'src/common/guards/module-permission.guard
 import { RequireModule } from 'src/common/decorator/modules-permission.decorator';
 import { Modules } from 'src/common/enum/modules.enum';
 import { ValidateCompensatedLeaveDto } from './dto/validate-compensated-leave.dto';
+import { ActiveLeavesQueryDto } from './dto/active-leaves-query.dto';
 
 @Controller('leaves')
 @UseGuards(JwtAuthGuard, ModulePermissionGuard)
@@ -43,6 +44,11 @@ export class LeavesController {
     @Query() query: LeaveQueryDto,
   ) {
     return this.leavesService.findMyRequests(userId, query);
+  }
+
+  @Get('active')
+  findActiveToday(@Query() query: ActiveLeavesQueryDto) {
+    return this.leavesService.findActiveToday(query);
   }
 
   @Get('my/balance')

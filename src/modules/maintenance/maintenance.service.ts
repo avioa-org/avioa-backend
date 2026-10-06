@@ -307,12 +307,15 @@ export class MaintenanceService {
         dto.description,
       );
 
-      const numero = soporte.phone
-        ? this.normalizePhone(soporte.phone)
-        : this.normalizePhone(envs.EVOLUTION_NUMERO_SOPORTE);
-
-      await this.evolutionApi.enviarMensaje(mensaje, numero);
-      this.logger.log('WhatsApp enviado a soporte');
+      if (!soporte.phone) {
+        this.logger.warn(
+          `Encargada de soporte ${soporte.name} no tiene teléfono registrado. No se envía WhatsApp.`,
+        );
+      } else {
+        const numero = this.normalizePhone(soporte.phone);
+        await this.evolutionApi.enviarMensaje(mensaje, numero);
+        this.logger.log('WhatsApp enviado a soporte');
+      }
     } catch (error) {
       this.logger.error('Error enviando WhatsApp a soporte:', error);
     }
@@ -380,107 +383,107 @@ export class MaintenanceService {
   }
 
   // ===== ACTUALIZAR ESTADO =====
-async updateStatus(
-  id: string,
-  dto: UpdateMaintenanceStatusDto,
-  userId: string,
-) {
-  const request = await this.findOne(id);
-
-  // Validar transiciones
-  this.validateStatusTransition(request.status, dto.status);
-
-  // Si se rechaza, debe tener razón
-  if (dto.status === MaintenanceStatus.REJECTED && !dto.rejectedReason) {
-    throw new BadRequestException(
-      'Debes indicar una razón para rechazar la solicitud',
-    );
-  }
-
-  const updateData: any = {
-    status: dto.status,
-    assignedToId: userId,
-  };
-
-  if (dto.resolutionNotes) {
-    updateData.resolutionNotes = dto.resolutionNotes;
-  }
-
-  if (dto.rejectedReason) {
-    updateData.rejectedReason = dto.rejectedReason;
-  }
-
-  if (dto.status === MaintenanceStatus.RESOLVED) {
-    updateData.resolvedAt = new Date();
-  }
-
-  const updated = await this.prisma.maintenanceRequest.update({
-    where: { maintenanceRequestId: id },
-    data: updateData,
-    include: {
-      equipment: true,
-      location: true,
-      user: true,
-    },
-  });
-
-  // ✅ AQUÍ VA EL BLOQUE DEL ESTADO DEL EQUIPO (después del update)
-  if (
-    request.requestType === MaintenanceRequestType.EQUIPMENT &&
-    request.equipmentId &&
-    (dto.status === MaintenanceStatus.RESOLVED ||
-      dto.status === MaintenanceStatus.REJECTED ||
-      dto.status === MaintenanceStatus.CANCELLED)
+  async updateStatus(
+    id: string,
+    dto: UpdateMaintenanceStatusDto,
+    userId: string,
   ) {
-    // Verificar si hay un préstamo activo para este equipo
-    const activeLoan = await this.prisma.equipmentLoan.findFirst({
-      where: {
-        equipmentId: request.equipmentId,
-        status: LoanStatus.APPROVED,
+    const request = await this.findOne(id);
+
+    // Validar transiciones
+    this.validateStatusTransition(request.status, dto.status);
+
+    // Si se rechaza, debe tener razón
+    if (dto.status === MaintenanceStatus.REJECTED && !dto.rejectedReason) {
+      throw new BadRequestException(
+        'Debes indicar una razón para rechazar la solicitud',
+      );
+    }
+
+    const updateData: any = {
+      status: dto.status,
+      assignedToId: userId,
+    };
+
+    if (dto.resolutionNotes) {
+      updateData.resolutionNotes = dto.resolutionNotes;
+    }
+
+    if (dto.rejectedReason) {
+      updateData.rejectedReason = dto.rejectedReason;
+    }
+
+    if (dto.status === MaintenanceStatus.RESOLVED) {
+      updateData.resolvedAt = new Date();
+    }
+
+    const updated = await this.prisma.maintenanceRequest.update({
+      where: { maintenanceRequestId: id },
+      data: updateData,
+      include: {
+        equipment: true,
+        location: true,
+        user: true,
       },
     });
 
-    // Si hay préstamo activo → LOANED
-    // Si no hay → AVAILABLE
-    await this.prisma.equipment.update({
-      where: { equipmentId: request.equipmentId },
-      data: {
-        status: activeLoan
-          ? EquipmentStatus.LOANED
-          : EquipmentStatus.AVAILABLE,
-      },
-    });
+    // ✅ AQUÍ VA EL BLOQUE DEL ESTADO DEL EQUIPO (después del update)
+    if (
+      request.requestType === MaintenanceRequestType.EQUIPMENT &&
+      request.equipmentId &&
+      (dto.status === MaintenanceStatus.RESOLVED ||
+        dto.status === MaintenanceStatus.REJECTED ||
+        dto.status === MaintenanceStatus.CANCELLED)
+    ) {
+      // Verificar si hay un préstamo activo para este equipo
+      const activeLoan = await this.prisma.equipmentLoan.findFirst({
+        where: {
+          equipmentId: request.equipmentId,
+          status: LoanStatus.APPROVED,
+        },
+      });
+
+      // Si hay préstamo activo → LOANED
+      // Si no hay → AVAILABLE
+      await this.prisma.equipment.update({
+        where: { equipmentId: request.equipmentId },
+        data: {
+          status: activeLoan
+            ? EquipmentStatus.LOANED
+            : EquipmentStatus.AVAILABLE,
+        },
+      });
+    }
+
+    // Nombre a mostrar (equipo o ubicación según el tipo)
+    const nombreMostrar =
+      request.requestType === MaintenanceRequestType.EQUIPMENT
+        ? updated.equipment?.name || 'Equipo'
+        : updated.location?.name || 'Ubicación';
+
+    // Notificación de cambio de estado al creador (BD + WebSocket)
+    try {
+      await this.prisma.notification.create({
+        data: {
+          userId: request.userId,
+          title: 'Actualizacion de mantenimiento',
+          message: this.getStatusMessage(dto.status, nombreMostrar),
+          type: 'MAINTENANCE_STATUS_CHANGE' as any,
+        },
+      });
+
+      await this.gateway.notifyStatusChange(
+        request.userId,
+        updated.maintenanceRequestId,
+        dto.status,
+        nombreMostrar,
+      );
+    } catch (error) {
+      this.logger.error('Error notificando cambio de estado:', error);
+    }
+
+    return updated;
   }
-
-  // Nombre a mostrar (equipo o ubicación según el tipo)
-  const nombreMostrar =
-    request.requestType === MaintenanceRequestType.EQUIPMENT
-      ? updated.equipment?.name || 'Equipo'
-      : updated.location?.name || 'Ubicación';
-
-  // Notificación de cambio de estado al creador (BD + WebSocket)
-  try {
-    await this.prisma.notification.create({
-      data: {
-        userId: request.userId,
-        title: 'Actualizacion de mantenimiento',
-        message: this.getStatusMessage(dto.status, nombreMostrar),
-        type: 'MAINTENANCE_STATUS_CHANGE' as any,
-      },
-    });
-
-    await this.gateway.notifyStatusChange(
-      request.userId,
-      updated.maintenanceRequestId,
-      dto.status,
-      nombreMostrar,
-    );
-  } catch (error) {
-    this.logger.error('Error notificando cambio de estado:', error);
-  }
-
-  return updated;
-}
 
   // ===== CANCELAR (por el creador) =====
   async cancel(id: string, userId: string) {

@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import {
@@ -15,7 +16,7 @@ import { EvolutionApiService } from '../../infrastructure/evolution-api/evolutio
 import { envs } from '../../config/env.config';
 import { CreateLocationDto } from './dto/location.dto';
 
-// Categorías que se notifican al líder del área
+// Categorías que se notifican al líder de tecnología
 const CATEGORIAS_LIDER: EquipmentCategory[] = [
   EquipmentCategory.LAPTOP,
   EquipmentCategory.CELLPHONE,
@@ -33,6 +34,8 @@ const CATEGORIAS_SOPORTE: EquipmentCategory[] = [
 
 @Injectable()
 export class EquipmentLoansService {
+  private readonly logger = new Logger(EquipmentLoansService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: EquipmentLoansGateway,
@@ -74,6 +77,7 @@ export class EquipmentLoansService {
     return `${day}/${month}/${year}`;
   }
 
+  // ===== BUSCAR USUARIOS POR DOCUMENTO =====
   private async getSupportUser() {
     const soporte = await this.prisma.user.findUnique({
       where: { documentNumber: envs.SOPORTE_DOCUMENT_NUMBER },
@@ -81,12 +85,33 @@ export class EquipmentLoansService {
     });
 
     if (!soporte) {
+      this.logger.error(
+        `Encargado de soporte no encontrado (documentNumber: ${envs.SOPORTE_DOCUMENT_NUMBER})`,
+      );
       throw new BadRequestException(
         'No se encontró un encargado de soporte técnico configurado. Contacta al administrador.',
       );
     }
 
     return soporte;
+  }
+
+  private async getTechLeaderUser() {
+    const lider = await this.prisma.user.findUnique({
+      where: { documentNumber: envs.LIDER_TECNOLOGIA_DOCUMENT_NUMBER },
+      select: { userId: true, name: true, phone: true },
+    });
+
+    if (!lider) {
+      this.logger.error(
+        `Líder de tecnología no encontrado (documentNumber: ${envs.LIDER_TECNOLOGIA_DOCUMENT_NUMBER})`,
+      );
+      throw new BadRequestException(
+        'No se encontró un líder de tecnología configurado. Contacta al administrador.',
+      );
+    }
+
+    return lider;
   }
 
   private normalizePhone(phone: string): string {
@@ -173,90 +198,48 @@ export class EquipmentLoansService {
     try {
       // ===== CASO 1: PERIFÉRICO -> SOPORTE TÉCNICO =====
       if (esPeriferico) {
-        let numeroDestino = envs.EVOLUTION_NUMERO_SOPORTE;
+        const soporteUser = await this.getSupportUser();
 
-        try {
-          // Intentar obtener el usuario de soporte desde la BD
-          const soporteUser = await this.getSupportUser();
-          if (soporteUser && soporteUser.phone) {
-            numeroDestino = soporteUser.phone;
-          }
-        } catch (err) {
-          console.warn(
-            'No se pudo obtener el teléfono de soporte de la BD, usando fallback de .env',
-          );
-        }
-
-        if (!numeroDestino) {
-          console.error(
-            'No hay número de teléfono configurado para soporte técnico.',
+        if (!soporteUser.phone) {
+          this.logger.warn(
+            `Encargada de soporte ${soporteUser.name} no tiene teléfono registrado. No se envía WhatsApp.`,
           );
           return;
         }
 
-        const phoneNormalizado = this.normalizePhone(numeroDestino);
+        const phoneNormalizado = this.normalizePhone(soporteUser.phone);
         const ok = await this.evolutionApi.enviarMensaje(
           mensaje,
           phoneNormalizado,
         );
 
         if (ok) {
-          console.log(
+          this.logger.log(
             `WhatsApp de periférico enviado a soporte (${phoneNormalizado})`,
           );
         } else {
-          console.warn('Falló el envío de WhatsApp a soporte técnico');
+          this.logger.warn('Falló el envío de WhatsApp a soporte técnico');
         }
         return;
       }
 
-      // ===== CASO 2: EQUIPO PRINCIPAL -> LÍDER DE ÁREA =====
-      if (!solicitante.leaderId) {
-        console.warn(
-          `Solicitante ${solicitante.name} (${solicitante.userId}) no tiene leaderId asignado. Enviando al número genérico de destino.`,
-        );
+      // ===== CASO 2: EQUIPO IMPORTANTE -> LÍDER DE TECNOLOGÍA =====
+      const liderTecnologia = await this.getTechLeaderUser();
 
-        const phoneNormalizadoDestino = this.normalizePhone(
-          envs.EVOLUTION_NUMERO_DESTINO,
-        );
-        console.log(
-          `[DEBUG WHATSAPP] Número final que se enviará: ${phoneNormalizadoDestino}`,
-        );
-        await this.evolutionApi.enviarMensaje(mensaje, phoneNormalizadoDestino);
-        return;
-      }
-
-      // Buscar al líder en BD
-      const lider = await this.prisma.user.findUnique({
-        where: { userId: solicitante.leaderId },
-        select: { userId: true, name: true, phone: true },
-      });
-
-      if (!lider) {
-        console.warn(
-          `Líder ${solicitante.leaderId} no encontrado en BD. Enviando al número genérico de destino.`,
-        );
-        await this.evolutionApi.enviarMensaje(
-          mensaje,
-          this.normalizePhone(envs.EVOLUTION_NUMERO_DESTINO),
+      if (!liderTecnologia.phone) {
+        this.logger.warn(
+          `Líder de tecnología ${liderTecnologia.name} no tiene teléfono registrado. No se envía WhatsApp.`,
         );
         return;
       }
 
-      if (!lider.phone) {
-        console.warn(
-          `Líder ${lider.name} (${lider.userId}) no tiene teléfono registrado. No se envía WhatsApp.`,
-        );
-        return;
-      }
-
-      const phoneNormalizado = this.normalizePhone(lider.phone);
+      const phoneNormalizado = this.normalizePhone(liderTecnologia.phone);
       await this.evolutionApi.enviarMensaje(mensaje, phoneNormalizado);
-      console.log(
-        `WhatsApp de equipo enviado al líder ${lider.name} (${phoneNormalizado})`,
+      this.logger.log(
+        `WhatsApp de solicitud enviado al líder de tecnología ${liderTecnologia.name}`,
       );
     } catch (error) {
-      console.error('Error enviando WhatsApp de solicitud:', error);
+      this.logger.error('Error enviando WhatsApp de solicitud:', error);
     }
   }
 
@@ -289,16 +272,10 @@ export class EquipmentLoansService {
       },
     };
 
-    // Líderes/managers/admins ven todos los equipos
     if (isPrivileged) {
       return this.prisma.equipment.findMany({ include });
     }
 
-    // Empleados normales solo ven:
-    // - AVAILABLE
-    // - MAINTENANCE
-    // - DAMAGED
-    // - LOANED que ellos mismos tienen
     return this.prisma.equipment.findMany({
       where: {
         OR: [
@@ -323,6 +300,7 @@ export class EquipmentLoansService {
       include,
     });
   }
+
   async findOneEquipment(id: string) {
     const equipment = await this.prisma.equipment.findUnique({
       where: { equipmentId: id },
@@ -394,7 +372,7 @@ export class EquipmentLoansService {
         status: newLoan.status,
       });
     } catch (error) {
-      console.error('Error WS notificacion creador:', error);
+      this.logger.error('Error WS notificacion creador:', error);
     }
 
     // Notificacion en BD al creador
@@ -408,7 +386,7 @@ export class EquipmentLoansService {
         },
       });
     } catch (error) {
-      console.error('Error guardando notificacion creador:', error);
+      this.logger.error('Error guardando notificacion creador:', error);
     }
 
     // Determinar categoria del equipo
@@ -417,10 +395,8 @@ export class EquipmentLoansService {
 
     if (esPeriferico) {
       // ===== PERIFÉRICO: solo al encargado de soporte =====
-      // Si no existe el encargado, getSupportUser lanza BadRequestException
       const soporte = await this.getSupportUser();
 
-      // Notificacion WS al encargado de soporte
       try {
         await this.gateway.notifyLeadersPendingApproval([soporte.userId], {
           equipmentLoanId: newLoan.equipmentLoanId,
@@ -429,10 +405,9 @@ export class EquipmentLoansService {
           reason: newLoan.reason,
         });
       } catch (error) {
-        console.error('Error WS notificacion soporte:', error);
+        this.logger.error('Error WS notificacion soporte:', error);
       }
 
-      // Notificacion en BD al encargado de soporte
       try {
         await this.prisma.notification.create({
           data: {
@@ -443,10 +418,10 @@ export class EquipmentLoansService {
           },
         });
       } catch (error) {
-        console.error('Error guardando notificacion soporte:', error);
+        this.logger.error('Error guardando notificacion soporte:', error);
       }
 
-      console.log('Notificando a soporte tecnico (periferico)');
+      this.logger.log('Notificando a soporte tecnico (periferico)');
     } else {
       // ===== EQUIPO GRANDE: notificar a LEADER + MANAGER + ADMIN =====
       const approvers = await this.prisma.user.findMany({
@@ -463,12 +438,11 @@ export class EquipmentLoansService {
         select: { userId: true },
       });
 
-      console.log(`Notificando a ${approvers.length} aprobadores`);
+      this.logger.log(`Notificando a ${approvers.length} aprobadores`);
 
       if (approvers.length > 0) {
         const approverIds = approvers.map((u) => u.userId);
 
-        // Notificacion WS a aprobadores
         try {
           await this.gateway.notifyLeadersPendingApproval(approverIds, {
             equipmentLoanId: newLoan.equipmentLoanId,
@@ -477,10 +451,9 @@ export class EquipmentLoansService {
             reason: newLoan.reason,
           });
         } catch (error) {
-          console.error('Error WS notificacion lideres:', error);
+          this.logger.error('Error WS notificacion lideres:', error);
         }
 
-        // Notificacion en BD a cada aprobador
         try {
           await Promise.all(
             approverIds.map((approverId) =>
@@ -495,12 +468,12 @@ export class EquipmentLoansService {
             ),
           );
         } catch (error) {
-          console.error('Error guardando notificaciones lideres:', error);
+          this.logger.error('Error guardando notificaciones lideres:', error);
         }
       }
     }
 
-    // WhatsApp: notificar al lider de area o a soporte tecnico segun categoria
+    // WhatsApp: notificar al líder de tecnología o a soporte técnico según categoría
     try {
       await this.enviarWhatsAppSolicitud(
         newLoan.equipment.category as EquipmentCategory,
@@ -521,7 +494,7 @@ export class EquipmentLoansService {
         },
       );
     } catch (error) {
-      console.error('Error enviando WhatsApp de solicitud:', error);
+      this.logger.error('Error enviando WhatsApp de solicitud:', error);
     }
 
     return newLoan;
@@ -536,31 +509,33 @@ export class EquipmentLoansService {
   }
 
   async findMyLoanedEquipment(userId: string) {
-  return this.prisma.equipment.findMany({
-    where: {
-      status: EquipmentStatus.LOANED,
-      loans: {
-        some: {
-          userId,
-          status: LoanStatus.APPROVED,
+    return this.prisma.equipment.findMany({
+      where: {
+        status: {
+          in: [EquipmentStatus.LOANED, EquipmentStatus.MAINTENANCE],
+        },
+        loans: {
+          some: {
+            userId,
+            status: LoanStatus.APPROVED,
+          },
         },
       },
-    },
-    include: {
-      location: true,
-      loans: {
-        where: {
-          userId,
-          status: LoanStatus.APPROVED,
-        },
-        include: {
-          user: true,
+      include: {
+        location: true,
+        loans: {
+          where: {
+            userId,
+            status: LoanStatus.APPROVED,
+          },
+          include: {
+            user: true,
+          },
         },
       },
-    },
-    orderBy: { name: 'asc' },
-  });
-}
+      orderBy: { name: 'asc' },
+    });
+  }
 
   async findAllLoans(filters?: {
     status?: LoanStatus;
@@ -620,10 +595,8 @@ export class EquipmentLoansService {
   async updateLoanStatus(id: string, status: LoanStatus, userId?: string) {
     const loan = await this.findOneLoan(id);
 
-    // Validar transiciones
     this.validateLoanStatusTransition(loan.status, status);
 
-    // Si se aprueba, cambiar estado del equipo
     if (status === LoanStatus.APPROVED) {
       await this.prisma.equipment.update({
         where: { equipmentId: loan.equipmentId },
@@ -631,7 +604,6 @@ export class EquipmentLoansService {
       });
     }
 
-    // Si se devuelve, cambiar estado del equipo
     if (status === LoanStatus.RETURNED) {
       await this.prisma.equipment.update({
         where: { equipmentId: loan.equipmentId },
@@ -659,7 +631,6 @@ export class EquipmentLoansService {
       },
     });
 
-    // Notificacion WS de cambio de estado
     try {
       await this.gateway.notifyStatusChange(
         loan.userId,
@@ -668,10 +639,9 @@ export class EquipmentLoansService {
         updatedLoan.equipment.name,
       );
     } catch (error) {
-      console.error('Error WS cambio de estado:', error);
+      this.logger.error('Error WS cambio de estado:', error);
     }
 
-    // Notificacion en BD al usuario
     try {
       await this.prisma.notification.create({
         data: {
@@ -682,7 +652,7 @@ export class EquipmentLoansService {
         },
       });
     } catch (error) {
-      console.error('Error guardando notificacion cambio de estado:', error);
+      this.logger.error('Error guardando notificacion cambio de estado:', error);
     }
 
     return updatedLoan;
@@ -702,7 +672,6 @@ export class EquipmentLoansService {
       data: { status: LoanStatus.CANCELLED },
     });
 
-    // Notificacion WS de cancelacion
     try {
       await this.gateway.notifyStatusChange(
         userId,
@@ -711,10 +680,9 @@ export class EquipmentLoansService {
         loan.equipment?.name || 'Equipo',
       );
     } catch (error) {
-      console.error('Error WS cancelacion:', error);
+      this.logger.error('Error WS cancelacion:', error);
     }
 
-    // Notificacion en BD de cancelacion
     try {
       await this.prisma.notification.create({
         data: {
@@ -725,7 +693,7 @@ export class EquipmentLoansService {
         },
       });
     } catch (error) {
-      console.error('Error guardando notificacion cancelacion:', error);
+      this.logger.error('Error guardando notificacion cancelacion:', error);
     }
 
     return cancelledLoan;
@@ -768,7 +736,6 @@ export class EquipmentLoansService {
     }
   }
 
-  // ===== VALIDACIONES =====
   private validateLoanStatusTransition(
     currentStatus: string,
     newStatus: LoanStatus,

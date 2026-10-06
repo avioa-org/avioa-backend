@@ -210,6 +210,7 @@ model User {
   status             UserStatus @default(ACTIVE)
   address            String?    @map("address")
   mustChangePassword Boolean    @default(true) @map("must_change_password")
+  isSupport Boolean @default(false) @map("is_support")
 
   //Info laboral
   department String?   @map("department") // Tecnologia, RRHH

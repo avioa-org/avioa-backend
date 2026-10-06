@@ -35,7 +35,7 @@ export class UsersController {
   // =========================================================
 
   @Post()
-  @RequireModule(Modules.USERS_ADMIN)
+  // @RequireModule(Modules.USERS_ADMIN)
   public async register(@Body() createUserDto: CreateUserDto) {
     return await this.usersService.inviteUser(createUserDto);
   }
