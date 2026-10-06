@@ -199,7 +199,6 @@ export class AuthService {
     const { password, documentNumber } = loginDto;
 
     const user = await this.prisma.user.findUnique({
-      // where: { email, status: 'ACTIVE' },
       where: { documentNumber, status: 'ACTIVE' },
       include: {
         leader: { select: { name: true, userId: true } },
@@ -263,6 +262,7 @@ export class AuthService {
       avatarUrl: user.avatarUrl,
       role: user.role,
       isLeader: user.isLeader,
+      isSupport: user.isSupport, 
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leader?.name,
@@ -335,6 +335,7 @@ export class AuthService {
       avatarUrl: user.avatarUrl,
       role: user.role,
       isLeader: user.isLeader,
+      isSupport: user.isSupport, 
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leader?.name,
@@ -411,12 +412,6 @@ export class AuthService {
 
     const linkToSend = `${envs.FRONTEND_URL}/forgot-password?documentNumber=${user.documentNumber}`;
 
-    // await this.mailService.sendInvite({
-    //   to: email,
-    //   subject: 'Recuperación de contraseña',
-    //   inviteUrl: linkToSend,
-    // });
-
     await this.mailService.sendTemplate(
       email,
       envs.RESEND_RESET_PASSWORD_TEMPLATE_ALIAS,
@@ -450,7 +445,7 @@ export class AuthService {
       avatar: user.avatarUrl,
       role: user.role,
       isLeader: user.isLeader ?? false,
-      isSupport: user.isSupport,
+      isSupport: user.isSupport ?? false, 
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leaderName,
@@ -527,6 +522,7 @@ export class AuthService {
       avatarUrl: user.avatarUrl,
       role: user.role,
       isLeader: user.isLeader,
+      isSupport: user.isSupport, 
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leader?.name,
@@ -560,14 +556,6 @@ export class AuthService {
     }
 
     const secret = this.otp.generateSecret();
-
-    // await this.prisma.user.update({
-    //   where: { userId },
-    //   data: {
-    //     twoFactorSecret: secret,
-    //     twoFactorEnabled: true,
-    //   },
-    // });
 
     this.logger.log(`2FA enabled for user ${userId}`);
 
@@ -673,6 +661,7 @@ export class AuthService {
       avatarUrl: user.avatarUrl,
       role: user.role,
       isLeader: user.isLeader,
+      isSupport: user.isSupport, 
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leader?.name,

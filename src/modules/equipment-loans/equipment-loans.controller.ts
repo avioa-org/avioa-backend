@@ -57,7 +57,7 @@ export class EquipmentLoansController {
     });
   }
 
-  // ⚠️ IMPORTANTE: esta ruta va ANTES de 'equipment/:id'
+
   @Get('equipment/my-loaned')
   @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
   @HttpCode(HttpStatus.OK)
@@ -106,11 +106,20 @@ export class EquipmentLoansController {
   @RequireModule(Modules.EQUIPMENT_LOANS)
   @HttpCode(HttpStatus.OK)
   findAllLoans(
+    @CurrentUser() user: ICurrentUser,
     @Query('status') status?: LoanStatus,
     @Query('userId') userId?: string,
     @Query('equipmentId') equipmentId?: string,
   ) {
-    return this.service.findAllLoans({ status, userId, equipmentId });
+    return this.service.findAllLoans(
+      {
+        userId: user.userId,
+        role: user.role,
+        isLeader: user.isLeader,
+        isSupport: user.isSupport,
+      },
+      { status, userId, equipmentId },
+    );
   }
 
   @Get('loans/:id')

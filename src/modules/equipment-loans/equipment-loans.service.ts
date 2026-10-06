@@ -202,7 +202,7 @@ export class EquipmentLoansService {
 
         if (!soporteUser.phone) {
           this.logger.warn(
-            `Encargada de soporte ${soporteUser.name} no tiene teléfono registrado. No se envía WhatsApp.`,
+            `Encargado de soporte ${soporteUser.name} no tiene teléfono registrado. No se envía WhatsApp.`,
           );
           return;
         }
@@ -537,16 +537,43 @@ export class EquipmentLoansService {
     });
   }
 
-  async findAllLoans(filters?: {
-    status?: LoanStatus;
-    userId?: string;
-    equipmentId?: string;
-  }) {
+  async findAllLoans(
+    user: {
+      userId: string;
+      role: string;
+      isLeader: boolean;
+      isSupport: boolean;
+    },
+    filters?: {
+      status?: LoanStatus;
+      userId?: string;
+      equipmentId?: string;
+    },
+  ) {
     const where: any = {};
 
     if (filters?.status) where.status = filters.status;
     if (filters?.userId) where.userId = filters.userId;
     if (filters?.equipmentId) where.equipmentId = filters.equipmentId;
+
+    // Si es soporte pero NO tiene privilegios → solo periféricos
+    const isPrivileged =
+      user.role === 'ADMIN' ||
+      user.role === 'MANAGER' ||
+      user.role === 'LEADER' ||
+      user.isLeader === true;
+
+    if (!isPrivileged && user.isSupport) {
+      where.equipment = {
+        category: {
+          in: [
+            EquipmentCategory.KEYBOARD,
+            EquipmentCategory.MOUSE,
+            EquipmentCategory.HEADPHONES,
+          ],
+        },
+      };
+    }
 
     return this.prisma.equipmentLoan.findMany({
       where,
@@ -652,7 +679,10 @@ export class EquipmentLoansService {
         },
       });
     } catch (error) {
-      this.logger.error('Error guardando notificacion cambio de estado:', error);
+      this.logger.error(
+        'Error guardando notificacion cambio de estado:',
+        error,
+      );
     }
 
     return updatedLoan;
