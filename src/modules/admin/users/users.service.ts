@@ -6,11 +6,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
-// import { RegisterDto } from './dto/register.dto';
 import { hash } from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { randomBytes, randomUUID } from 'node:crypto';
-import { envs } from 'src/config/env.config';
+import { randomUUID } from 'node:crypto';
 import { CreateUserDto } from './dto/register.dto';
 import { EmailService } from 'src/infrastructure/email/email.infra';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -19,6 +17,8 @@ import { BirthdayPostsResponseDto } from './dto/birthday-posts.dto';
 import { SetUserModulesDto } from './dto/set-user-modules.dto';
 import { Role } from 'generated/prisma/enums';
 import { Modules } from 'src/common/enum/modules.enum';
+import { EncryptionService } from 'src/infrastructure/encryption/encryption.service';
+import { UpdateUsersAdminDto } from './dto/update-users-admin.dto';
 
 @Injectable()
 export class UsersService {
@@ -28,6 +28,7 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly mailService: EmailService,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly encryptionService: EncryptionService,
   ) {}
 
   public async inviteUser(registerDto: CreateUserDto) {
@@ -70,8 +71,11 @@ export class UsersService {
         });
     }
 
-    const inviteToken = randomBytes(32).toString('hex');
-    const inviteExpires = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 horas
+    let salaryEncrypted: string | null = null;
+    if (registerDto.salary) {
+      const enc = this.encryptionService.encrypt(String(registerDto.salary));
+      salaryEncrypted = JSON.stringify(enc);
+    }
 
     const password = await hash(registerDto.documentNumber, 10);
 
@@ -97,10 +101,11 @@ export class UsersService {
         eps: registerDto?.eps,
         afp: registerDto?.afp,
         arl: registerDto?.arl,
-        salary: registerDto?.salary,
+        salary: salaryEncrypted,
         emergencyContactName: registerDto?.emergencyContactName,
         emergencyContactPhone: registerDto?.emergencyContactPhone,
         emergencyContactRel: registerDto?.emergencyContactRel,
+        legalEntity: registerDto?.legalEntity,
       },
     });
 
@@ -116,6 +121,60 @@ export class UsersService {
     return {
       message: `Usuario creado con exito`,
       userId: newUser.userId,
+    };
+  }
+
+  public async getUser(userId) {
+    const user = await this.prisma.user.findUnique({
+      where: { userId },
+      select: {
+        userId: true,
+        email: true,
+        name: true,
+        role: true,
+        isLeader: true,
+        status: true,
+        department: true,
+        area: true,
+        position: true,
+        leaderId: true,
+        managerId: true,
+        birthDate: true,
+        startDate: true,
+        documentType: true,
+        documentNumber: true,
+        office: true,
+        contractType: true,
+        eps: true,
+        afp: true,
+        arl: true,
+        salary: true,
+        legalEntity: true,
+        emergencyContactName: true,
+        emergencyContactPhone: true,
+        emergencyContactRel: true,
+      },
+    });
+
+    let salaryDecrypted: string | null = null;
+
+    if (user?.salary) {
+      const salary = JSON.parse(user?.salary || '{}') as {
+        iv: string;
+        encrypted: string;
+        authTag: string;
+      };
+
+      salaryDecrypted = this.encryptionService.decrypt(
+        salary.encrypted,
+        salary.iv,
+        salary.authTag,
+      );
+    }
+
+    return {
+      ...user,
+      salary: salaryDecrypted,
     };
   }
 
@@ -214,6 +273,45 @@ export class UsersService {
         ...(updateUserDto?.vacationDaysAdjustment !== undefined && {
           vacationDaysAdjustment: updateUserDto.vacationDaysAdjustment,
         }),
+      },
+    });
+  }
+
+  public async updateUserAdministrator(
+    userId: string,
+    updateUsersAdmiDto: UpdateUsersAdminDto,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { userId } });
+    if (!user) {
+      throw new NotFoundException({
+        message: `El usuario con el id: ${userId} no existe`,
+        error: 'USER_NOT_FOUND',
+      });
+    }
+
+    const { leaderId, managerId, salary, ...profileData } = updateUsersAdmiDto;
+
+    let encryptedSalary: string | undefined;
+    if (salary !== undefined) {
+      const enc = this.encryptionService.encrypt(String(salary));
+      encryptedSalary = JSON.stringify(enc);
+    }
+
+    return this.prisma.user.update({
+      where: { userId },
+      data: {
+        ...profileData,
+        ...(leaderId !== undefined && {
+          leader: leaderId
+            ? { connect: { userId: leaderId } }
+            : { disconnect: true },
+        }),
+        ...(managerId !== undefined && {
+          manager: managerId
+            ? { connect: { userId: managerId } }
+            : { disconnect: true },
+        }),
+        ...(encryptedSalary !== undefined && { salary: encryptedSalary }),
       },
     });
   }

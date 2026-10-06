@@ -24,6 +24,7 @@ import { RequireModule } from 'src/common/decorator/modules-permission.decorator
 import { Modules } from 'src/common/enum/modules.enum';
 import { ModulePermissionGuard } from 'src/common/guards/module-permission.guard';
 import { SetUserModulesDto } from './dto/set-user-modules.dto';
+import { UpdateUsersAdminDto } from './dto/update-users-admin.dto';
 
 @Controller('admin/users')
 @UseGuards(JwtAuthGuard, ModulePermissionGuard)
@@ -87,6 +88,12 @@ export class UsersController {
     return await this.usersService.getUserPermissions(userId);
   }
 
+  @Get(':userId')
+  @RequireModule(Modules.USERS_ADMIN)
+  public async getUser(@Param('userId') userId: string) {
+    return await this.usersService.getUser(userId);
+  }
+
   @Put(':userId/permissions')
   @RequireModule(Modules.USERS_ADMIN)
   public async updateUserPermissions(
@@ -108,6 +115,18 @@ export class UsersController {
     @Body() updateUserDto: UpdateUserDto,
   ) {
     return await this.usersService.updateUser(userId, updateUserDto);
+  }
+
+  @Patch(':userId/update-admin')
+  @RequireModule(Modules.USERS_ADMIN)
+  public async updateUserAdministrator(
+    @Param('userId') userId: string,
+    @Body() updateUsersAdminDto: UpdateUsersAdminDto,
+  ) {
+    return await this.usersService.updateUserAdministrator(
+      userId,
+      updateUsersAdminDto,
+    );
   }
 
   @Delete(':userId')
