@@ -966,16 +966,21 @@ Todo el equipo de ${companyName} te desea un día lleno de alegría, éxitos y m
   private normalizeLegalEntity(raw?: string): LegalEntity | null {
     if (!raw) return null;
 
-    const normalized = raw
-      .toString()
-      .trim()
-      .toUpperCase()
-      .replace(/\s+/g, '_')
-      .replace(/[^A-Z_]/g, '');
+    const normalize = (s: string) =>
+      s
+        .toString()
+        .trim()
+        .normalize('NFD') // descompone Ó → O + ́
+        .replace(/[\u0300-\u036f]/g, '') // quita el acento
+        .toUpperCase()
+        .replace(/\s+/g, ' '); // colapsa espacios
 
-    const keys = Object.keys(LegalEntity) as (keyof typeof LegalEntity)[];
-    const key = keys.find((k) => k === normalized);
-    return key ? LegalEntity[key] : null;
+    const target = normalize(raw);
+
+    const values = Object.values(LegalEntity) as string[];
+    const match = values.find((v) => normalize(v) === target);
+
+    return (match as LegalEntity) ?? null; // devuelve el VALOR del enum
   }
 
   private parseDate(raw: unknown): Date | null {
