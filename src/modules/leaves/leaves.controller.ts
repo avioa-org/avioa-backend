@@ -25,6 +25,7 @@ import { RequireModule } from 'src/common/decorator/modules-permission.decorator
 import { Modules } from 'src/common/enum/modules.enum';
 import { ValidateCompensatedLeaveDto } from './dto/validate-compensated-leave.dto';
 import { ActiveLeavesQueryDto } from './dto/active-leaves-query.dto';
+import { MarkNotTakenDto } from './dto/mark-not-taken.dto';
 
 @Controller('leaves')
 @UseGuards(JwtAuthGuard, ModulePermissionGuard)
@@ -96,6 +97,22 @@ export class LeavesController {
     @CurrentUser('userId') hrUserId: string,
   ) {
     return this.leavesService.validateByHR(id, hrUserId, dto);
+  }
+
+  @Patch(':id/mark-not-taken')
+  @RequireModule(Modules.LEAVES_HR_VALIDATION)
+  markNotTaken(
+    @Param('id') id: string,
+    @Body() dto: MarkNotTakenDto,
+    @CurrentUser('userId') actorId: string,
+  ) {
+    return this.leavesService.markNotTaken(id, actorId, dto);
+  }
+
+  @Patch(':id/revert-not-taken')
+  @RequireModule(Modules.LEAVES_HR_VALIDATION)
+  revertNotTaken(@Param('id') id: string) {
+    return this.leavesService.revertNotTaken(id);
   }
 
   // ========== ADMIN / RRHH ==========

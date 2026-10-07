@@ -349,11 +349,11 @@ async function reassignUnassigned() {
       '\n  Estás en DRY-RUN. Para aplicar los cambios, corre con --apply',
     );
   }
-
-  await prisma.$disconnect();
 }
 
-reassignUnassigned().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+reassignUnassigned()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => await prisma.$disconnect());

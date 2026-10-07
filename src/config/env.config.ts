@@ -57,6 +57,7 @@ const envSchema = z.object({
   SOPORTE_DOCUMENT_NUMBER: z.string().min(1),
   LIDER_TECNOLOGIA_DOCUMENT_NUMBER: z.string().min(1),
   BIRTHDAY_SYSTEM_USER_ID: z.string().optional(),
+  SUPABASE_BUCKET_CERTIFICADOS: z.string().optional(),
 });
 
 let envs: z.infer<typeof envSchema>;

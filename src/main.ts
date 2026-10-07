@@ -5,7 +5,8 @@ import { ExpressAdapter } from '@bull-board/express';
 import { createBullBoard } from '@bull-board/api';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { Queue } from 'bullmq';
-import { envs, isProd } from './config/env.config';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { envs } from './config/env.config';
 import { loggerConfig } from './config/logger.config';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { GlobalExceptionFilter } from './common/filters/global-exception-filter.filter';
@@ -13,21 +14,16 @@ import helmet from 'helmet';
 import { requestIdMiddleware } from './common/middleware/request-id.middleware';
 
 async function bootstrap() {
-  console.log('Starting application...');
-
   const app = await NestFactory.create(AppModule, {
-    logger: ['log', 'error', 'warn', 'debug', 'verbose'],
+    logger: loggerConfig,
     bufferLogs: true,
   });
 
-  console.log('Application created successfully');
-
-  app.useGlobalFilters(new GlobalExceptionFilter());
+  app.useLogger(loggerConfig);
   app.use(requestIdMiddleware);
+  app.useGlobalFilters(new GlobalExceptionFilter());
+  app.useGlobalInterceptors(new LoggingInterceptor());
 
-  const corsOrigins = envs.FRONTEND_URL.split(',').map((origin) =>
-    origin.trim(),
-  );
   app.enableCors({
     origin: [
       'http://localhost:3000', // Frontend local
@@ -46,9 +42,6 @@ async function bootstrap() {
     ],
   });
 
-  const logger = isProd ? loggerConfig : new Logger();
-
-  app.useLogger(logger);
   app.use(helmet());
   app.useGlobalPipes(
     new ValidationPipe({

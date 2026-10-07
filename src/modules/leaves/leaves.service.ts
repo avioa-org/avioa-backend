@@ -29,6 +29,7 @@ import { renderAccountantCompensatedApprovedEmail } from 'src/common/templates/r
 import { renderLeaderCompensatedPendingEmail } from 'src/common/templates/render-leader-compensated-pending-email';
 import { renderEmployeeCompensatedRejectedEmail } from 'src/common/templates/render-employee-compensated-rejected-email';
 import { renderHRCompensatedPendingEmail } from 'src/common/templates/render-hr-compensated-pending-email';
+import { MarkNotTakenDto } from './dto/mark-not-taken.dto';
 
 const VACATIONS_DAYS_PER_YEAR = 15;
 const MIN_VACATIONS_DAYS_PER_YEAR = -15;
@@ -69,6 +70,9 @@ function enrichLeave<
     hrComment?: string | null;
     esCompensada?: boolean | null;
     status?: LeaveStatus | null;
+    notTakenAt?: Date | null;
+    notTakenReason?: string | null;
+    notTakenBy?: { name: string } | null;
   },
 >(leave: T) {
   const totalHours = computeTotalHours(leave.startTime, leave.endTime);
@@ -84,6 +88,13 @@ function enrichLeave<
           comment: leave.hrComment ?? null,
           isRejection:
             leave.esCompensada && leave.status === LeaveStatus.REJECTED,
+        }
+      : null,
+    notTaken: leave.notTakenAt
+      ? {
+          at: leave.notTakenAt,
+          reason: leave.notTakenReason ?? null,
+          byName: leave.notTakenBy?.name ?? null,
         }
       : null,
   };
@@ -654,7 +665,7 @@ export class LeavesService {
       (current.getMonth() - start.getMonth());
 
     // si todavia no ha llegado al mismo dia del mes
-    // todavia no contamos ese ultimo mes
+    // todavia no cuento ese ultimo mes
     if (current.getDate() < start.getDate()) {
       monthsWorked--;
     }
@@ -671,11 +682,12 @@ export class LeavesService {
     // const calculatedAccrued =
     //   Math.floor(((daysWorked * VACATIONS_DAYS_PER_YEAR) / 360) * 100) / 100;
 
-    const calculatedAccrued = Math.floor(
-      (daysWorked * VACATIONS_DAYS_PER_YEAR) / 360,
-    );
+    const calculatedAccrued =
+      Math.floor(((daysWorked * VACATIONS_DAYS_PER_YEAR) / 360) * 100) / 100;
     // const accrued = Math.floor(calculatedAccrued + adjustment);
-    const accrued = Math.floor(calculatedAccrued);
+    const roundHalfUp = (n: number) => Math.floor(n + 0.5);
+    // const accrued = Math.round(calculatedAccrued);
+    const accrued = roundHalfUp(calculatedAccrued);
 
     // vacaciones aprobadas
     // se consideran todas las vacaciones aprobadas
@@ -685,6 +697,7 @@ export class LeavesService {
         userId,
         type: LeaveType.VACACIONES,
         status: LeaveStatus.APPROVED,
+        notTakenAt: null,
       },
       _sum: { businessDays: true },
     });
@@ -700,6 +713,7 @@ export class LeavesService {
         userId,
         type: LeaveType.VACACIONES,
         status: LeaveStatus.PENDING,
+        notTakenAt: null,
       },
       _sum: { businessDays: true },
     });
@@ -769,6 +783,7 @@ export class LeavesService {
       include: {
         hrValidatedBy: { select: { name: true } },
         leader: { select: { name: true, avatarUrl: true } },
+        notTakenBy: { select: { name: true } },
       },
     });
 
@@ -816,6 +831,7 @@ export class LeavesService {
             department: true,
           },
         },
+        notTakenBy: { select: { name: true } },
       },
     });
 
@@ -828,6 +844,7 @@ export class LeavesService {
       include: {
         user: { select: { name: true, email: true, avatarUrl: true } },
         leader: { select: { name: true, email: true, avatarUrl: true } },
+        notTakenBy: { select: { name: true } },
       },
     });
 
@@ -1206,6 +1223,106 @@ export class LeavesService {
       errors: results.filter((r) => r.status === 'error'),
       details: results,
     };
+  }
+
+  public async markNotTaken(
+    leaveRequestId: string,
+    actorId: string,
+    dto: MarkNotTakenDto,
+  ) {
+    const leave = await this.prisma.leaveRequest.findUnique({
+      where: { leaveRequestId },
+      include: { user: { select: { name: true } } },
+    });
+
+    if (!leave) throw new NotFoundException('Solicitud no encontrada');
+
+    if (leave.type !== LeaveType.VACACIONES || leave.esCompensada) {
+      throw new BadRequestException(
+        'Solo las vacaciones disfrutadas (no compensadas) pueden marcarse como no tomadas.',
+      );
+    }
+
+    if (leave.status !== LeaveStatus.APPROVED) {
+      throw new BadRequestException(
+        'Solo se pueden marcar como no tomadas solicitudes aprobadas.',
+      );
+    }
+
+    if (leave.notTakenAt) {
+      throw new BadRequestException(
+        'Esta solicitud ya fue marcada como no tomada.',
+      );
+    }
+
+    // if (new Date(leave.endDate) > new Date()) {
+    //   throw new BadRequestException(
+    //     'No puedes marcar como no tomada una vacación que aún no ha ocurrido. Si el colaborador ya no la va a tomar, cancela la solicitud en su lugar.',
+    //   );
+    // }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const startDate = new Date(leave.startDate);
+    startDate.setHours(0, 0, 0, 0);
+
+    if (startDate <= today) {
+      throw new BadRequestException(
+        'Solo puedes marcar como no tomadas las vacaciones antes de que inicien. El plazo vence el día anterior a la fecha de inicio.',
+      );
+    }
+
+    const updated = await this.prisma.leaveRequest.update({
+      where: { leaveRequestId },
+      data: {
+        notTakenAt: new Date(),
+        notTakenById: actorId,
+        notTakenReason: dto.reason,
+      },
+    });
+
+    const notificationPayload = {
+      leaveRequestId: updated.leaveRequestId,
+      notTakenAt: updated.notTakenAt,
+      notTakenReason: updated.notTakenReason,
+      userId: leave.userId,
+      title: 'Vacaciones marcadas como no tomadas',
+      message: `Tus vacaciones del ${leave.startDate.toLocaleDateString('es-CO')} al ${leave.endDate.toLocaleDateString('es-CO')} fueron marcadas como no tomadas. Motivo: ${dto.reason}. Los ${leave.businessDays} días fueron devueltos a tu saldo.`,
+      type: NotificationType.LEAVE_REQUEST_UPDATED,
+    };
+
+    await this.prisma.notification.create({
+      data: {
+        userId: notificationPayload.userId,
+        title: notificationPayload.title,
+        message: notificationPayload.message,
+        type: notificationPayload.type,
+      },
+    });
+
+    await this.socketGateway.notifyEmployee(
+      notificationPayload.userId,
+      'leave_request_marked_not_taken',
+      notificationPayload,
+    );
+
+    return updated;
+  }
+
+  public async revertNotTaken(leaveRequestId: string) {
+    const leave = await this.prisma.leaveRequest.findUniqueOrThrow({
+      where: { leaveRequestId },
+    });
+    if (!leave.notTakenAt) {
+      throw new BadRequestException(
+        'Esta solicitud no está marcada como no tomada.',
+      );
+    }
+    return this.prisma.leaveRequest.update({
+      where: { leaveRequestId },
+      data: { notTakenAt: null, notTakenById: null, notTakenReason: null },
+    });
   }
 
   private async notifyAccountantByEmail(

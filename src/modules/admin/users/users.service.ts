@@ -6,11 +6,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
-// import { RegisterDto } from './dto/register.dto';
 import { hash } from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { randomBytes, randomUUID } from 'node:crypto';
-import { envs } from 'src/config/env.config';
+import { randomUUID } from 'node:crypto';
 import { CreateUserDto } from './dto/register.dto';
 import { EmailService } from 'src/infrastructure/email/email.infra';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -19,6 +17,27 @@ import { BirthdayPostsResponseDto } from './dto/birthday-posts.dto';
 import { SetUserModulesDto } from './dto/set-user-modules.dto';
 import { Role } from 'generated/prisma/enums';
 import { Modules } from 'src/common/enum/modules.enum';
+import { EncryptionService } from 'src/infrastructure/encryption/encryption.service';
+import { UpdateUsersAdminDto } from './dto/update-users-admin.dto';
+import { LegalEntity } from './enum/legal-entity.enum';
+import * as XLSX from 'xlsx';
+
+type RowResult = {
+  row: number;
+  documentNumber: string;
+  status: 'updated' | 'not_found' | 'error' | 'invalid';
+  message?: string;
+  userId?: string;
+};
+
+type ImportResult = {
+  total: number;
+  updated: number;
+  notFound: number;
+  errors: number;
+  invalid: number;
+  results: RowResult[];
+};
 
 @Injectable()
 export class UsersService {
@@ -28,6 +47,7 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly mailService: EmailService,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly encryptionService: EncryptionService,
   ) {}
 
   public async inviteUser(registerDto: CreateUserDto) {
@@ -36,7 +56,9 @@ export class UsersService {
     });
 
     if (existingUser) {
-      this.logger.error(`User with email ${registerDto.email} alreadt exists`);
+      this.logger.warn(
+        `User invite rejected: User with document number ${registerDto.documentNumber} already exists (${registerDto.email})`,
+      );
       throw new BadRequestException({
         message: `El usuario con el correo ${registerDto.email} ya existe`,
         error: 'USER_ALREADY_EXISTS',
@@ -68,8 +90,11 @@ export class UsersService {
         });
     }
 
-    const inviteToken = randomBytes(32).toString('hex');
-    const inviteExpires = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 horas
+    let salaryEncrypted: string | null = null;
+    if (registerDto.salary) {
+      const enc = this.encryptionService.encrypt(String(registerDto.salary));
+      salaryEncrypted = JSON.stringify(enc);
+    }
 
     const password = await hash(registerDto.documentNumber, 10);
 
@@ -95,10 +120,11 @@ export class UsersService {
         eps: registerDto?.eps,
         afp: registerDto?.afp,
         arl: registerDto?.arl,
-        salary: registerDto?.salary,
+        salary: salaryEncrypted,
         emergencyContactName: registerDto?.emergencyContactName,
         emergencyContactPhone: registerDto?.emergencyContactPhone,
         emergencyContactRel: registerDto?.emergencyContactRel,
+        legalEntity: registerDto?.legalEntity,
       },
     });
 
@@ -114,6 +140,60 @@ export class UsersService {
     return {
       message: `Usuario creado con exito`,
       userId: newUser.userId,
+    };
+  }
+
+  public async getUser(userId) {
+    const user = await this.prisma.user.findUnique({
+      where: { userId },
+      select: {
+        userId: true,
+        email: true,
+        name: true,
+        role: true,
+        isLeader: true,
+        status: true,
+        department: true,
+        area: true,
+        position: true,
+        leaderId: true,
+        managerId: true,
+        birthDate: true,
+        startDate: true,
+        documentType: true,
+        documentNumber: true,
+        office: true,
+        contractType: true,
+        eps: true,
+        afp: true,
+        arl: true,
+        salary: true,
+        legalEntity: true,
+        emergencyContactName: true,
+        emergencyContactPhone: true,
+        emergencyContactRel: true,
+      },
+    });
+
+    let salaryDecrypted: string | null = null;
+
+    if (user?.salary) {
+      const salary = JSON.parse(user?.salary || '{}') as {
+        iv: string;
+        encrypted: string;
+        authTag: string;
+      };
+
+      salaryDecrypted = this.encryptionService.decrypt(
+        salary.encrypted,
+        salary.iv,
+        salary.authTag,
+      );
+    }
+
+    return {
+      ...user,
+      salary: salaryDecrypted,
     };
   }
 
@@ -212,6 +292,45 @@ export class UsersService {
         ...(updateUserDto?.vacationDaysAdjustment !== undefined && {
           vacationDaysAdjustment: updateUserDto.vacationDaysAdjustment,
         }),
+      },
+    });
+  }
+
+  public async updateUserAdministrator(
+    userId: string,
+    updateUsersAdmiDto: UpdateUsersAdminDto,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { userId } });
+    if (!user) {
+      throw new NotFoundException({
+        message: `El usuario con el id: ${userId} no existe`,
+        error: 'USER_NOT_FOUND',
+      });
+    }
+
+    const { leaderId, managerId, salary, ...profileData } = updateUsersAdmiDto;
+
+    let encryptedSalary: string | undefined;
+    if (salary !== undefined) {
+      const enc = this.encryptionService.encrypt(String(salary));
+      encryptedSalary = JSON.stringify(enc);
+    }
+
+    return this.prisma.user.update({
+      where: { userId },
+      data: {
+        ...profileData,
+        ...(leaderId !== undefined && {
+          leader: leaderId
+            ? { connect: { userId: leaderId } }
+            : { disconnect: true },
+        }),
+        ...(managerId !== undefined && {
+          manager: managerId
+            ? { connect: { userId: managerId } }
+            : { disconnect: true },
+        }),
+        ...(encryptedSalary !== undefined && { salary: encryptedSalary }),
       },
     });
   }
@@ -669,6 +788,144 @@ Todo el equipo de ${companyName} te desea un día lleno de alegría, éxitos y m
     });
   }
 
+  async importFromBuffer(
+    buffer: Buffer,
+    overrides: { legalEntity?: LegalEntity } = {},
+  ): Promise<ImportResult> {
+    // 1. Leer Excel
+    let workbook: XLSX.WorkBook;
+    try {
+      workbook = XLSX.read(buffer, { type: 'buffer', cellDates: false });
+    } catch (err) {
+      throw new BadRequestException('El archivo no es un Excel válido');
+    }
+
+    const sheetName = workbook.SheetNames[0];
+    if (!sheetName) {
+      throw new BadRequestException('El Excel no contiene hojas');
+    }
+
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+      defval: null,
+      raw: true,
+    });
+
+    if (rows.length === 0) {
+      throw new BadRequestException('El Excel no contiene filas de datos');
+    }
+
+    const results: RowResult[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNumber = i + 2; // fila real en el Excel (1-based + header)
+
+      const documentNumber = row['CC']
+        ? String(row['CC'] as string).replace(/\D/g, '')
+        : '';
+
+      if (!documentNumber) {
+        results.push({
+          row: rowNumber,
+          documentNumber: '',
+          status: 'invalid',
+          message: 'Fila sin CC',
+        });
+        continue;
+      }
+
+      // 2. Buscar usuario por documento
+      const user = await this.prisma.user.findFirst({
+        where: { documentNumber },
+        select: { userId: true },
+      });
+
+      if (!user) {
+        results.push({
+          row: rowNumber,
+          documentNumber,
+          status: 'not_found',
+          message: 'No existe un usuario con ese documento',
+        });
+        continue;
+      }
+
+      // 3. Armar el update
+      const name = row['NOMBRES Y APELLIDOS']
+        ? String(row['NOMBRES Y APELLIDOS'] as string).trim()
+        : undefined;
+      const position = row['CARGO']
+        ? String(row['CARGO'] as string).trim()
+        : undefined;
+      const salary = this.parseNumber(row['SALARIO']);
+      const startDate = this.parseDate(row['CONTRATO']);
+
+      const rawLegalEntity = row['RAZÓN SOCIAL']
+        ? String(row['RAZÓN SOCIAL'] as string)
+        : undefined;
+      const parsedLegalEntity =
+        overrides.legalEntity ?? this.normalizeLegalEntity(rawLegalEntity);
+
+      if (rawLegalEntity && !parsedLegalEntity && !overrides.legalEntity) {
+        results.push({
+          row: rowNumber,
+          documentNumber,
+          status: 'error',
+          message: `Razón social no reconocida: "${rawLegalEntity}"`,
+          userId: user.userId,
+        });
+        continue;
+      }
+
+      // 4. Encriptar salario si viene
+      let encryptedSalary: string | undefined;
+      if (salary !== null) {
+        const enc = this.encryptionService.encrypt(String(salary));
+        encryptedSalary = JSON.stringify(enc);
+      }
+
+      // 5. Update
+      try {
+        await this.prisma.user.update({
+          where: { userId: user.userId },
+          data: {
+            ...(name !== undefined && { name }),
+            ...(position !== undefined && { position }),
+            ...(startDate !== null && { startDate }),
+            ...(parsedLegalEntity && { legalEntity: parsedLegalEntity }),
+            ...(encryptedSalary !== undefined && { salary: encryptedSalary }),
+          },
+        });
+
+        results.push({
+          row: rowNumber,
+          documentNumber,
+          status: 'updated',
+          userId: user.userId,
+        });
+      } catch (err) {
+        this.logger.error(`Error actualizando usuario ${user.userId}`, err);
+        results.push({
+          row: rowNumber,
+          documentNumber,
+          status: 'error',
+          message: err instanceof Error ? err.message : 'Error desconocido',
+          userId: user.userId,
+        });
+      }
+    }
+
+    return {
+      total: rows.length,
+      updated: results.filter((r) => r.status === 'updated').length,
+      notFound: results.filter((r) => r.status === 'not_found').length,
+      errors: results.filter((r) => r.status === 'error').length,
+      invalid: results.filter((r) => r.status === 'invalid').length,
+      results,
+    };
+  }
+
   // Método principal para obtener publicaciones de cumpleaños
   async getBirthdayPosts(): Promise<BirthdayPostsResponseDto> {
     // Obtener todos los usuarios
@@ -704,5 +961,66 @@ Todo el equipo de ${companyName} te desea un día lleno de alegría, éxitos y m
         monthBirthdays: monthBirthdays.length,
       },
     };
+  }
+
+  private normalizeLegalEntity(raw?: string): LegalEntity | null {
+    if (!raw) return null;
+
+    const normalize = (s: string) =>
+      s
+        .toString()
+        .trim()
+        .normalize('NFD') // descompone Ó → O + ́
+        .replace(/[\u0300-\u036f]/g, '') // quita el acento
+        .toUpperCase()
+        .replace(/\s+/g, ' '); // colapsa espacios
+
+    const target = normalize(raw);
+
+    const values = Object.values(LegalEntity) as string[];
+    const match = values.find((v) => normalize(v) === target);
+
+    return (match as LegalEntity) ?? null; // devuelve el VALOR del enum
+  }
+
+  private parseDate(raw: unknown): Date | null {
+    if (raw == null || raw === '') return null;
+
+    // Serial de Excel (número de días desde 1900-01-01)
+    if (typeof raw === 'number') {
+      const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+      const ms = raw * 24 * 60 * 60 * 1000;
+      const date = new Date(excelEpoch.getTime() + ms);
+      return isNaN(date.getTime()) ? null : date;
+    }
+
+    if (raw instanceof Date) return isNaN(raw.getTime()) ? null : raw;
+
+    const str = String(raw as string).trim();
+    if (!str) return null;
+
+    // "23/02/2026" (DD/MM/YYYY)
+    const dmy = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (dmy) {
+      const [, d, m, y] = dmy;
+      const date = new Date(Number(y), Number(m) - 1, Number(d));
+      return isNaN(date.getTime()) ? null : date;
+    }
+
+    // Cualquier otro formato que Date pueda interpretar (ISO, etc.)
+    const date = new Date(str);
+    return isNaN(date.getTime()) ? null : date;
+  }
+
+  private parseNumber(raw: unknown): number | null {
+    if (raw == null || raw === '') return null;
+    if (typeof raw === 'number') return raw;
+    // Limpia "$1.234.567,89" o "1,234,567.89" o "1234567"
+    const cleaned = String(raw as string)
+      .replace(/[^\d.,-]/g, '')
+      .replace(/\.(?=\d{3}\b)/g, '') // quita puntos de miles
+      .replace(',', '.');
+    const n = Number(cleaned);
+    return isNaN(n) ? null : n;
   }
 }

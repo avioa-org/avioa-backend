@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -8,7 +9,9 @@ import {
   Post,
   Put,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
@@ -24,6 +27,9 @@ import { RequireModule } from 'src/common/decorator/modules-permission.decorator
 import { Modules } from 'src/common/enum/modules.enum';
 import { ModulePermissionGuard } from 'src/common/guards/module-permission.guard';
 import { SetUserModulesDto } from './dto/set-user-modules.dto';
+import { UpdateUsersAdminDto } from './dto/update-users-admin.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ImportUsersExcelDto } from './dto/import-users-excel.dto';
 
 @Controller('admin/users')
 @UseGuards(JwtAuthGuard, ModulePermissionGuard)
@@ -87,6 +93,12 @@ export class UsersController {
     return await this.usersService.getUserPermissions(userId);
   }
 
+  @Get(':userId')
+  @RequireModule(Modules.USERS_ADMIN)
+  public async getUser(@Param('userId') userId: string) {
+    return await this.usersService.getUser(userId);
+  }
+
   @Put(':userId/permissions')
   @RequireModule(Modules.USERS_ADMIN)
   public async updateUserPermissions(
@@ -110,9 +122,48 @@ export class UsersController {
     return await this.usersService.updateUser(userId, updateUserDto);
   }
 
+  @Patch(':userId/update-admin')
+  @RequireModule(Modules.USERS_ADMIN)
+  public async updateUserAdministrator(
+    @Param('userId') userId: string,
+    @Body() updateUsersAdminDto: UpdateUsersAdminDto,
+  ) {
+    return await this.usersService.updateUserAdministrator(
+      userId,
+      updateUsersAdminDto,
+    );
+  }
+
   @Delete(':userId')
   @RequireModule(Modules.USERS_ADMIN)
   public async deleteUser(@Param('userId') userId: string) {
     return await this.usersService.deleteUser(userId);
+  }
+
+  @Post('import-excel')
+  @RequireModule(Modules.USERS_ADMIN)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const ok =
+          file.mimetype ===
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+          file.mimetype === 'application/vnd.ms-excel';
+        cb(ok ? null : new BadRequestException('Solo .xlsx o .xls'), ok);
+      },
+    }),
+  )
+  async importExcel(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() dto: ImportUsersExcelDto,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Debes adjuntar un archivo Excel');
+    }
+
+    return this.usersService.importFromBuffer(file.buffer, {
+      legalEntity: dto.legalEntity,
+    });
   }
 }

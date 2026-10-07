@@ -233,7 +233,7 @@ model User {
   arl String? @map("arl") // riesgos laborales
 
   // salario (solo dueño/ADMIN)
-  salary Decimal? @map("salary") @db.Decimal(12, 2)
+  salary String? @map("salary") @db.Text
 
   // contacto de emergencia
   emergencyContactName  String? @map("emergency_contact_name")
@@ -333,6 +333,7 @@ model User {
   cesantiasRequestsResponsable CesantiasRequest[]   @relation("CesantiasResponsable")
   modulePermissions            ModulePermission[]
   hrValidatedLeaves            LeaveRequest[]       @relation("HRValidatorLeave")
+  leaveNotTakenBy              LeaveRequest[]       @relation("LeaveNotTakenBy")
 
   @@map("users")
 }
@@ -666,12 +667,17 @@ model LeaveRequest {
 
   notifiedAccountingAt DateTime? @map("notified_accounting_at")
 
+  notTakenAt     DateTime? @map("not_taken_at")
+  notTakenById   String?   @map("not_taken_by_id")
+  notTakenReason String?   @map("not_taken_reason")
+
   createdAt  DateTime  @default(now()) @map("created_at")
   reviewedAt DateTime? @map("reviewed_at")
 
   user          User  @relation("EmployeeLeave", fields: [userId], references: [userId])
   leader        User  @relation("LeaderLeave", fields: [leaderId], references: [userId])
   hrValidatedBy User? @relation("HRValidatorLeave", fields: [hrValidatedById], references: [userId])
+  notTakenBy    User? @relation("LeaveNotTakenBy", fields: [notTakenById], references: [userId])
 
   @@index([userId])
   @@index([leaderId])
@@ -1152,6 +1158,7 @@ enum NotificationType {
   LEAVE_REQUEST_APPROVED
   LEAVE_REQUEST_RECEIVED
   LEAVE_REQUEST_REJECTED
+  LEAVE_REQUEST_UPDATED
   COMPENSATED_LEAVE_PENDING_HR
 }
 

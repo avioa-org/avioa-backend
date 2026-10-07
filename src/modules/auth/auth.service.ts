@@ -44,7 +44,9 @@ export class AuthService {
     });
 
     if (existingUser) {
-      this.logger.error(`User with email ${registerDto.email} alreadt exists`);
+      this.logger.warn(
+        `Invite failed: User with document number ${registerDto.documentNumber} already exists (${registerDto.email})`,
+      );
       throw new BadRequestException({
         message: `El usuario con el correo ${registerDto.email} ya existe`,
         error: 'USER_ALREADY_EXISTS',
@@ -207,8 +209,8 @@ export class AuthService {
     });
 
     if (!user) {
-      this.logger.error(
-        `User with document number ${documentNumber} not found`,
+      this.logger.warn(
+        `Login failed: User with document number ${documentNumber} not found`,
       );
       throw new NotFoundException({
         message: `El usuario con el documento: ${documentNumber} no existe`,
@@ -222,7 +224,9 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
-      this.logger.error(`Password is not valid`);
+      this.logger.warn(
+        `Login failed: Invalid password for document number ${documentNumber} (${user.email})`,
+      );
       throw new UnauthorizedException({
         message: 'Contraseña incorrecta',
         error: 'INVALID_PASSWORD',
@@ -274,6 +278,9 @@ export class AuthService {
           module: permission.module,
           actions: permission.actions,
         })),
+      office: user?.office,
+      birthDate: user.birthDate,
+      phone: user?.phone,
     });
 
     return tokens;
@@ -347,6 +354,9 @@ export class AuthService {
           module: permission.module,
           actions: permission.actions,
         })),
+      office: user?.office,
+      birthDate: user.birthDate,
+      phone: user?.phone,
     });
 
     return {
@@ -436,8 +446,11 @@ export class AuthService {
     leaderId: string | null;
     leaderName: string | null | undefined;
     twoFactorEnabled?: boolean;
-    documentNumber: string;
+    documentNumber?: string;
     modulePermissions: { module: string; actions: string[] }[];
+    office?: string | null;
+    birthDate?: Date | null;
+    phone?: string | null;
   }) {
     const payload = {
       userId: user.userId,
@@ -452,6 +465,10 @@ export class AuthService {
       twoFactorEnabled: user.twoFactorEnabled,
       documentNumber: user.documentNumber,
       modulePermissions: user.modulePermissions,
+      office: user.office,
+      birthDate: user.birthDate,
+      phone: user.phone,
+      email: user.email,
     };
 
     const access_token = this.jwt.sign(payload);
@@ -533,6 +550,9 @@ export class AuthService {
           module: permission.module,
           actions: permission.actions,
         })),
+      office: user.office,
+      birthDate: user.birthDate,
+      phone: user.phone,
     });
 
     return tokens;
@@ -673,6 +693,9 @@ export class AuthService {
           module: permission.module,
           actions: permission.actions,
         })),
+      office: user.office,
+      birthDate: user.birthDate,
+      phone: user.phone,
     });
 
     return tokens;

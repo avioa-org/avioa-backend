@@ -2,15 +2,18 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Observable } from 'rxjs';
 import { verify } from 'jsonwebtoken';
 import { envs } from 'src/config/env.config';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
+import { RequestContext } from '../context/request-context.store';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
+  private readonly logger = new Logger(JwtAuthGuard.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -18,10 +21,16 @@ export class JwtAuthGuard implements CanActivate {
     const header = request.headers['authorization'] as string | undefined;
 
     if (!header) {
+      this.logger.warn(
+        `Auth failed: Authorization header missing for ${request.method} ${request.url}`,
+      );
       throw new UnauthorizedException('Token not found');
     }
 
     if (!header.startsWith('Bearer ')) {
+      this.logger.warn(
+        `Auth failed: Invalid header format for ${request.method} ${request.url}`,
+      );
       throw new UnauthorizedException('Invalid token format');
     }
 
@@ -30,11 +39,17 @@ export class JwtAuthGuard implements CanActivate {
     try {
       const token = header.replace('Bearer ', '').trim();
       decoded = verify(token, envs.JWT_SECRET) as { userId?: string };
-    } catch {
+    } catch (err) {
+      this.logger.warn(
+        `Auth failed: Token verification failed (${(err as Error).message}) for ${request.method} ${request.url}`,
+      );
       throw new UnauthorizedException('Invalid token');
     }
 
     if (!decoded.userId) {
+      this.logger.warn(
+        `Auth failed: Payload missing userId for ${request.method} ${request.url}`,
+      );
       throw new UnauthorizedException('Invalid token payload');
     }
 
@@ -62,12 +77,21 @@ export class JwtAuthGuard implements CanActivate {
     });
 
     if (!user) {
+      this.logger.warn(
+        `Auth failed: User ${decoded.userId} not found in database`,
+      );
       throw new UnauthorizedException('User no longer exists');
     }
 
     if (user.status !== 'ACTIVE') {
+      this.logger.warn(
+        `Auth failed: User ${user.email} (ID: ${user.userId}) is INACTIVE`,
+      );
       throw new UnauthorizedException('User is not active');
     }
+
+    RequestContext.set('userId', user.userId);
+    RequestContext.set('userEmail', user.email);
 
     request.user = {
       userId: user.userId,
