@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import {
   IsString,
   IsNotEmpty,
@@ -7,9 +6,6 @@ import {
   MaxLength,
 } from 'class-validator';
 import { MaintenanceRequestType } from 'generated/prisma/enums';
-=======
-import { IsString, IsNotEmpty, IsOptional, MaxLength } from 'class-validator';
->>>>>>> bede0fc15b5813b1ffc47552e7357e74fdbcf7a2
 
 export class CreateMaintenanceDto {
   @IsEnum(MaintenanceRequestType)
