@@ -60,6 +60,8 @@ export class CertificadosService {
       'certificado_laboral_activo_gestion_turismo_plantilla.docx',
     [LegalEntity.AVIOA_MAYORISTA_SAS]:
       'certificado_laboral_activo_avioa_mayorista_plantilla.docx',
+    [LegalEntity.HOTELES_DE_LA_MONTANA]:
+      'certificado_laboral_activo_hoteles_de_la_montana_plantilla.docx',
   };
 
   public async generateLaboralCertificate(
