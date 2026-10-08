@@ -76,6 +76,13 @@ async function bootstrap() {
           },
         }),
       ),
+      new BullMQAdapter(
+        new Queue('certificados', {
+          connection: {
+            url: envs.REDIS_URL,
+          },
+        }),
+      ),
     ],
     serverAdapter,
   });
