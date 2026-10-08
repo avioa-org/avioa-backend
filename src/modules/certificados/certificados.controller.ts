@@ -1,4 +1,12 @@
-import { Body, Controller, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { CertificadosService } from './certificados.service';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
@@ -12,10 +20,17 @@ export class CertificadosController {
   @Post('certificado-laboral')
   generateLaboralCertificate(
     @CurrentUser('userId') userId: string,
-    @Body('legalEntity') legalEntity?: LegalEntity,
+    @Body() legalEntity?: { legalEntity?: LegalEntity },
   ) {
-    return this.certificadosService.generateLaboralCertificate(userId, {
-      legalEntity,
-    });
+    return this.certificadosService.requestLaboralCertificate(
+      userId,
+      legalEntity ?? {},
+      userId,
+    );
+  }
+
+  @Get('jobs/:jobId')
+  async getJob(@Param('jobId') jobId: string) {
+    return this.certificadosService.getJobStatus(jobId);
   }
 }
