@@ -29,6 +29,8 @@ export class CertificadosService {
       Monedasingular: 'PESO',
     })
       .replace(/,\s*/g, ' ')
+      .replace(/\b(MILL[ÓO]N|MILLONES|BILL[ÓO]N|BILLONES)\s+DE\s+/gi, '$1 ')
+      .replace(/\s+PESOS?$/i, '')
       .toUpperCase()
       .trim();
   }
@@ -159,7 +161,7 @@ export class CertificadosService {
       compression: 'DEFLATE',
     });
 
-    const generatedKey = `certificados/${userId}/${Date.now()}-${templateKey}`;
+    const generatedKey = `certificados/${userId}/${Date.now()}-certificado-avioa.docx`;
     await this.storageService.uploadFile(
       generatedKey,
       generateBuffer,
@@ -167,10 +169,12 @@ export class CertificadosService {
       envs.SUPABASE_BUCKET_CERTIFICADOS,
     );
 
-    return await this.storageService.getPresignedDownloadUrl(
+    const url = await this.storageService.getPresignedDownloadUrl(
       generatedKey,
       60,
       envs.SUPABASE_BUCKET_CERTIFICADOS,
     );
+
+    return { url };
   }
 }

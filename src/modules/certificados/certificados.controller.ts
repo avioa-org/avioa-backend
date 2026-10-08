@@ -12,7 +12,7 @@ export class CertificadosController {
   @Post('certificado-laboral')
   generateLaboralCertificate(
     @CurrentUser('userId') userId: string,
-    @Query('legalEntity') legalEntity?: LegalEntity,
+    @Body('legalEntity') legalEntity?: LegalEntity,
   ) {
     return this.certificadosService.generateLaboralCertificate(userId, {
       legalEntity,
