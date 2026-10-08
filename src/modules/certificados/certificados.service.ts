@@ -11,6 +11,10 @@ import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import { EncryptionService } from 'src/infrastructure/encryption/encryption.service';
 import { envs } from 'src/config/env.config';
+import libre from 'libreoffice-convert';
+import { promisify } from 'util';
+
+const convertAsync = promisify(libre.convert);
 
 @Injectable()
 export class CertificadosService {
@@ -156,16 +160,23 @@ export class CertificadosService {
 
     doc.render(data);
 
-    const generateBuffer = doc.getZip().generate({
+    const dockBuffer = doc.getZip().generate({
       type: 'nodebuffer',
       compression: 'DEFLATE',
     });
 
-    const generatedKey = `certificados/${userId}/${Date.now()}-certificado-avioa.docx`;
+    const pdfBuffer = await convertAsync(dockBuffer, '.pdf', undefined);
+
+    // const generateBuffer = doc.getZip().generate({
+    //   type: 'nodebuffer',
+    //   compression: 'DEFLATE',
+    // });
+
+    const generatedKey = `certificados/${userId}/${Date.now()}-certificado-avioa.pdf`;
     await this.storageService.uploadFile(
       generatedKey,
-      generateBuffer,
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      pdfBuffer,
+      'application/pdf',
       envs.SUPABASE_BUCKET_CERTIFICADOS,
     );
 
