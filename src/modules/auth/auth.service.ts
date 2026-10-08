@@ -26,6 +26,7 @@ import { Enable2faDto, Verify2faDto } from './dto/2fa.dto';
 import { customAlphabet } from 'nanoid';
 import { ChangeTemporaryPasswordDto } from './dto/change-temporary-password';
 import { ModulePermission } from 'generated/prisma/client';
+import { LegalEntity } from '../admin/users/enum/legal-entity.enum';
 
 @Injectable()
 export class AuthService {
@@ -281,6 +282,7 @@ export class AuthService {
       office: user?.office,
       birthDate: user.birthDate,
       phone: user?.phone,
+      legalEntity: user?.legalEntity,
     });
 
     return tokens;
@@ -455,6 +457,7 @@ export class AuthService {
     office?: string | null;
     birthDate?: Date | null;
     phone?: string | null;
+    legalEntity?: string | null;
   }) {
     const payload = {
       userId: user.userId,
@@ -472,6 +475,7 @@ export class AuthService {
       birthDate: user.birthDate,
       phone: user.phone,
       email: user.email,
+      legalEntity: user.legalEntity,
     };
 
     const access_token = this.jwt.sign(payload);
@@ -555,6 +559,7 @@ export class AuthService {
       office: user.office,
       birthDate: user.birthDate,
       phone: user.phone,
+      legalEntity: user?.legalEntity,
     });
 
     return tokens;
@@ -705,6 +710,7 @@ export class AuthService {
       office: user.office,
       birthDate: user.birthDate,
       phone: user.phone,
+      legalEntity: user.legalEntity,
     });
 
     return tokens;

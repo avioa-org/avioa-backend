@@ -68,6 +68,10 @@ export class JwtAuthGuard implements CanActivate {
         managerId: true,
         avatarUrl: true,
         canPublishInFeed: true,
+        office: true,
+        birthDate: true,
+        phone: true,
+        legalEntity: true,
         modulePermissions: {
           where: { canAccess: true },
           select: { module: true, canAccess: true, actions: true },
@@ -106,6 +110,10 @@ export class JwtAuthGuard implements CanActivate {
       managerId: user.managerId,
       canPublishInFeed: user.canPublishInFeed,
       modulePermissions: user.modulePermissions,
+      office: user.office,
+      birthDate: user.birthDate,
+      phone: user.phone,
+      legalEntity: user.legalEntity,
     };
 
     return true;
