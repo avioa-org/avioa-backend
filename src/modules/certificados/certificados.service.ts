@@ -111,6 +111,7 @@ export class CertificadosService {
         position: true,
         salary: true,
         legalEntity: true,
+        hasTransportAllowance: true,
       },
     });
     if (!user) throw new NotFoundException('Usuario no encontrado');
@@ -122,10 +123,16 @@ export class CertificadosService {
       );
     }
 
-    const templateKey = this.templateByLegalEntity[legalEntity];
-    if (!templateKey) {
+    const baseTemplateKey = this.templateByLegalEntity[legalEntity];
+    if (!baseTemplateKey) {
       throw new BadRequestException('No hay plantilla para esa razón social');
     }
+
+    const templateKey = user.hasTransportAllowance
+      ? baseTemplateKey
+      : baseTemplateKey.replace(/\.docx$/i, '_no_auxilio.docx');
+
+    console.log('templateKey', templateKey);
 
     let salaryNumber: number | null = null;
     if (user.salary) {
