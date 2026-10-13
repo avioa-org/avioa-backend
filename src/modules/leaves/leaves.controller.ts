@@ -94,7 +94,7 @@ export class LeavesController {
   }
 
   @Patch(':id/mark-not-taken')
-  @RequireModule(Modules.LEAVES_HR_VALIDATION)
+  @RequireModule(Modules.LEAVE_MARK_NOT_TAKEN)
   markNotTaken(
     @Param('id') id: string,
     @Body() dto: MarkNotTakenDto,
@@ -104,7 +104,7 @@ export class LeavesController {
   }
 
   @Patch(':id/revert-not-taken')
-  @RequireModule(Modules.LEAVES_HR_VALIDATION)
+  @RequireModule(Modules.LEAVE_MARK_NOT_TAKEN)
   revertNotTaken(@Param('id') id: string) {
     return this.leavesService.revertNotTaken(id);
   }
