@@ -33,7 +33,7 @@ import {
 import { Modules } from 'src/common/enum/modules.enum';
 
 @Controller('equipment-loans')
-@UseGuards(JwtAuthGuard, ModulePermissionGuard)
+@UseGuards(JwtAuthGuard)
 export class EquipmentLoansController {
   constructor(private readonly service: EquipmentLoansService) {}
 
@@ -54,9 +54,9 @@ export class EquipmentLoansController {
       userId: user.userId,
       role: user.role,
       isLeader: user.isLeader,
+      isSupport: user.isSupport,
     });
   }
-
 
   @Get('equipment/my-loaned')
   @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
@@ -137,7 +137,12 @@ export class EquipmentLoansController {
     @Body('status') status: LoanStatus,
     @CurrentUser() user: ICurrentUser,
   ) {
-    return this.service.updateLoanStatus(id, status, user.userId);
+    return this.service.updateLoanStatus(id, status, {
+      userId: user.userId,
+      role: user.role,
+      isLeader: user.isLeader,
+      isSupport: user.isSupport,
+    });
   }
 
   @Patch('loans/:id/cancel')

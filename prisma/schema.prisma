@@ -88,11 +88,15 @@ model EquipmentLoan {
   userId          String  @map("user_id")
   approvedById    String? @map("approved_by_id")
   returnedById    String? @map("returned_by_id")
+  leaderApprovedById String? @map("leader_approved_by_id")
+  deliveredById      String? @map("delivered_by_id")
 
   // Fechas
   loanDate           DateTime  @default(now()) @map("loan_date")
   expectedReturnDate DateTime? @map("expected_return_date")
   actualReturnDate   DateTime? @map("actual_return_date")
+  leaderApprovedAt   DateTime? @map("leader_approved_at")
+  deliveredAt        DateTime? @map("delivered_at")
 
   // Motivos
   reason          String?
@@ -106,10 +110,12 @@ model EquipmentLoan {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relaciones
-  equipment  Equipment @relation(fields: [equipmentId], references: [equipmentId])
-  user       User      @relation("EmployeeEquipmentLoans", fields: [userId], references: [userId])
-  approvedBy User?     @relation("ApproverEquipmentLoans", fields: [approvedById], references: [userId])
-  returnedBy User?     @relation("ReturnerEquipmentLoans", fields: [returnedById], references: [userId])
+  equipment         Equipment @relation(fields: [equipmentId], references: [equipmentId])
+  user              User      @relation("EmployeeEquipmentLoans", fields: [userId], references: [userId])
+  approvedBy        User?     @relation("ApproverEquipmentLoans", fields: [approvedById], references: [userId])
+  returnedBy        User?     @relation("ReturnerEquipmentLoans", fields: [returnedById], references: [userId])
+  leaderApprovedBy  User?     @relation("LeaderApproverEquipmentLoans", fields: [leaderApprovedById], references: [userId])
+  deliveredBy       User?     @relation("DelivererEquipmentLoans", fields: [deliveredById], references: [userId])
 
   @@index([userId])
   @@index([equipmentId])
@@ -285,9 +291,11 @@ model User {
 
   // Relaciones
 
-  equipmentLoans         EquipmentLoan[] @relation("EmployeeEquipmentLoans")
-  approvedEquipmentLoans EquipmentLoan[] @relation("ApproverEquipmentLoans")
-  returnedEquipmentLoans EquipmentLoan[] @relation("ReturnerEquipmentLoans")
+  equipmentLoans              EquipmentLoan[] @relation("EmployeeEquipmentLoans")
+  approvedEquipmentLoans      EquipmentLoan[] @relation("ApproverEquipmentLoans")
+  returnedEquipmentLoans      EquipmentLoan[] @relation("ReturnerEquipmentLoans")
+  leaderApprovedEquipmentLoans EquipmentLoan[] @relation("LeaderApproverEquipmentLoans")
+  deliveredEquipmentLoans     EquipmentLoan[] @relation("DelivererEquipmentLoans")
 
   maintenanceRequests MaintenanceRequest[] @relation("MaintenanceRequester")
   maintenanceAssigned MaintenanceRequest[] @relation("MaintenanceAssignee")
