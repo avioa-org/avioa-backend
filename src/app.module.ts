@@ -31,6 +31,7 @@ import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { NominaModule } from './modules/nomina/nomina.module';
 import { BirthdaysModule } from './modules/birthdays/birthdays.module';
 import { CertificadosModule } from './modules/certificados/certificados.module';
+import { VuelosModule } from './modules/vuelos/vuelos.module';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { CertificadosModule } from './modules/certificados/certificados.module';
     NominaModule,
     BirthdaysModule,
     CertificadosModule,
+    VuelosModule,
   ],
   controllers: [],
   providers: [
