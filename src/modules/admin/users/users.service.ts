@@ -788,6 +788,21 @@ Todo el equipo de ${companyName} te desea un día lleno de alegría, éxitos y m
     });
   }
 
+  private parseTransportAllowance(raw: unknown): boolean {
+    if (raw == null) return false;
+
+    if (typeof raw === 'string') {
+      const trimmed = raw.trim();
+      if (trimmed === '') return false;
+    }
+
+    const n = this.parseNumber(raw);
+
+    if (n === null) return false;
+
+    return true;
+  }
+
   async importFromBuffer(
     buffer: Buffer,
     overrides: { legalEntity?: LegalEntity } = {},
@@ -861,6 +876,10 @@ Todo el equipo de ${companyName} te desea un día lleno de alegría, éxitos y m
       const salary = this.parseNumber(row['SALARIO']);
       const startDate = this.parseDate(row['CONTRATO']);
 
+      const hasTransportAllowance = this.parseTransportAllowance(
+        row['AUXILIO DE TRANSPORTE'],
+      );
+
       const rawLegalEntity = row['RAZÓN SOCIAL']
         ? String(row['RAZÓN SOCIAL'] as string)
         : undefined;
@@ -895,6 +914,7 @@ Todo el equipo de ${companyName} te desea un día lleno de alegría, éxitos y m
             ...(startDate !== null && { startDate }),
             ...(parsedLegalEntity && { legalEntity: parsedLegalEntity }),
             ...(encryptedSalary !== undefined && { salary: encryptedSalary }),
+            hasTransportAllowance,
           },
         });
 
