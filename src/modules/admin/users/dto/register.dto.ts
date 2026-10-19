@@ -11,6 +11,7 @@ import {
   IsUUID,
 } from 'class-validator';
 import { ContractType, DocumentType, Role } from 'generated/prisma/enums';
+import { LegalEntity } from '../enum/legal-entity.enum';
 
 export class CreateUserDto {
   @IsEmail()
@@ -103,6 +104,10 @@ export class CreateUserDto {
   @IsNumber()
   @IsOptional()
   salary?: number;
+
+  @IsEnum(LegalEntity)
+  @IsOptional()
+  legalEntity?: LegalEntity;
 
   @IsString()
   @IsOptional()

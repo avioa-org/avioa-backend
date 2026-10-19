@@ -26,6 +26,7 @@ import { Enable2faDto, Verify2faDto } from './dto/2fa.dto';
 import { customAlphabet } from 'nanoid';
 import { ChangeTemporaryPasswordDto } from './dto/change-temporary-password';
 import { ModulePermission } from 'generated/prisma/client';
+import { LegalEntity } from '../admin/users/enum/legal-entity.enum';
 
 @Injectable()
 export class AuthService {
@@ -201,7 +202,6 @@ export class AuthService {
     const { password, documentNumber } = loginDto;
 
     const user = await this.prisma.user.findUnique({
-      // where: { email, status: 'ACTIVE' },
       where: { documentNumber, status: 'ACTIVE' },
       include: {
         leader: { select: { name: true, userId: true } },
@@ -267,6 +267,7 @@ export class AuthService {
       avatarUrl: user.avatarUrl,
       role: user.role,
       isLeader: user.isLeader,
+      isSupport: user.isSupport, 
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leader?.name,
@@ -278,6 +279,10 @@ export class AuthService {
           module: permission.module,
           actions: permission.actions,
         })),
+      office: user?.office,
+      birthDate: user.birthDate,
+      phone: user?.phone,
+      legalEntity: user?.legalEntity,
     });
 
     return tokens;
@@ -339,6 +344,7 @@ export class AuthService {
       avatarUrl: user.avatarUrl,
       role: user.role,
       isLeader: user.isLeader,
+      isSupport: user.isSupport, 
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leader?.name,
@@ -350,6 +356,9 @@ export class AuthService {
           module: permission.module,
           actions: permission.actions,
         })),
+      office: user?.office,
+      birthDate: user.birthDate,
+      phone: user?.phone,
     });
 
     return {
@@ -415,12 +424,6 @@ export class AuthService {
 
     const linkToSend = `${envs.FRONTEND_URL}/forgot-password?documentNumber=${user.documentNumber}`;
 
-    // await this.mailService.sendInvite({
-    //   to: email,
-    //   subject: 'Recuperación de contraseña',
-    //   inviteUrl: linkToSend,
-    // });
-
     await this.mailService.sendTemplate(
       email,
       envs.RESEND_RESET_PASSWORD_TEMPLATE_ALIAS,
@@ -440,12 +443,17 @@ export class AuthService {
     avatarUrl: string | null;
     role: string;
     isLeader?: boolean;
+    isSupport?: boolean;
     area: string | null;
     leaderId: string | null;
     leaderName: string | null | undefined;
     twoFactorEnabled?: boolean;
-    documentNumber: string;
+    documentNumber?: string;
     modulePermissions: { module: string; actions: string[] }[];
+    office?: string | null;
+    birthDate?: Date | null;
+    phone?: string | null;
+    legalEntity?: string | null;
   }) {
     const payload = {
       userId: user.userId,
@@ -453,12 +461,18 @@ export class AuthService {
       avatar: user.avatarUrl,
       role: user.role,
       isLeader: user.isLeader ?? false,
+      isSupport: user.isSupport ?? false, 
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leaderName,
       twoFactorEnabled: user.twoFactorEnabled,
       documentNumber: user.documentNumber,
       modulePermissions: user.modulePermissions,
+      office: user.office,
+      birthDate: user.birthDate,
+      phone: user.phone,
+      email: user.email,
+      legalEntity: user.legalEntity,
     };
 
     const access_token = this.jwt.sign(payload);
@@ -529,6 +543,7 @@ export class AuthService {
       avatarUrl: user.avatarUrl,
       role: user.role,
       isLeader: user.isLeader,
+      isSupport: user.isSupport, 
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leader?.name,
@@ -539,6 +554,10 @@ export class AuthService {
           module: permission.module,
           actions: permission.actions,
         })),
+      office: user.office,
+      birthDate: user.birthDate,
+      phone: user.phone,
+      legalEntity: user?.legalEntity,
     });
 
     return tokens;
@@ -562,14 +581,6 @@ export class AuthService {
     }
 
     const secret = this.otp.generateSecret();
-
-    // await this.prisma.user.update({
-    //   where: { userId },
-    //   data: {
-    //     twoFactorSecret: secret,
-    //     twoFactorEnabled: true,
-    //   },
-    // });
 
     this.logger.log(`2FA enabled for user ${userId}`);
 
@@ -675,6 +686,7 @@ export class AuthService {
       avatarUrl: user.avatarUrl,
       role: user.role,
       isLeader: user.isLeader,
+      isSupport: user.isSupport, 
       area: user.area,
       leaderId: user.leaderId,
       leaderName: user.leader?.name,
@@ -686,6 +698,10 @@ export class AuthService {
           module: permission.module,
           actions: permission.actions,
         })),
+      office: user.office,
+      birthDate: user.birthDate,
+      phone: user.phone,
+      legalEntity: user.legalEntity,
     });
 
     return tokens;

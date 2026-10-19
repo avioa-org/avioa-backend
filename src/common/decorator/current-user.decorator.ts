@@ -9,6 +9,7 @@ export interface ICurrentUser {
   avatar: string | null;
   role: Role;
   isLeader: boolean;
+  isSupport: boolean;
   status: UserStatus;
   area: string | null;
   department: string | null;

@@ -24,6 +24,7 @@ import { ModulePermissionGuard } from 'src/common/guards/module-permission.guard
 import { RequireModule } from 'src/common/decorator/modules-permission.decorator';
 import { Modules } from 'src/common/enum/modules.enum';
 import { ValidateCompensatedLeaveDto } from './dto/validate-compensated-leave.dto';
+import { ActiveLeavesQueryDto } from './dto/active-leaves-query.dto';
 import { MarkNotTakenDto } from './dto/mark-not-taken.dto';
 
 @Controller('leaves')
@@ -44,6 +45,11 @@ export class LeavesController {
     @Query() query: LeaveQueryDto,
   ) {
     return this.leavesService.findMyRequests(userId, query);
+  }
+
+  @Get('active')
+  findActiveToday(@Query() query: ActiveLeavesQueryDto) {
+    return this.leavesService.findActiveToday(query);
   }
 
   @Get('my/balance')
@@ -94,7 +100,7 @@ export class LeavesController {
   }
 
   @Patch(':id/mark-not-taken')
-  @RequireModule(Modules.LEAVES_HR_VALIDATION)
+  @RequireModule(Modules.LEAVE_MARK_NOT_TAKEN)
   markNotTaken(
     @Param('id') id: string,
     @Body() dto: MarkNotTakenDto,
@@ -104,7 +110,7 @@ export class LeavesController {
   }
 
   @Patch(':id/revert-not-taken')
-  @RequireModule(Modules.LEAVES_HR_VALIDATION)
+  @RequireModule(Modules.LEAVE_MARK_NOT_TAKEN)
   revertNotTaken(@Param('id') id: string) {
     return this.leavesService.revertNotTaken(id);
   }

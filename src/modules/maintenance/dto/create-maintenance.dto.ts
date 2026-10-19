@@ -1,14 +1,31 @@
-import { IsString, IsNotEmpty, IsOptional, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsEnum,
+  MaxLength,
+} from 'class-validator';
+import { MaintenanceRequestType } from 'generated/prisma/enums';
 
 export class CreateMaintenanceDto {
-  @IsString()
+  @IsEnum(MaintenanceRequestType)
   @IsNotEmpty()
-  equipmentId!: string;
+  requestType!: MaintenanceRequestType;
 
+  // Requerido si requestType = EQUIPMENT
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
+  equipmentId?: string;
+
+  // Requerido si requestType = GENERAL
+  @IsOptional()
+  @IsString()
+  locationId?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(200)
-  reason!: string;
+  reason?: string;
 
   @IsOptional()
   @IsString()

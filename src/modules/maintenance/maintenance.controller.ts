@@ -49,8 +49,19 @@ export class MaintenanceController {
   @Get()
   @RequireModule(Modules.MAINTENANCE)
   @HttpCode(HttpStatus.OK)
-  findAll(@Query() query: MaintenanceQueryDto) {
-    return this.service.findAll(query);
+  findAll(
+    @CurrentUser() user: ICurrentUser,
+    @Query() query: MaintenanceQueryDto,
+  ) {
+    return this.service.findAll(
+      {
+        userId: user.userId,
+        role: user.role,
+        isLeader: user.isLeader,
+        isSupport: user.isSupport,
+      },
+      query,
+    );
   }
 
   // VER UNA (cualquier autenticado, pero el service debe validar acceso)
