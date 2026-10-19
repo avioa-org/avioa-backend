@@ -78,24 +78,24 @@ export class EquipmentLoansService {
     return `${day}/${month}/${year}`;
   }
 
-  // ===== BUSCAR USUARIOS POR DOCUMENTO =====
-  private async getSupportUser() {
-    const soporte = await this.prisma.user.findUnique({
-      where: { documentNumber: envs.SOPORTE_DOCUMENT_NUMBER },
-      select: { userId: true, name: true, phone: true },
-    });
+  // 'to sent a whatsapp message to the support team or tech leader when a new loan request is created' but now that thing is out of business rules y tal
+  // private async getSupportUser() {
+  //   const soporte = await this.prisma.user.findUnique({
+  //     where: { documentNumber: envs.SOPORTE_DOCUMENT_NUMBER },
+  //     select: { userId: true, name: true, phone: true },
+  //   });
 
-    if (!soporte) {
-      this.logger.error(
-        `Encargado de soporte no encontrado (documentNumber: ${envs.SOPORTE_DOCUMENT_NUMBER})`,
-      );
-      throw new BadRequestException(
-        'No se encontró un encargado de soporte técnico configurado. Contacta al administrador.',
-      );
-    }
+  //   if (!soporte) {
+  //     this.logger.error(
+  //       `Encargado de soporte no encontrado (documentNumber: ${envs.SOPORTE_DOCUMENT_NUMBER})`,
+  //     );
+  //     throw new BadRequestException(
+  //       'No se encontró un encargado de soporte técnico configurado. Contacta al administrador.',
+  //     );
+  //   }
 
-    return soporte;
-  }
+  //   return soporte;
+  // }
 
   private async getTechLeaderUser() {
     const lider = await this.prisma.user.findUnique({
@@ -197,33 +197,6 @@ export class EquipmentLoansService {
     );
 
     try {
-      // ===== CASO 1: PERIFÉRICO -> SOPORTE TÉCNICO =====
-      if (esPeriferico) {
-        const soporteUser = await this.getSupportUser();
-
-        if (!soporteUser.phone) {
-          this.logger.warn(
-            `Encargado de soporte ${soporteUser.name} no tiene teléfono registrado. No se envía WhatsApp.`,
-          );
-          return;
-        }
-
-        const phoneNormalizado = this.normalizePhone(soporteUser.phone);
-        const ok = await this.evolutionApi.enviarMensaje(
-          mensaje,
-          phoneNormalizado,
-        );
-
-        if (ok) {
-          this.logger.log(
-            `WhatsApp de periférico enviado a soporte (${phoneNormalizado})`,
-          );
-        } else {
-          this.logger.warn('Falló el envío de WhatsApp a soporte técnico');
-        }
-        return;
-      }
-
       // ===== CASO 2: EQUIPO IMPORTANTE -> LÍDER DE TECNOLOGÍA =====
       const liderTecnologia = await this.getTechLeaderUser();
 
@@ -607,7 +580,7 @@ export class EquipmentLoansService {
         loans: {
           some: {
             userId,
-            status: LoanStatus.APPROVED,
+            status: LoanStatus.LOANED,
           },
         },
       },
@@ -616,7 +589,7 @@ export class EquipmentLoansService {
         loans: {
           where: {
             userId,
-            status: LoanStatus.APPROVED,
+            status: LoanStatus.LOANED,
           },
           include: {
             user: true,

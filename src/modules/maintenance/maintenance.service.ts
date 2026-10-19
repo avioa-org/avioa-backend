@@ -7,7 +7,6 @@ import {
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { MaintenanceGateway } from './maintenance.gateway';
 import { EvolutionApiService } from '../../infrastructure/evolution-api/evolution-api.service';
-import { envs } from '../../config/env.config';
 import { CreateMaintenanceDto } from './dto/create-maintenance.dto';
 import { UpdateMaintenanceStatusDto } from './dto/update-maintenance-status.dto';
 import { MaintenanceQueryDto } from './dto/maintenance-query.dto';
@@ -28,61 +27,23 @@ export class MaintenanceService {
     private readonly evolutionApi: EvolutionApiService,
   ) {}
 
-  // ===== HELPERS WHATSAPP =====
-  private normalizePhone(phone: string): string {
-    let cleaned = phone.replace(/[\s\-\(\)\+]/g, '');
-    if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
-    if (!cleaned.startsWith('57')) cleaned = `57${cleaned}`;
-    return cleaned;
-  }
-
-  private formatFecha(date: Date | string): string {
-    const d = new Date(date);
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
-  }
-
-  private buildWhatsAppMessage(
-    solicitante: { name: string; area?: string | null },
-    equipment: { name: string; serialNumber?: string | null; category: string },
-    reason: string,
-    description?: string | null,
-  ): string {
-    const lineas = [
-      '*NUEVA SOLICITUD DE MANTENIMIENTO*',
-      '',
-      `*Solicitante:* ${solicitante.name}`,
-      solicitante.area ? `*Area:* ${solicitante.area}` : '',
-      `*Equipo:* ${equipment.name}`,
-      equipment.serialNumber ? `*Serial:* ${equipment.serialNumber}` : '',
-      `*Categoria:* ${equipment.category}`,
-      `*Motivo:* ${reason}`,
-      description ? `*Detalles:* ${description}` : '',
-      '',
-      'Revisa el portal para gestionar la solicitud.',
-    ];
-    return lineas.filter(Boolean).join('\n');
-  }
-
-  // ===== BUSCAR ENCARGADO DE SOPORTE =====
-  private async getSupportUser() {
-    const soporte = await this.prisma.user.findUnique({
-      where: { documentNumber: envs.SOPORTE_DOCUMENT_NUMBER },
+  // ===== EQUIPO DE TECNOLOGÍA =====
+  private async getEquipoTecnologia() {
+    const equipo = await this.prisma.user.findMany({
+      where: {
+        isSupport: true,
+        status: 'ACTIVE',
+      },
       select: { userId: true, name: true, phone: true },
     });
 
-    if (!soporte) {
-      this.logger.error(
-        `Encargado de soporte no encontrado (documentNumber: ${envs.SOPORTE_DOCUMENT_NUMBER})`,
-      );
-      throw new BadRequestException(
-        'No se encontró un encargado de soporte técnico configurado. Contacta al administrador.',
+    if (equipo.length === 0) {
+      this.logger.warn(
+        'No hay usuarios con isSupport = true. No se notificará a tecnología.',
       );
     }
 
-    return soporte;
+    return equipo;
   }
 
   // ===== CREAR SOLICITUD =====
@@ -128,7 +89,7 @@ export class MaintenanceService {
         const activeLoan = await this.prisma.equipmentLoan.findFirst({
           where: {
             equipmentId: equipment.equipmentId,
-            status: LoanStatus.APPROVED,
+            status: LoanStatus.LOANED,
           },
           select: { userId: true },
         });
@@ -177,8 +138,8 @@ export class MaintenanceService {
       );
     }
 
-    // Buscar al encargado de soporte
-    const soporte = await this.getSupportUser();
+    // Buscar a todo el equipo de tecnología
+    const equipoTech = await this.getEquipoTecnologia();
 
     // Obtener datos del solicitante
     solicitante = await this.prisma.user.findUnique({
@@ -254,8 +215,8 @@ export class MaintenanceService {
       this.logger.error('Error notificando al creador:', error);
     }
 
-    // Al encargado de soporte (BD + WebSocket)
-    try {
+    // A todo el equipo de tecnología (BD + WebSocket, uno por usuario)
+    if (equipoTech.length > 0) {
       const tituloNotif =
         dto.requestType === MaintenanceRequestType.EQUIPMENT
           ? 'Nueva solicitud de mantenimiento'
@@ -266,58 +227,37 @@ export class MaintenanceService {
           ? `${solicitante.name} solicita revisión de "${equipment.name}"`
           : `${solicitante.name} reporta un problema en "${location.name}"`;
 
-      await this.prisma.notification.create({
-        data: {
-          userId: soporte.userId,
-          title: tituloNotif,
-          message: mensajeNotif,
-          type: 'MAINTENANCE_REQUEST' as any,
-        },
-      });
-
-      await this.gateway.notifySupportNewRequest(soporte.userId, {
-        maintenanceRequestId: newRequest.maintenanceRequestId,
-        userName: solicitante.name,
-        equipmentName:
-          dto.requestType === MaintenanceRequestType.EQUIPMENT
-            ? equipment.name
-            : location.name,
-        reason: finalReason,
-      });
-    } catch (error) {
-      this.logger.error('Error notificando al encargado de soporte:', error);
-    }
-
-    // WhatsApp al encargado de soporte
-    try {
-      const mensaje = this.buildWhatsAppMessage(
-        { name: solicitante.name, area: solicitante.area },
+      const nombreMostrar =
         dto.requestType === MaintenanceRequestType.EQUIPMENT
-          ? {
-              name: equipment.name,
-              serialNumber: equipment.serialNumber,
-              category: equipment.category,
-            }
-          : {
-              name: `Reporte en ${location.name}`,
-              serialNumber: null,
-              category: 'General',
-            },
-        finalReason,
-        dto.description,
-      );
+          ? equipment.name
+          : location.name;
 
-      if (!soporte.phone) {
-        this.logger.warn(
-          `Encargada de soporte ${soporte.name} no tiene teléfono registrado. No se envía WhatsApp.`,
-        );
-      } else {
-        const numero = this.normalizePhone(soporte.phone);
-        await this.evolutionApi.enviarMensaje(mensaje, numero);
-        this.logger.log('WhatsApp enviado a soporte');
-      }
-    } catch (error) {
-      this.logger.error('Error enviando WhatsApp a soporte:', error);
+      await Promise.all(
+        equipoTech.map(async (tech) => {
+          try {
+            await this.prisma.notification.create({
+              data: {
+                userId: tech.userId,
+                title: tituloNotif,
+                message: mensajeNotif,
+                type: 'MAINTENANCE_REQUEST' as any,
+              },
+            });
+
+            await this.gateway.notifySupportNewRequest(tech.userId, {
+              maintenanceRequestId: newRequest.maintenanceRequestId,
+              userName: solicitante.name,
+              equipmentName: nombreMostrar,
+              reason: finalReason,
+            });
+          } catch (error) {
+            this.logger.error(
+              `Error notificando a tech ${tech.userId}:`,
+              error,
+            );
+          }
+        }),
+      );
     }
 
     return newRequest;
@@ -338,11 +278,29 @@ export class MaintenanceService {
     });
   }
 
-  async findAll(query: MaintenanceQueryDto) {
+  async findAll(
+    user: {
+      userId: string;
+      role: string;
+      isLeader: boolean;
+      isSupport: boolean;
+    },
+    query: MaintenanceQueryDto,
+  ) {
     const where: any = {};
     if (query.status) where.status = query.status;
-    if (query.userId) where.userId = query.userId;
     if (query.equipmentId) where.equipmentId = query.equipmentId;
+
+    const isAdmin = user.role === 'ADMIN';
+    const isTech = user.isSupport === true;
+
+    if (!isAdmin && !isTech) {
+      // Cualquiera que no sea admin o tech solo ve lo suyo
+      where.userId = user.userId;
+    } else if (query.userId) {
+      // Admin/tech pueden filtrar por usuario específico si lo mandan
+      where.userId = query.userId;
+    }
 
     return this.prisma.maintenanceRequest.findMany({
       where,
@@ -390,10 +348,8 @@ export class MaintenanceService {
   ) {
     const request = await this.findOne(id);
 
-    // Validar transiciones
     this.validateStatusTransition(request.status, dto.status);
 
-    // Si se rechaza, debe tener razón
     if (dto.status === MaintenanceStatus.REJECTED && !dto.rejectedReason) {
       throw new BadRequestException(
         'Debes indicar una razón para rechazar la solicitud',
@@ -427,7 +383,6 @@ export class MaintenanceService {
       },
     });
 
-    // ✅ AQUÍ VA EL BLOQUE DEL ESTADO DEL EQUIPO (después del update)
     if (
       request.requestType === MaintenanceRequestType.EQUIPMENT &&
       request.equipmentId &&
@@ -435,16 +390,13 @@ export class MaintenanceService {
         dto.status === MaintenanceStatus.REJECTED ||
         dto.status === MaintenanceStatus.CANCELLED)
     ) {
-      // Verificar si hay un préstamo activo para este equipo
       const activeLoan = await this.prisma.equipmentLoan.findFirst({
         where: {
           equipmentId: request.equipmentId,
-          status: LoanStatus.APPROVED,
+          status: LoanStatus.LOANED,
         },
       });
 
-      // Si hay préstamo activo → LOANED
-      // Si no hay → AVAILABLE
       await this.prisma.equipment.update({
         where: { equipmentId: request.equipmentId },
         data: {
@@ -455,13 +407,11 @@ export class MaintenanceService {
       });
     }
 
-    // Nombre a mostrar (equipo o ubicación según el tipo)
     const nombreMostrar =
       request.requestType === MaintenanceRequestType.EQUIPMENT
         ? updated.equipment?.name || 'Equipo'
         : updated.location?.name || 'Ubicación';
 
-    // Notificación de cambio de estado al creador (BD + WebSocket)
     try {
       await this.prisma.notification.create({
         data: {
@@ -507,21 +457,17 @@ export class MaintenanceService {
       include: { equipment: true, location: true },
     });
 
-    // Liberar equipo solo si es EQUIPMENT
     if (
       request.requestType === MaintenanceRequestType.EQUIPMENT &&
       request.equipmentId
     ) {
-      // Verificar si hay un préstamo activo para este equipo
       const activeLoan = await this.prisma.equipmentLoan.findFirst({
         where: {
           equipmentId: request.equipmentId,
-          status: LoanStatus.APPROVED,
+          status: LoanStatus.LOANED,
         },
       });
 
-      // Si hay préstamo activo → LOANED
-      // Si no → AVAILABLE
       await this.prisma.equipment.update({
         where: { equipmentId: request.equipmentId },
         data: {
@@ -532,7 +478,6 @@ export class MaintenanceService {
       });
     }
 
-    // Notificación WS
     try {
       const nombreMostrar =
         request.requestType === MaintenanceRequestType.EQUIPMENT

@@ -72,7 +72,7 @@ export class EquipmentLoansController {
     return this.service.findOneEquipment(id);
   }
 
-  @Put('equipment/:id')
+  @Patch('equipment/:id')
   @RequireModule(Modules.EQUIPMENT_LOANS)
   @RequireAction('update')
   @HttpCode(HttpStatus.OK)
