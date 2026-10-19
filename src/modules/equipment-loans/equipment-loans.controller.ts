@@ -33,7 +33,7 @@ import {
 import { Modules } from 'src/common/enum/modules.enum';
 
 @Controller('equipment-loans')
-@UseGuards(JwtAuthGuard, ModulePermissionGuard)
+@UseGuards(JwtAuthGuard)
 export class EquipmentLoansController {
   constructor(private readonly service: EquipmentLoansService) {}
 
@@ -54,7 +54,15 @@ export class EquipmentLoansController {
       userId: user.userId,
       role: user.role,
       isLeader: user.isLeader,
+      isSupport: user.isSupport,
     });
+  }
+
+  @Get('equipment/my-loaned')
+  @Roles(Role.EMPLOYEE, Role.LEADER, Role.MANAGER, Role.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  findMyLoanedEquipment(@CurrentUser() user: ICurrentUser) {
+    return this.service.findMyLoanedEquipment(user.userId);
   }
 
   @Get('equipment/:id')
@@ -64,7 +72,7 @@ export class EquipmentLoansController {
     return this.service.findOneEquipment(id);
   }
 
-  @Put('equipment/:id')
+  @Patch('equipment/:id')
   @RequireModule(Modules.EQUIPMENT_LOANS)
   @RequireAction('update')
   @HttpCode(HttpStatus.OK)
@@ -98,11 +106,20 @@ export class EquipmentLoansController {
   @RequireModule(Modules.EQUIPMENT_LOANS)
   @HttpCode(HttpStatus.OK)
   findAllLoans(
+    @CurrentUser() user: ICurrentUser,
     @Query('status') status?: LoanStatus,
     @Query('userId') userId?: string,
     @Query('equipmentId') equipmentId?: string,
   ) {
-    return this.service.findAllLoans({ status, userId, equipmentId });
+    return this.service.findAllLoans(
+      {
+        userId: user.userId,
+        role: user.role,
+        isLeader: user.isLeader,
+        isSupport: user.isSupport,
+      },
+      { status, userId, equipmentId },
+    );
   }
 
   @Get('loans/:id')
@@ -120,7 +137,12 @@ export class EquipmentLoansController {
     @Body('status') status: LoanStatus,
     @CurrentUser() user: ICurrentUser,
   ) {
-    return this.service.updateLoanStatus(id, status, user.userId);
+    return this.service.updateLoanStatus(id, status, {
+      userId: user.userId,
+      role: user.role,
+      isLeader: user.isLeader,
+      isSupport: user.isSupport,
+    });
   }
 
   @Patch('loans/:id/cancel')

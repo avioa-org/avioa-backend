@@ -14,29 +14,31 @@ datasource db {
 }
 
 model MaintenanceRequest {
-  maintenanceRequestId String            @id @default(uuid()) @map("maintenance_request_id")
-  equipmentId          String            @map("equipment_id")
-  userId               String            @map("user_id")
+  maintenanceRequestId String                 @id @default(uuid()) @map("maintenance_request_id")
+  requestType          MaintenanceRequestType @default(EQUIPMENT) @map("request_type")
+  equipmentId          String?                @map("equipment_id")
+  locationId           String?                @map("location_id")
+  userId               String                 @map("user_id")
   reason               String
   description          String?
-  status               MaintenanceStatus @default(PENDING)
-  assignedToId         String?           @map("assigned_to_id")
-  resolvedAt           DateTime?         @map("resolved_at")
-  resolutionNotes      String?           @map("resolution_notes")
-  rejectedReason       String?           @map("rejected_reason")
-  createdAt            DateTime          @default(now()) @map("created_at")
-  updatedAt            DateTime          @updatedAt @map("updated_at")
+  status               MaintenanceStatus       @default(PENDING)
+  assignedToId         String?                @map("assigned_to_id")
+  resolvedAt           DateTime?              @map("resolved_at")
+  resolutionNotes      String?                @map("resolution_notes")
+  rejectedReason       String?                @map("rejected_reason")
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
 
-  equipment          Equipment @relation(fields: [equipmentId], references: [equipmentId], onDelete: Cascade)
-  user               User      @relation("MaintenanceRequester", fields: [userId], references: [userId], onDelete: Cascade)
-  assignedTo         User?     @relation("MaintenanceAssignee", fields: [assignedToId], references: [userId], onDelete: SetNull)
-  location           Location? @relation(fields: [locationLocationId], references: [locationId])
-  locationLocationId String?
+  equipment  Equipment? @relation(fields: [equipmentId], references: [equipmentId], onDelete: SetNull)
+  location   Location?  @relation(fields: [locationId], references: [locationId], onDelete: SetNull)
+  user       User       @relation("MaintenanceRequester", fields: [userId], references: [userId], onDelete: Cascade)
+  assignedTo User?      @relation("MaintenanceAssignee", fields: [assignedToId], references: [userId], onDelete: SetNull)
 
   @@index([userId])
   @@index([equipmentId])
+  @@index([locationId])
   @@index([status])
-  @@index([assignedToId])
+  @@index([requestType])
   @@map("maintenance_requests")
 }
 
@@ -86,11 +88,15 @@ model EquipmentLoan {
   userId          String  @map("user_id")
   approvedById    String? @map("approved_by_id")
   returnedById    String? @map("returned_by_id")
+  leaderApprovedById String? @map("leader_approved_by_id")
+  deliveredById      String? @map("delivered_by_id")
 
   // Fechas
   loanDate           DateTime  @default(now()) @map("loan_date")
   expectedReturnDate DateTime? @map("expected_return_date")
   actualReturnDate   DateTime? @map("actual_return_date")
+  leaderApprovedAt   DateTime? @map("leader_approved_at")
+  deliveredAt        DateTime? @map("delivered_at")
 
   // Motivos
   reason          String?
@@ -104,10 +110,12 @@ model EquipmentLoan {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relaciones
-  equipment  Equipment @relation(fields: [equipmentId], references: [equipmentId])
-  user       User      @relation("EmployeeEquipmentLoans", fields: [userId], references: [userId])
-  approvedBy User?     @relation("ApproverEquipmentLoans", fields: [approvedById], references: [userId])
-  returnedBy User?     @relation("ReturnerEquipmentLoans", fields: [returnedById], references: [userId])
+  equipment         Equipment @relation(fields: [equipmentId], references: [equipmentId])
+  user              User      @relation("EmployeeEquipmentLoans", fields: [userId], references: [userId])
+  approvedBy        User?     @relation("ApproverEquipmentLoans", fields: [approvedById], references: [userId])
+  returnedBy        User?     @relation("ReturnerEquipmentLoans", fields: [returnedById], references: [userId])
+  leaderApprovedBy  User?     @relation("LeaderApproverEquipmentLoans", fields: [leaderApprovedById], references: [userId])
+  deliveredBy       User?     @relation("DelivererEquipmentLoans", fields: [deliveredById], references: [userId])
 
   @@index([userId])
   @@index([equipmentId])
@@ -208,6 +216,7 @@ model User {
   status             UserStatus @default(ACTIVE)
   address            String?    @map("address")
   mustChangePassword Boolean    @default(true) @map("must_change_password")
+  isSupport Boolean @default(false) @map("is_support")
 
   //Info laboral
   department String?   @map("department") // Tecnologia, RRHH
@@ -284,9 +293,11 @@ model User {
 
   // Relaciones
 
-  equipmentLoans         EquipmentLoan[] @relation("EmployeeEquipmentLoans")
-  approvedEquipmentLoans EquipmentLoan[] @relation("ApproverEquipmentLoans")
-  returnedEquipmentLoans EquipmentLoan[] @relation("ReturnerEquipmentLoans")
+  equipmentLoans              EquipmentLoan[] @relation("EmployeeEquipmentLoans")
+  approvedEquipmentLoans      EquipmentLoan[] @relation("ApproverEquipmentLoans")
+  returnedEquipmentLoans      EquipmentLoan[] @relation("ReturnerEquipmentLoans")
+  leaderApprovedEquipmentLoans EquipmentLoan[] @relation("LeaderApproverEquipmentLoans")
+  deliveredEquipmentLoans     EquipmentLoan[] @relation("DelivererEquipmentLoans")
 
   maintenanceRequests MaintenanceRequest[] @relation("MaintenanceRequester")
   maintenanceAssigned MaintenanceRequest[] @relation("MaintenanceAssignee")
@@ -1263,4 +1274,10 @@ enum MaintenanceStatus {
   RESOLVED
   REJECTED
   CANCELLED
+}
+
+
+enum MaintenanceRequestType {
+  EQUIPMENT
+  GENERAL
 }
