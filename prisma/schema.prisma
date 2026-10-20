@@ -133,6 +133,7 @@ enum EquipmentCategory {
   MONITOR
   PRINTER
   PROJECTOR
+  PC
   OTHER
 }
 

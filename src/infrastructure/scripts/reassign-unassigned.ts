@@ -272,8 +272,8 @@ async function reassignUnassigned() {
           equipmentId: equipment.equipmentId,
           userId: match.user.userId,
           reason: 'Migración inicial de inventario',
-          observation: `Reasignación post-migración. Nombre original: ${item.assignedToUserName}. Match: ${(match.score * 100).toFixed(0)}%`,
-          status: LoanStatus.APPROVED,
+          status: LoanStatus.LOANED,
+          deliveredAt: new Date(),
         },
       });
 
@@ -282,7 +282,7 @@ async function reassignUnassigned() {
         data: { status: EquipmentStatus.LOANED },
       });
 
-      console.log('Loan creado, equipo → LOANED');
+      console.log('Loan creado como LOANED, equipo → LOANED');
 
       reassigned++;
       reassignedReport.push({

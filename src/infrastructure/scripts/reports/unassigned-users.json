@@ -1,5 +1,5 @@
 {
-  "totalUnassigned": 55,
+  "totalUnassigned": 65,
   "unassigned": [
     {
       "rowIndex": 3,
@@ -18,18 +18,6 @@
       "description": "IPHONE 17E",
       "serialNumber": "FF95X7Y2RY",
       "assignedToUserName": "ANA SOFIA ARISTIZABAL"
-    },
-    {
-      "rowIndex": 16,
-      "description": "IMPRESORA EPSON L375",
-      "serialNumber": "WGTK114216",
-      "assignedToUserName": "ANA SOFIA ARISTIZABAL"
-    },
-    {
-      "rowIndex": 18,
-      "description": "PORTÁTIL ASUS VIVOBOOK",
-      "serialNumber": "TAN0CX02T597448",
-      "assignedToUserName": "CAROL LISETTE JAIMES VERNAL"
     },
     {
       "rowIndex": 19,
@@ -56,27 +44,9 @@
       "assignedToUserName": "CAROLINA ORTEGA"
     },
     {
-      "rowIndex": 23,
-      "description": "IPHONE RX",
-      "serialNumber": "DNPXQ0SUKXK8",
-      "assignedToUserName": "CAROLINA ORTEGA"
-    },
-    {
       "rowIndex": 24,
       "description": "IPHONE 13",
       "serialNumber": "LTWW0306MM",
-      "assignedToUserName": "CAROLINA ORTEGA"
-    },
-    {
-      "rowIndex": 25,
-      "description": "XIAOMI REDMI 15",
-      "serialNumber": "67673/65W905948",
-      "assignedToUserName": "CAROLINA ORTEGA"
-    },
-    {
-      "rowIndex": 26,
-      "description": "XIAOMI REDMI 15",
-      "serialNumber": "67673/65W905909",
       "assignedToUserName": "CAROLINA ORTEGA"
     },
     {
@@ -110,226 +80,316 @@
       "assignedToUserName": "YENNIFER GARCÍA RAMÍREZ"
     },
     {
-      "rowIndex": 74,
+      "rowIndex": 48,
       "description": "PORTÁTIL ASUS VIVOBOOK",
-      "serialNumber": "TAN0CX02T416443",
-      "assignedToUserName": "FELIPE ROJAS CORDOBA"
+      "serialNumber": "TAN0CX02T435446",
+      "assignedToUserName": "JUAN DIEGO"
+    },
+    {
+      "rowIndex": 59,
+      "description": "IPHONE 11",
+      "serialNumber": "FFWJ7BE8N735",
+      "assignedToUserName": "MANUELA CASTAÑO"
     },
     {
       "rowIndex": 75,
-      "description": "XIAOMI REDMI 15",
-      "serialNumber": "67673/66Q703428",
-      "assignedToUserName": "FELIPE ROJAS CORDOBA"
+      "description": "PORTÁTIL ASUS VIVOBOOK",
+      "serialNumber": "TAN0CX02T416443",
+      "assignedToUserName": "GER. FELIPE ROJAS CORDOBA"
     },
     {
-      "rowIndex": 78,
+      "rowIndex": 76,
+      "description": "XIAOMI REDMI 15",
+      "serialNumber": "67673/66Q703428",
+      "assignedToUserName": "GER. FELIPE ROJAS CORDOBA"
+    },
+    {
+      "rowIndex": 79,
       "description": "PORTATIL ASUS VIVOBOOK",
       "serialNumber": "TAN0CX02S481441",
       "assignedToUserName": "JADER GOMEZ GOMEZ"
     },
     {
-      "rowIndex": 79,
+      "rowIndex": 80,
       "description": "XIAOMI REALME NOTE 60X",
       "serialNumber": "0P65906F33205D4B",
       "assignedToUserName": "JADER GOMEZ GOMEZ"
     },
     {
-      "rowIndex": 80,
+      "rowIndex": 81,
       "description": "PORTATIL ASUS VIVOBOOK",
       "serialNumber": "SBN0CV145764489",
       "assignedToUserName": "JENY LORENA VALENCIA BETANCUR"
     },
     {
-      "rowIndex": 81,
+      "rowIndex": 82,
       "description": "XIAOMI REALME NOTA 60X",
       "serialNumber": "OP65919F33203284",
       "assignedToUserName": "JENY LORENA VALENCIA BETANCUR"
     },
     {
-      "rowIndex": 94,
+      "rowIndex": 95,
       "description": "PORTATIL ASUS VIVOBOOK",
       "serialNumber": "S9N0CV07H91837B",
       "assignedToUserName": "JUAN ESTEBAN RAMOS"
     },
     {
-      "rowIndex": 95,
+      "rowIndex": 96,
       "description": "XIAOMI REALME NOTE 60X",
       "serialNumber": "0P65902F32200675",
       "assignedToUserName": "JUAN ESTEBAN RAMOS"
     },
     {
-      "rowIndex": 96,
+      "rowIndex": 97,
       "description": "TODO EN UNO HP",
       "serialNumber": "8CC54527L1",
       "assignedToUserName": "JUAN GUILLERMO HENAO"
     },
     {
-      "rowIndex": 97,
+      "rowIndex": 98,
       "description": "IPHONE 17E",
       "serialNumber": "FF677O6G9N",
       "assignedToUserName": "JUAN GUILLERMO HENAO"
     },
     {
-      "rowIndex": 98,
+      "rowIndex": 99,
       "description": "TODO EN UNO HP",
-      "serialNumber": "21WW2ADD60",
+      "serialNumber": "21WW2AD60",
       "assignedToUserName": "JUAN MANUEL SALAZAR"
     },
     {
-      "rowIndex": 99,
+      "rowIndex": 100,
       "description": "PORTATIL LENOVO",
       "serialNumber": "PF5MWPB4",
       "assignedToUserName": "JUAN MANUEL SALAZAR"
     },
     {
-      "rowIndex": 100,
+      "rowIndex": 101,
       "description": "XIAOMI REDMI NOTE 14",
       "serialNumber": "A6EMSSRG69GESKWK",
       "assignedToUserName": "JUAN MANUEL SALAZAR"
     },
     {
-      "rowIndex": 122,
+      "rowIndex": 123,
       "description": "COMPUTADOR PORTÁTIL ASUS VIVOBOOK",
       "serialNumber": "TCN0CV02D902498",
       "assignedToUserName": "MAGALY ARISTIZABAL"
     },
     {
-      "rowIndex": 123,
+      "rowIndex": 124,
       "description": "IPHONE 14 PLUS",
       "serialNumber": "F3X96H7DWM",
       "assignedToUserName": "MAGALY ARISTIZABAL"
     },
     {
-      "rowIndex": 124,
+      "rowIndex": 125,
       "description": "TODO EN UNO ACER",
       "serialNumber": "DQBJSAL001349005EC6B01",
       "assignedToUserName": "MANUELA CASTAÑO"
     },
     {
-      "rowIndex": 125,
+      "rowIndex": 126,
       "description": "IPHONE 14 PLUS",
       "serialNumber": "FHQQ34H6FY",
       "assignedToUserName": "MANUELA CASTAÑO"
     },
     {
-      "rowIndex": 128,
+      "rowIndex": 129,
       "description": "TODO EN UNO HP",
       "serialNumber": "20WW2BKT60",
       "assignedToUserName": "MARIA CAMILA ZULUAGA"
     },
     {
-      "rowIndex": 129,
+      "rowIndex": 130,
       "description": "IPHONE 12 PRO",
       "serialNumber": "DNPF607X0D8Q",
       "assignedToUserName": "MARIA CAMILA ZULUAGA"
     },
     {
-      "rowIndex": 138,
-      "description": "TODO EN UNO LENOVO",
-      "serialNumber": "7816007000006",
-      "assignedToUserName": "MARIA PAULINA CASTANO ALZATE"
-    },
-    {
-      "rowIndex": 139,
-      "description": "IPHONE 12",
-      "serialNumber": "FFMLW79V0F0Q",
-      "assignedToUserName": "MARIA PAULINA CASTANO ALZATE"
-    },
-    {
-      "rowIndex": 140,
+      "rowIndex": 141,
       "description": "TODO EN UNO LENOVO",
       "serialNumber": "MP2BBXMV",
       "assignedToUserName": "MARIANA QUINTERO ARISTIZABAL"
     },
     {
-      "rowIndex": 141,
+      "rowIndex": 142,
       "description": "XIAOMI REALME NOTA 60X",
       "serialNumber": "64267/W5WD03906",
       "assignedToUserName": "MARIANA QUINTERO ARISTIZABAL"
     },
     {
-      "rowIndex": 161,
+      "rowIndex": 162,
       "description": "TODO EN UNO LENOVO",
       "serialNumber": "MP2AJMN0",
       "assignedToUserName": "PAOLA ANDREA JARAMILLO"
     },
     {
-      "rowIndex": 162,
+      "rowIndex": 163,
       "description": "XIAOMI REDMI 12C",
       "serialNumber": "C6BE9HV4USZDDADU",
       "assignedToUserName": "PAOLA ANDREA JARAMILLO"
     },
     {
-      "rowIndex": 173,
+      "rowIndex": 174,
       "description": "TODO EN UNO ACER",
       "serialNumber": "423000415611",
       "assignedToUserName": "SANDRA YANET MARIN ALZATE"
     },
     {
-      "rowIndex": 174,
+      "rowIndex": 175,
       "description": "PORTATIL ASUS VIVOBOOK",
       "serialNumber": "S5N0CV04Z142199",
       "assignedToUserName": "SANDRA YANET MARIN ALZATE"
     },
     {
-      "rowIndex": 175,
+      "rowIndex": 176,
       "description": "TODO EN UNO LENOVO IDEACENTRE AIO",
       "serialNumber": "MP302T0J",
       "assignedToUserName": "SANDRA YANET MARIN ALZATE"
     },
     {
-      "rowIndex": 176,
+      "rowIndex": 177,
       "description": "IPHONE 17E",
       "serialNumber": "DH243K7DX6",
       "assignedToUserName": "SANDRA YANET MARIN ALZATE"
     },
     {
-      "rowIndex": 177,
+      "rowIndex": 178,
       "description": "DATAFONO",
       "serialNumber": "25BVKU411069",
       "assignedToUserName": "SANDRA YANET MARIN ALZATE"
     },
     {
-      "rowIndex": 180,
-      "description": "TODO EN UNO ASUS",
-      "serialNumber": "R3PTCJ00406610B",
-      "assignedToUserName": "SARA MAYA RIVERA"
-    },
-    {
-      "rowIndex": 181,
+      "rowIndex": 182,
       "description": "SAMSUNG GALAXY A22",
       "serialNumber": "R58T20K6CAP",
-      "assignedToUserName": "SARA MAYA RIVERA"
+      "assignedToUserName": "SANDRA YANET MARIN ALZATE"
     },
     {
-      "rowIndex": 188,
+      "rowIndex": 187,
       "description": "TODO EN UNO ACER",
       "serialNumber": "DQBJSAL001349008266B01",
       "assignedToUserName": "SUSANA TAPIAS"
     },
     {
-      "rowIndex": 189,
+      "rowIndex": 188,
       "description": "IPHONE 12",
       "serialNumber": "FFMLW8FM0F0Q",
       "assignedToUserName": "SUSANA TAPIAS"
     },
     {
-      "rowIndex": 192,
+      "rowIndex": 191,
       "description": "IPHONE 11",
       "serialNumber": "DX4KKJ7UN735",
       "assignedToUserName": "TOMAS MÚNERA HURTADO"
     },
     {
-      "rowIndex": 206,
-      "description": "TODO EN UNO ASUS",
-      "serialNumber": "R8PTCJ00X136350",
-      "assignedToUserName": "YENNI HINCAPIE MONTOYA"
+      "rowIndex": 192,
+      "description": "PORTATIL LENOVO",
+      "serialNumber": "PF62VP7P",
+      "assignedToUserName": "TOMAS JAVIER CABALLEROBEJARANO"
     },
     {
-      "rowIndex": 207,
-      "description": "XIAOMI REALME NOTA 60X",
-      "serialNumber": "0P65906F33205A79",
-      "assignedToUserName": "YENNI HINCAPIE MONTOYA"
+      "rowIndex": 193,
+      "description": "XIAOMI REDMI 15",
+      "serialNumber": "67673/66Q702807",
+      "assignedToUserName": "TOMAS JAVIER CABALLEROBEJARANO"
+    },
+    {
+      "rowIndex": 241,
+      "description": "JBL TUNE 520C",
+      "serialNumber": "MM0268-EP0015209",
+      "assignedToUserName": "JADER DE JESUS GOMEZ GOMEZ"
+    },
+    {
+      "rowIndex": 262,
+      "description": "LOGITECH",
+      "serialNumber": "AVIO-SN-AUD035",
+      "assignedToUserName": "MARIANA QUINTERO ARISTIZABAL"
+    },
+    {
+      "rowIndex": 282,
+      "description": "JBL TUNE 520",
+      "serialNumber": "MM0206-FP1107314",
+      "assignedToUserName": "ALEX SERNA RAMIREZ"
+    },
+    {
+      "rowIndex": 283,
+      "description": "JBL TUNE 520",
+      "serialNumber": "MM0206-FP1104451",
+      "assignedToUserName": "DENIS NATALIA GOMEZ MONTOYA"
+    },
+    {
+      "rowIndex": 286,
+      "description": "JBL TUNE 520",
+      "serialNumber": "MM0206-FP1105809",
+      "assignedToUserName": "MARIA CAMILA ZULUAGA"
+    },
+    {
+      "rowIndex": 287,
+      "description": "JBL TUNE 520",
+      "serialNumber": "MM0206-FP1104773",
+      "assignedToUserName": "JUAN MANUEL SALAZAR"
+    },
+    {
+      "rowIndex": 289,
+      "description": "JBL TUNE 520C",
+      "serialNumber": "MM0268-EP0015368",
+      "assignedToUserName": "TOMAS JAVIER CABALLEROBEJARANO"
+    },
+    {
+      "rowIndex": 290,
+      "description": "JBL TUNE 520C",
+      "serialNumber": "MM0268-EP0015208",
+      "assignedToUserName": "JEINY LORENA VALENCIA"
+    },
+    {
+      "rowIndex": 291,
+      "description": "JBL TUNE 520",
+      "serialNumber": "MM0206-FP1104972",
+      "assignedToUserName": "JUAN ESTEBAN RAMOS"
+    },
+    {
+      "rowIndex": 293,
+      "description": "JBL TUNE 520C",
+      "serialNumber": "MM0268-EP0015334",
+      "assignedToUserName": "MARIA FERNANDA CUELLAR"
+    },
+    {
+      "rowIndex": 300,
+      "description": "BASE - TECLADO Y MOUSE",
+      "serialNumber": "AVIO-SN-COM007",
+      "assignedToUserName": "JADER DE JESUS GOMEZ GOMEZ"
+    },
+    {
+      "rowIndex": 314,
+      "description": "BASE - TECLADO Y MOUSE",
+      "serialNumber": "AVIO-SN-COM021",
+      "assignedToUserName": "NEIDER DARIO JIMÉNEZ MEJÍA"
+    },
+    {
+      "rowIndex": 316,
+      "description": "BASE - TECLADO Y MOUSE",
+      "serialNumber": "AVIO-SN-COM023",
+      "assignedToUserName": "TOMAS JAVIER CABALLEROBEJARANO"
+    },
+    {
+      "rowIndex": 317,
+      "description": "BASE - TECLADO Y MOUSE",
+      "serialNumber": "AVIO-SN-COM024",
+      "assignedToUserName": "JEINY LORENA VALENCIA"
+    },
+    {
+      "rowIndex": 318,
+      "description": "BASE - TECLADO Y MOUSE",
+      "serialNumber": "AVIO-SN-COM025",
+      "assignedToUserName": "JUAN ESTEBAN RAMOS"
+    },
+    {
+      "rowIndex": 320,
+      "description": "BASE - TECLADO Y MOUSE",
+      "serialNumber": "AVIO-SN-COM027",
+      "assignedToUserName": "MARIA FERNANDA CUELLAR"
     }
   ]
 }

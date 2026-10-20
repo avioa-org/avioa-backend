@@ -1,3 +1,4 @@
+//import equipment
 import 'dotenv/config';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -163,8 +164,9 @@ async function importEquipment() {
               equipmentId: equipment.equipmentId,
               userId: matchedUser.userId,
               reason: 'Migración inicial de inventario',
-              observation: `Asignado desde Excel. Nombre original: ${row.assignedToRaw}`,
-              status: LoanStatus.APPROVED,
+              // observation: `Asignado desde Excel. Nombre original: ${row.assignedToRaw}`,
+              status: LoanStatus.LOANED,
+              deliveredAt: new Date(),
             },
           });
 
@@ -173,7 +175,6 @@ async function importEquipment() {
             where: { equipmentId: equipment.equipmentId },
             data: { status: EquipmentStatus.LOANED },
           });
-
           console.log(
             `Fila ${row._rowIndex}: ${equipment.name} → ${matchedUser.name}`,
           );
