@@ -192,6 +192,49 @@ model HiloPagoTotal {
   @@map("hilos_pago_total")
 }
 
+model AssistantCheckpoint {
+  threadId          String   @map("thread_id")
+  checkpointNs      String   @default("") @map("checkpoint_ns")
+  checkpointId      String   @map("checkpoint_id")
+  parentCheckpointId String? @map("parent_checkpoint_id")
+  checkpointData    String   @map("checkpoint_data") @db.Text
+  metadataData      String   @map("metadata_data") @db.Text
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@id([threadId, checkpointNs, checkpointId])
+  @@index([threadId, checkpointNs, createdAt])
+  @@map("assistant_checkpoints")
+}
+
+model AssistantCheckpointWrite {
+  threadId     String   @map("thread_id")
+  checkpointNs String   @default("") @map("checkpoint_ns")
+  checkpointId String   @map("checkpoint_id")
+  taskId       String   @map("task_id")
+  writeIndex   Int      @map("write_index")
+  channel      String   @map("channel")
+  valueData    String   @map("value_data") @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@id([threadId, checkpointNs, checkpointId, taskId, writeIndex])
+  @@map("assistant_checkpoint_writes")
+}
+
+model AssistantPendingAction {
+  actionId  String   @id @map("action_id")
+  actorId   String   @map("actor_id")
+  threadId  String   @map("thread_id")
+  payload   Json     @map("payload")
+  summary   String   @db.Text
+  state     String   @default("PENDING")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([actorId, threadId, state])
+  @@index([expiresAt, state])
+  @@map("assistant_pending_actions")
+}
+
 // Tablas para la firmas de documentos
 model Signature {
   signatureId String   @id @default(uuid()) @map("signature_id")

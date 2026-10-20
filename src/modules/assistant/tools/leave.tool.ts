@@ -1,61 +1,51 @@
-import { tool } from '@langchain/core/tools';
+import { ForbiddenException } from '@nestjs/common';
+import { tool, StructuredToolInterface } from '@langchain/core/tools';
 import { z } from 'zod';
 import { LeavesService } from 'src/modules/leaves/leaves.service';
-import { LeaveStatus, LeaveType } from 'generated/prisma/enums';
+import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
+import { LeaveStatus, LeaveType, Role } from 'generated/prisma/enums';
+import type { CreateLeaveDto } from 'src/modules/leaves/dto/create-leave.dto';
+import { ProposeAssistantAction } from '../assistant-action.types';
+
+const requestFilters = z.object({
+  year: z.number().int().min(2000).max(2100).optional(),
+  status: z.nativeEnum(LeaveStatus).optional(),
+  type: z.nativeEnum(LeaveType).optional(),
+});
 
 export function createLeaveTools(
   leaveService: LeavesService,
+  prisma: PrismaService,
   userId: string,
+  role: Role,
   isLeader: boolean,
+  threadId: string,
+  proposeAction: ProposeAssistantAction,
 ) {
-  // CONSULTAS PROPIAS
-  const getMyBalance = tool(
-    async () => {
-      return leaveService.getMyBalance(userId);
-    },
-    {
-      name: 'get_my_vacation_balance',
-      description:
-        'Obtiene el saldo actual de vacaciones del usuario: días acumulados (accrued), tomados (taken), pendientes (pending), disponibles (available) y proyectados (projectedAvailable).',
-      schema: z.object({}),
-    },
-  );
+  const assertTeamAccess = async () => {
+    if (role === Role.ADMIN || role === Role.LEADER || isLeader) return;
+    const permission = await prisma.modulePermission.findFirst({
+      where: { userId, module: 'LEAVES', canAccess: true },
+      select: { modulePermissionId: true },
+    });
+    if (!permission) {
+      throw new ForbiddenException('No tienes permiso para consultar el módulo de ausencias.');
+    }
+  };
 
-  const explainMyBalance = tool(
-    async () => {
-      const balance = await leaveService.getMyBalance(userId);
-
-      return {
-        ...balance,
-        explanationHint:
-          'El saldo se calcula así: días acumulados (proporcional a los días trabajados desde la fecha de ingreso) - días ya tomados (aprobados). ' +
-          'El saldo proyectado resta además las solicitudes pendientes.',
-      };
-    },
-    {
-      name: 'explain_my_vacation_balance',
-      description:
-        'Devuelve el saldo de vacaciones junto con la lógica de cálculo para que puedas explicarle al usuario por qué tiene ese saldo.',
-      schema: z.object({}),
-    },
-  );
+  const getMyBalance = tool(async () => leaveService.getMyBalance(userId), {
+    name: 'get_my_leave_balance',
+    description: 'Consulta el saldo de vacaciones del usuario autenticado.',
+    schema: z.object({}),
+  });
 
   const getMyRequests = tool(
-    async ({
-      year,
-      status,
-      type,
-    }: {
-      year?: number;
-      status?: LeaveStatus;
-      type?: LeaveType;
-    }) => {
+    async ({ year, status, type }) => {
       const requests = await leaveService.findMyRequests(userId, {
         year: year?.toString(),
         status,
         type,
       });
-
       return requests.map((r) => ({
         id: r.leaveRequestId,
         startDate: r.startDate,
@@ -69,214 +59,136 @@ export function createLeaveTools(
     },
     {
       name: 'get_my_leave_requests',
-      description:
-        'Obtiene las solicitudes de vacaciones/permisos del usuario autenticado. Filtra por año, estado o tipo.',
+      description: 'Consulta las solicitudes propias, con filtros opcionales.',
+      schema: requestFilters,
+    },
+  );
+
+  const createLeaveRequest = tool(
+    async (input) => {
+      const isCompensatedVacation =
+        input.type === LeaveType.VACACIONES && input.esCompensada === true;
+      if (input.esCompensada && input.type !== LeaveType.VACACIONES) {
+        throw new Error('Solo las vacaciones pueden ser compensadas.');
+      }
+      if (isCompensatedVacation && !input.compensatedDays) {
+        throw new Error('Indica cuántos días deseas compensar antes de continuar.');
+      }
+      if (
+        !isCompensatedVacation &&
+        (!input.startDate || !input.endDate ||
+          !/^\d{4}-\d{2}-\d{2}$/.test(input.startDate) ||
+          !/^\d{4}-\d{2}-\d{2}$/.test(input.endDate))
+      ) {
+        throw new Error('Indica las fechas de inicio y fin en formato YYYY-MM-DD.');
+      }
+      const dates = isCompensatedVacation
+        ? `${input.compensatedDays} día(s) compensados`
+        : `${input.startDate} al ${input.endDate}`;
+      const action = await proposeAction(
+        userId,
+        threadId,
+        { kind: 'CREATE_LEAVE', input: input as CreateLeaveDto },
+        `Crear solicitud de ${input.type} para ${dates}. Motivo: ${input.reason}`,
+      );
+      return {
+        requiresConfirmation: true,
+        actionId: action.actionId,
+        summary: action.summary,
+        expiresAt: new Date(action.expiresAt).toISOString(),
+      };
+    },
+    {
+      name: 'create_leave_request',
+      description: 'Prepara una solicitud propia. No la crea hasta que el usuario confirme el actionId en la ruta de confirmación.',
       schema: z.object({
-        year: z.number().optional().describe('Año a consultar (ej: 2025)'),
-        status: z
-          .enum([
-            'PENDING',
-            'APPROVED',
-            'REJECTED',
-            'CANCELLED',
-            'PENDING_HR_VALIDATION',
-          ])
-          .optional()
-          .describe('Estado de la solicitud'),
-        type: z
-          .enum(['VACACIONES', 'PERMISO', 'ENFERMEDAD', 'OTRO']) // ajusta a tus LeaveType
-          .optional()
-          .describe('Tipo de solicitud'),
+        type: z.nativeEnum(LeaveType),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+        reason: z.string().min(1).max(500),
+        esCompensada: z.boolean().optional(),
+        compensatedDays: z.number().int().min(1).optional(),
+        startTime: z.string().optional(),
+        endTime: z.string().optional(),
       }),
     },
   );
 
-  const getRequestStatus = tool(
-    async ({ requestId }: { requestId: string }) => {
+  const cancelLeaveRequest = tool(
+    async ({ requestId }) => {
       const request = await leaveService.findOne(requestId, userId);
-      return {
-        id: request.leaveRequestId,
-        startDate: request.startDate,
-        endDate: request.endDate,
-        businessDays: request.businessDays,
-        status: request.status,
-        type: request.type,
-        reason: request.reason,
-        esCompensada: request.esCompensada,
-        leader: request.leader?.name,
-      };
-    },
-    {
-      name: 'get_request_status',
-      description:
-        'Consulta el detalle y estado de una solicitud específica por su ID.',
-      schema: z.object({
-        requestId: z.string().describe('ID de la solicitud (leaveRequestId)'),
-      }),
-    },
-  );
-
-  // Estimación de cuándo podría tomar vacaciones
-  const estimateWhenICanTakeVacation = tool(
-    async ({ desiredDays }: { desiredDays: number }) => {
-      const balance = await leaveService.getMyBalance(userId);
-
-      const available = balance.projectedAvailable ?? balance.available;
-
-      if (available >= desiredDays) {
-        return {
-          canTakeNow: true,
-          available,
-          message: `Tienes ${available} días disponibles. Puedes solicitar ${desiredDays} días ahora mismo.`,
-        };
+      if (request.userId !== userId || request.status !== LeaveStatus.PENDING) {
+        throw new ForbiddenException('Solo puedes cancelar tus propias solicitudes pendientes.');
       }
-
-      // Estimación muy simple: asumimos ~1.25 días hábiles por mes (15/12)
-      const daysNeeded = desiredDays - available;
-      const monthsNeeded = Math.ceil(daysNeeded / 1.25);
-
-      return {
-        canTakeNow: false,
-        available,
-        daysNeeded,
-        estimatedMonths: monthsNeeded,
-        message:
-          `Actualmente tienes ${available} días. Te faltan aproximadamente ${daysNeeded} días. ` +
-          `Si no tomas más vacaciones, podrías acumularlos en unos ${monthsNeeded} meses.`,
-      };
+      const action = await proposeAction(
+        userId,
+        threadId,
+        { kind: 'CANCEL_LEAVE', requestId },
+        `Cancelar solicitud ${requestId} (${request.type}, ${request.startDate.toISOString().slice(0, 10)} al ${request.endDate.toISOString().slice(0, 10)}).`,
+      );
+      return { requiresConfirmation: true, actionId: action.actionId, summary: action.summary };
     },
     {
-      name: 'estimate_when_i_can_take_vacation',
-      description:
-        'Estima aproximadamente cuándo el usuario podría tomar cierta cantidad de días de vacaciones según su saldo actual y la acumulación mensual.',
-      schema: z.object({
-        desiredDays: z
-          .number()
-          .min(1)
-          .describe('Cantidad de días que el usuario quiere tomar'),
-      }),
+      name: 'cancel_leave_request',
+      description: 'Prepara la cancelación de una solicitud propia pendiente; requiere confirmación explícita.',
+      schema: z.object({ requestId: z.string().min(1) }),
     },
   );
 
-  // Crear y cancelar
-
-  const createVacationRequest = tool(
-    async (input: {
-      startDate: string;
-      endDate: string;
-      type?: string;
-      reason?: string;
-      esCompensada?: boolean;
-      compensatedDays?: number;
-      leaderId?: string;
-    }) => {
-      try {
-        const leave = await leaveService.create(userId, {
-          startDate: input.startDate,
-          endDate: input.endDate,
-          type: (input.type as any) ?? 'VACACIONES',
-          reason: input.reason ?? '',
-          esCompensada: input.esCompensada ?? false,
-          compensatedDays: input.compensatedDays,
-          leaderId: input.leaderId,
-        });
-
-        return {
-          success: true,
-          requestId: leave.leaveRequestId,
-          status: leave.status,
-          businessDays: leave.businessDays,
-          message: `Solicitud creada correctamente (${leave.businessDays} días hábiles). Estado: ${leave.status}`,
-        };
-      } catch (error: any) {
-        return {
-          success: false,
-          error: error.message || 'Error al crear la solicitud',
-        };
+  const reviewLeaveRequest = (status: Extract<LeaveStatus, 'APPROVED' | 'REJECTED'>) => tool(
+    async ({ requestId, comment }) => {
+      const request = await prisma.leaveRequest.findUnique({ where: { leaveRequestId: requestId } });
+      if (!request) throw new Error('Solicitud no encontrada.');
+      if (role !== Role.ADMIN && request.leaderId !== userId) {
+        throw new ForbiddenException('Solo el líder asignado o ADMIN puede revisar esta solicitud.');
       }
-    },
-    {
-      name: 'create_vacation_request',
-      description:
-        'Crea una solicitud de vacaciones o permiso. ' +
-        'Requiere startDate y endDate en formato YYYY-MM-DD. ' +
-        'Para vacaciones compensadas usa esCompensada=true y compensatedDays.',
-      schema: z.object({
-        startDate: z.string().describe('Fecha inicio YYYY-MM-DD'),
-        endDate: z.string().describe('Fecha fin YYYY-MM-DD'),
-        type: z
-          .enum(['VACACIONES', 'PERMISO', 'ENFERMEDAD', 'OTRO'])
-          .optional()
-          .describe('Tipo de solicitud (por defecto VACACIONES)'),
-        reason: z.string().optional().describe('Motivo'),
-        esCompensada: z
-          .boolean()
-          .optional()
-          .describe('Si es vacación compensada'),
-        compensatedDays: z
-          .number()
-          .optional()
-          .describe('Días a compensar (solo si esCompensada=true)'),
-        leaderId: z
-          .string()
-          .optional()
-          .describe('ID del líder (opcional, se toma el asignado por defecto)'),
-      }),
-    },
-  );
-
-  const cancelVacationRequest = tool(
-    async ({ requestId }: { requestId: string }) => {
-      try {
-        const result = await leaveService.cancel(requestId, userId);
-        return {
-          success: true,
-          requestId: result.leaveRequestId,
-          status: result.status,
-          message: 'Solicitud cancelada correctamente',
-        };
-      } catch (error: any) {
-        return {
-          success: false,
-          error: error.message || 'No se pudo cancelar la solicitud',
-        };
+      await assertTeamAccess();
+      if (request.status !== LeaveStatus.PENDING) {
+        throw new ForbiddenException('La solicitud ya no está pendiente.');
       }
+      const action = await proposeAction(
+        userId,
+        threadId,
+        { kind: 'REVIEW_LEAVE', requestId, status, comment },
+        `${status === LeaveStatus.APPROVED ? 'Aprobar' : 'Rechazar'} solicitud ${requestId} de ${request.type} (${request.startDate.toISOString().slice(0, 10)} al ${request.endDate.toISOString().slice(0, 10)}).${comment ? ` Comentario: ${comment}` : ''}`,
+      );
+      return { requiresConfirmation: true, actionId: action.actionId, summary: action.summary };
     },
     {
-      name: 'cancel_vacation_request',
-      description:
-        'Cancela una solicitud propia que esté en estado PENDING. Solo se pueden cancelar solicitudes pendientes.',
-      schema: z.object({
-        requestId: z.string().describe('ID de la solicitud a cancelar'),
-      }),
+      name: status === LeaveStatus.APPROVED ? 'approve_leave_request' : 'reject_leave_request',
+      description: `Prepara la revisión de una solicitud pendiente con estado ${status}; requiere confirmación explícita.`,
+      schema: z.object({ requestId: z.string().min(1), comment: z.string().max(500).optional() }),
     },
   );
 
-  // Tools exclusivas de líder
+  const getTeam = tool(
+    async () => {
+      await assertTeamAccess();
+      const members = await prisma.user.findMany({
+        where: { leaderId: userId, status: 'ACTIVE' },
+        select: { userId: true, name: true, position: true, department: true },
+        orderBy: { name: 'asc' },
+      });
+      return members;
+    },
+    {
+      name: 'get_my_team',
+      description:
+        'Lista los colaboradores asignados directamente al líder autenticado.',
+      schema: z.object({}),
+    },
+  );
+
   const getTeamRequests = tool(
-    async ({
-      year,
-      status,
-      employeeId,
-    }: {
-      year?: number;
-      status?: LeaveStatus;
-      employeeId?: string;
-    }) => {
-      if (!isLeader) {
-        return {
-          error: 'No tienes permisos de líder para consultar el equipo.',
-        };
-      }
-
+    async ({ year, status, type }) => {
+      await assertTeamAccess();
       const requests = await leaveService.findTeamRequests(userId, {
         year: year?.toString(),
         status,
-        employeeId,
+        type,
       });
-
       return requests.map((r) => ({
-        id: r.leaveRequestId ?? r.userId,
+        id: r.leaveRequestId,
         employeeName: r.user?.name,
         employeeId: r.userId,
         startDate: r.startDate,
@@ -288,40 +200,141 @@ export function createLeaveTools(
     },
     {
       name: 'get_team_leave_requests',
+      description: 'Consulta solicitudes asociadas al líder autenticado.',
+      schema: requestFilters,
+    },
+  );
+
+  const getTeamAbsences = tool(
+    async ({ from, to }) => {
+      await assertTeamAccess();
+      const start = new Date(`${from}T00:00:00`);
+      const end = new Date(`${to}T23:59:59.999`);
+      if (
+        !Number.isFinite(start.getTime()) ||
+        !Number.isFinite(end.getTime()) ||
+        end < start
+      ) {
+        throw new Error('El rango de fechas no es válido.');
+      }
+      const rows = await prisma.leaveRequest.findMany({
+        where: {
+          leaderId: userId,
+          status: LeaveStatus.APPROVED,
+          startDate: { lte: end },
+          endDate: { gte: start },
+        },
+        select: {
+          leaveRequestId: true,
+          user: { select: { name: true } },
+          startDate: true,
+          endDate: true,
+          type: true,
+        },
+        orderBy: { startDate: 'asc' },
+      });
+      return rows;
+    },
+    {
+      name: 'get_team_absences',
       description:
-        'SOLO líderes. Obtiene las solicitudes de vacaciones del equipo. Útil para ver quién está de vacaciones, solapamientos, solicitudes pendientes del equipo, etc.',
+        'Consulta ausencias aprobadas del equipo en un rango de fechas.',
       schema: z.object({
-        year: z.number().optional().describe('Año'),
-        status: z
-          .enum([
-            'PENDING',
-            'APPROVED',
-            'REJECTED',
-            'CANCELLED',
-            'PENDING_HR_VALIDATION',
-          ])
-          .optional(),
-        employeeId: z
-          .string()
-          .optional()
-          .describe('Filtrar por un empleado específico'),
+        from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       }),
     },
   );
 
-  const tools: any[] = [
+  const getTeamBalances = tool(
+    async () => {
+      await assertTeamAccess();
+      const members = await prisma.user.findMany({
+        where: { leaderId: userId, status: 'ACTIVE' },
+        select: {
+          userId: true,
+          name: true,
+          startDate: true,
+          vacationDaysAdjustment: true,
+        },
+        orderBy: { name: 'asc' },
+      });
+      return Promise.all(
+        members.map(async (member) => ({
+          employeeName: member.name,
+          balance: await leaveService.getMyBalance(member.userId),
+        })),
+      );
+    },
+    {
+      name: 'get_team_leave_balances',
+      description:
+        'Consulta los saldos de vacaciones de colaboradores asignados directamente al líder.',
+      schema: z.object({}),
+    },
+  );
+
+  const getTeamStatistics = tool(
+    async ({ year }) => {
+      await assertTeamAccess();
+      const yearStart = new Date(year, 0, 1);
+      const yearEnd = new Date(year + 1, 0, 1);
+      const [members, grouped] = await Promise.all([
+        prisma.user.count({ where: { leaderId: userId, status: 'ACTIVE' } }),
+        prisma.leaveRequest.groupBy({
+          by: ['status'],
+          where: {
+            leaderId: userId,
+            startDate: { gte: yearStart, lt: yearEnd },
+          },
+          _count: { _all: true },
+          _sum: { businessDays: true },
+        }),
+      ]);
+      return {
+        year,
+        teamSize: members,
+        requestsByStatus: grouped.map((row) => ({
+          status: row.status,
+          requests: row._count._all,
+          businessDays: row._sum.businessDays ?? 0,
+        })),
+      };
+    },
+    {
+      name: 'get_team_leave_statistics',
+      description:
+        'Resume cantidad de solicitudes y días por estado para el equipo del líder.',
+      schema: z.object({ year: z.number().int().min(2000).max(2100) }),
+    },
+  );
+
+  const tools: StructuredToolInterface[] = [
     getMyBalance,
-    explainMyBalance,
     getMyRequests,
-    getRequestStatus,
-    estimateWhenICanTakeVacation,
-    createVacationRequest,
-    cancelVacationRequest,
+    createLeaveRequest,
+    cancelLeaveRequest,
   ];
 
-  if (isLeader) {
-    tools.push(getTeamRequests);
+  if (
+    role === Role.LEADER ||
+    role === Role.MANAGER ||
+    role === Role.ADMIN ||
+    isLeader
+  ) {
+    tools.push(
+      getTeam,
+      getTeamRequests,
+      getTeamAbsences,
+      getTeamBalances,
+      getTeamStatistics,
+    );
   }
-
+  if (role === Role.LEADER || role === Role.ADMIN || isLeader) {
+    tools.push(
+      reviewLeaveRequest(LeaveStatus.APPROVED),
+      reviewLeaveRequest(LeaveStatus.REJECTED),
+    );
+  }
   return tools;
 }
