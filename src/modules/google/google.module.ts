@@ -21,5 +21,6 @@ import { PagoHotelInmediatoProcessor } from './gmail/processors/pago-hotel.proce
     BullModule.registerQueue({ name: 'hotel-payment-alerts' }),
     HttpModule,
   ],
+  exports: [GoogleService, GmailService],
 })
 export class GoogleModule {}

@@ -13,6 +13,49 @@ datasource db {
   provider = "postgresql"
 }
 
+model TransferRequest {
+  transferRequestId String                @id @default(uuid()) @map("transfer_request_id")
+  userId            String                @map("user_id")
+  payload           Json
+  status            TransferRequestStatus @default(PENDING)
+  version           Int                   @default(1)
+  events            TransferRequestEvent[]
+  emailDeliveries   TransferEmailDelivery[]
+  whatsappDeliveries TransferWhatsAppDelivery[]
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("transfer_requests")
+}
+
+
+model TransferRequestEvent {
+  eventId           String          @id @default(uuid()) @map("event_id")
+  transferRequestId String          @map("transfer_request_id")
+  action            String
+  createdAt         DateTime        @default(now()) @map("created_at")
+  request           TransferRequest @relation(fields: [transferRequestId], references: [transferRequestId], onDelete: Cascade)
+
+  @@index([transferRequestId, createdAt])
+  @@map("transfer_request_events")
+}
+
+model TransferProvider {
+  providerId  String                  @id @default(uuid()) @map("provider_id")
+  destination TransferDestination
+  name        String
+  channel     TransferProviderChannel
+  contact     String
+  isActive    Boolean                 @default(true) @map("is_active")
+  createdAt   DateTime                @default(now()) @map("created_at")
+  updatedAt   DateTime                @updatedAt @map("updated_at")
+
+  @@index([destination, isActive])
+  @@map("transfer_providers")
+}
 model MaintenanceRequest {
   maintenanceRequestId String                 @id @default(uuid()) @map("maintenance_request_id")
   requestType          MaintenanceRequestType @default(EQUIPMENT) @map("request_type")
@@ -301,6 +344,9 @@ model User {
   deliveredEquipmentLoans     EquipmentLoan[] @relation("DelivererEquipmentLoans")
 
   maintenanceRequests MaintenanceRequest[] @relation("MaintenanceRequester")
+  transferRequests TransferRequest[]
+  transferGmailConnection TransferGmailConnection?
+  transferGmailOAuthStates TransferGmailOAuthState[]
   maintenanceAssigned MaintenanceRequest[] @relation("MaintenanceAssignee")
 
   signature Signature? @relation(fields: [signatureId], references: [signatureId])
@@ -1268,6 +1314,26 @@ enum PasswordStrengthLevel {
   VERY_STRONG
 }
 
+enum TransferDestination {
+  CARTAGENA
+  SANTA_MARTA
+  SAN_ANDRES
+  PALOMINO
+  BARU
+}
+
+enum TransferProviderChannel {
+  EMAIL
+  WHATSAPP
+}
+
+enum TransferRequestStatus {
+  PENDING
+  IN_PROGRESS
+  CONFIRMED
+  CANCELLED
+}
+
 enum MaintenanceStatus {
   PENDING
   IN_REVIEW
@@ -1281,4 +1347,61 @@ enum MaintenanceStatus {
 enum MaintenanceRequestType {
   EQUIPMENT
   GENERAL
+}
+model TransferGmailConnection {
+  userId String @id @map("user_id")
+  email String
+  encryptedRefreshToken String @map("encrypted_refresh_token")
+  refreshTokenIv String @map("refresh_token_iv")
+  refreshTokenTag String @map("refresh_token_tag")
+  status String @default("CONNECTED")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  @@map("transfer_gmail_connections")
+}
+model TransferGmailOAuthState {
+  stateHash String @id @map("state_hash")
+  userId String @map("user_id")
+  verifier String
+  returnTo String @default("/transfers") @map("return_to")
+  expiresAt DateTime @map("expires_at")
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  @@index([expiresAt])
+  @@map("transfer_gmail_oauth_states")
+}
+model TransferEmailDelivery {
+  deliveryId String @id @default(uuid()) @map("delivery_id")
+  transferRequestId String @map("transfer_request_id")
+  version Int
+  previewHash String @map("preview_hash")
+  sender String
+  recipients String
+  status String
+  providerMessageId String? @map("provider_message_id")
+  error String?
+  attempt Int @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  request TransferRequest @relation(fields: [transferRequestId], references: [transferRequestId], onDelete: Cascade)
+  @@unique([transferRequestId, version])
+  @@index([transferRequestId, createdAt])
+  @@map("transfer_email_deliveries")
+}
+model TransferWhatsAppDelivery {
+  deliveryId String @id @default(uuid()) @map("delivery_id")
+  transferRequestId String @map("transfer_request_id")
+  version Int
+  previewHash String @map("preview_hash")
+  instance String
+  number String
+  status String
+  providerMessageId String? @map("provider_message_id")
+  error String?
+  attempt Int @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  request TransferRequest @relation(fields: [transferRequestId], references: [transferRequestId], onDelete: Cascade)
+  @@unique([transferRequestId, version])
+  @@index([transferRequestId, createdAt])
+  @@map("transfer_whatsapp_deliveries")
 }
