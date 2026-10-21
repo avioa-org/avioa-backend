@@ -93,7 +93,21 @@ export class EquipmentLoansController {
   @Post('loans')
   @HttpCode(HttpStatus.CREATED)
   createLoan(@CurrentUser() user: ICurrentUser, @Body() dto: LoanDto) {
-    return this.service.createLoan(user.userId, dto);
+    return this.service.createLoan(
+      {
+        userId: user.userId,
+        role: user.role,
+        isLeader: user.isLeader,
+        isSupport: user.isSupport,
+      },
+      dto,
+    );
+  }
+
+  @Get('my-team')
+  @HttpCode(HttpStatus.OK)
+  findMyTeam(@CurrentUser() user: ICurrentUser) {
+    return this.service.findMyTeam(user.userId);
   }
 
   @Get('loans/my')
