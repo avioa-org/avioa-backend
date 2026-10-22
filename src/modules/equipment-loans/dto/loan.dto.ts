@@ -1,4 +1,5 @@
 import {
+  IsEnum,
   IsOptional,
   IsString,
   IsDateString,
@@ -35,4 +36,13 @@ export class LoanDto {
   @IsOptional()
   @IsUUID()
   targetUserId?: string;
+}
+
+export class UpdateLoanStatusDto {
+  @IsEnum(LoanStatus)
+  status!: LoanStatus;
+
+  @IsOptional()
+  @IsString()
+  rejectionReason?: string;
 }

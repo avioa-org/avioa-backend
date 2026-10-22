@@ -754,7 +754,7 @@ export class EquipmentLoansService {
 
   async updateLoanStatus(
     id: string,
-    status: LoanStatus,
+    dto: { status: LoanStatus; rejectionReason?: string },
     user: {
       userId: string;
       role: string;
@@ -762,6 +762,7 @@ export class EquipmentLoansService {
       isSupport: boolean;
     },
   ) {
+    const { status, rejectionReason } = dto;
     const loan = await this.findOneLoan(id);
 
     const isAdmin = user.role === 'ADMIN';
@@ -825,7 +826,15 @@ export class EquipmentLoansService {
     // ===== CONSTRUIR EL UPDATE =====
 
     const updateData: any = { status };
-
+    // Validación de motivo de rechazo
+    if (status === LoanStatus.REJECTED) {
+      if (!rejectionReason || !rejectionReason.trim()) {
+        throw new BadRequestException(
+          'Debes indicar un motivo para rechazar la solicitud',
+        );
+      }
+      updateData.rejectionReason = rejectionReason.trim();
+    }
     // PENDING -> APPROVED (aprobación del líder, o tecnología si no hay líder)
     if (loan.status === LoanStatus.PENDING && status === LoanStatus.APPROVED) {
       updateData.leaderApprovedById = user.userId;

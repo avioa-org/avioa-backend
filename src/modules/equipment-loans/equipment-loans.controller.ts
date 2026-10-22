@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { EquipmentLoansService } from './equipment-loans.service';
 import { EquipmentDto } from './dto/equipment.dto';
-import { LoanDto, LoanStatus } from './dto/loan.dto';
+import { LoanDto, LoanStatus, UpdateLoanStatusDto } from './dto/loan.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from '../auth/decorator/roles.decorator';
@@ -148,10 +148,10 @@ export class EquipmentLoansController {
   @HttpCode(HttpStatus.OK)
   updateLoanStatus(
     @Param('id') id: string,
-    @Body('status') status: LoanStatus,
+    @Body() dto: UpdateLoanStatusDto,
     @CurrentUser() user: ICurrentUser,
   ) {
-    return this.service.updateLoanStatus(id, status, {
+    return this.service.updateLoanStatus(id, dto, {
       userId: user.userId,
       role: user.role,
       isLeader: user.isLeader,
