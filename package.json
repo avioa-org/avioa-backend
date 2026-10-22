@@ -66,6 +66,7 @@
     "nestjs-form-data": "^11.0.1",
     "openai": "^6.33.0",
     "otplib": "^13.4.1",
+    "pdf-lib": "^1.17.1",
     "pizzip": "^3.3.0",
     "reflect-metadata": "^0.2.2",
     "resend": "^6.12.2",

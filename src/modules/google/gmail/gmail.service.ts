@@ -1,6 +1,7 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { Queue } from 'bullmq';
+import { OAuth2Client } from 'google-auth-library';
 import { google } from 'googleapis';
 import { envs } from 'src/config/env.config';
 import { EvolutionApiService } from 'src/infrastructure/evolution-api/evolution-api.service';
@@ -48,6 +49,26 @@ export class GmailService {
     this.gmail = google.gmail({
       version: 'v1',
       auth,
+    });
+  }
+
+  async sendMessage(
+    auth: OAuth2Client,
+    recipients: string[],
+    subject: string,
+    text: string,
+  ) {
+    const mime =
+      'To: ' +
+      recipients.join(', ') +
+      '\r\nSubject: =?UTF-8?B?' +
+      Buffer.from(subject).toString('base64') +
+      '?=\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset="UTF-8"\r\nContent-Transfer-Encoding: base64\r\n\r\n' +
+      Buffer.from(text).toString('base64');
+
+    return google.gmail({ version: 'v1', auth }).users.messages.send({
+      userId: 'me',
+      requestBody: { raw: Buffer.from(mime).toString('base64url') },
     });
   }
 

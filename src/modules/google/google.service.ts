@@ -9,14 +9,16 @@ export class GoogleService {
 
   constructor(private readonly gmailService: GmailService) {}
 
-  private async getAuthClient() {
-    const auth = new google.auth.OAuth2(
+  createOAuthClient(redirectUri = envs.GOOGLE_REDIRECT_URI) {
+    return new google.auth.OAuth2(
       envs.GOOGLE_CLIENT_ID,
       envs.GOOGLE_CLIENT_SECRET,
-      envs.GOOGLE_REDIRECT_URI,
+      redirectUri,
     );
+  }
 
-    return auth;
+  private async getAuthClient() {
+    return this.createOAuthClient();
   }
 
   async getGoogleAuthUrl() {
