@@ -671,13 +671,29 @@ export class EquipmentLoansService {
     const isLeader = user.role === 'LEADER' || user.isLeader === true;
 
     if (isAdmin) {
-      // Admin ve todo, sin restricción
+      // Admin ve todo
+      if (filters?.userId) where.userId = filters.userId;
+    } else if (isTech && isLeader) {
+      // Tech + Líder: ve lo que vería tech MÁS los PENDING de sus subordinados
+      where.OR = [
+        // Todo lo que ve tech (excepto PENDING de empleados con líder)
+        {
+          NOT: {
+            AND: [
+              { status: LoanStatus.PENDING },
+              { user: { leaderId: { not: null } } },
+            ],
+          },
+        },
+        // MÁS los PENDING de sus subordinados
+        {
+          status: LoanStatus.PENDING,
+          user: { leaderId: user.userId },
+        },
+      ];
       if (filters?.userId) where.userId = filters.userId;
     } else if (isTech) {
-      // Tecnología ve:
-      //   - Todas las solicitudes que ya pasaron por el líder (no están en PENDING)
-      //   - Las solicitudes en PENDING de empleados sin líder (van directo a tech)
-      // NO ve las solicitudes en PENDING de empleados que tienen líder asignado.
+      // Solo tech: ve todo excepto PENDING de empleados con líder
       where.NOT = {
         AND: [
           { status: LoanStatus.PENDING },
@@ -686,12 +702,13 @@ export class EquipmentLoansService {
       };
       if (filters?.userId) where.userId = filters.userId;
     } else if (isLeader) {
-      // Líder ve las suyas y las de sus subordinados directos
+      // Solo líder: ve sus propios loans y los de sus subordinados
       where.OR = [{ userId: user.userId }, { user: { leaderId: user.userId } }];
     } else {
-      // Empleado normal solo ve las suyas
+      // Empleado normal: solo sus propios loans
       where.userId = user.userId;
     }
+
     return this.prisma.equipmentLoan.findMany({
       where,
       include: {
