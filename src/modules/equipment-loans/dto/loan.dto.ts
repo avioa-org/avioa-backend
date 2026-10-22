@@ -1,8 +1,10 @@
 import {
+  IsEnum,
   IsOptional,
   IsString,
   IsDateString,
   IsNotEmpty,
+  IsUUID,
 } from 'class-validator';
 
 export enum LoanStatus {
@@ -30,4 +32,17 @@ export class LoanDto {
   @IsOptional()
   @IsDateString()
   expectedReturnDate?: string;
+
+  @IsOptional()
+  @IsUUID()
+  targetUserId?: string;
+}
+
+export class UpdateLoanStatusDto {
+  @IsEnum(LoanStatus)
+  status!: LoanStatus;
+
+  @IsOptional()
+  @IsString()
+  rejectionReason?: string;
 }
