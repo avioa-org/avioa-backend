@@ -32,6 +32,8 @@ import { NominaModule } from './modules/nomina/nomina.module';
 import { BirthdaysModule } from './modules/birthdays/birthdays.module';
 import { CertificadosModule } from './modules/certificados/certificados.module';
 import { VuelosModule } from './modules/vuelos/vuelos.module';
+import { TransfersModule } from './modules/transfers/transfers.module';
+import { AuxiliaryModule } from './modules/auxiliary/auxiliary.module';
 
 @Module({
   imports: [
@@ -74,6 +76,8 @@ import { VuelosModule } from './modules/vuelos/vuelos.module';
     BirthdaysModule,
     CertificadosModule,
     VuelosModule,
+    TransfersModule,
+    AuxiliaryModule,
   ],
   controllers: [],
   providers: [

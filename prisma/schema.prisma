@@ -13,6 +13,49 @@ datasource db {
   provider = "postgresql"
 }
 
+model TransferRequest {
+  transferRequestId  String                     @id @default(uuid()) @map("transfer_request_id")
+  userId             String                     @map("user_id")
+  payload            Json
+  status             TransferRequestStatus      @default(PENDING)
+  version            Int                        @default(1)
+  events             TransferRequestEvent[]
+  emailDeliveries    TransferEmailDelivery[]
+  whatsappDeliveries TransferWhatsAppDelivery[]
+  createdAt          DateTime                   @default(now()) @map("created_at")
+  updatedAt          DateTime                   @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("transfer_requests")
+}
+
+model TransferRequestEvent {
+  eventId           String          @id @default(uuid()) @map("event_id")
+  transferRequestId String          @map("transfer_request_id")
+  action            String
+  createdAt         DateTime        @default(now()) @map("created_at")
+  request           TransferRequest @relation(fields: [transferRequestId], references: [transferRequestId], onDelete: Cascade)
+
+  @@index([transferRequestId, createdAt])
+  @@map("transfer_request_events")
+}
+
+model TransferProvider {
+  providerId  String                  @id @default(uuid()) @map("provider_id")
+  destination TransferDestination
+  name        String
+  channel     TransferProviderChannel
+  contact     String
+  isActive    Boolean                 @default(true) @map("is_active")
+  createdAt   DateTime                @default(now()) @map("created_at")
+  updatedAt   DateTime                @updatedAt @map("updated_at")
+
+  @@index([destination, isActive])
+  @@map("transfer_providers")
+}
+
 model MaintenanceRequest {
   maintenanceRequestId String                 @id @default(uuid()) @map("maintenance_request_id")
   requestType          MaintenanceRequestType @default(EQUIPMENT) @map("request_type")
@@ -21,7 +64,7 @@ model MaintenanceRequest {
   userId               String                 @map("user_id")
   reason               String
   description          String?
-  status               MaintenanceStatus       @default(PENDING)
+  status               MaintenanceStatus      @default(PENDING)
   assignedToId         String?                @map("assigned_to_id")
   resolvedAt           DateTime?              @map("resolved_at")
   resolutionNotes      String?                @map("resolution_notes")
@@ -83,11 +126,11 @@ model Location {
 }
 
 model EquipmentLoan {
-  equipmentLoanId String  @id @default(uuid()) @map("equipment_loan_id")
-  equipmentId     String  @map("equipment_id")
-  userId          String  @map("user_id")
-  approvedById    String? @map("approved_by_id")
-  returnedById    String? @map("returned_by_id")
+  equipmentLoanId    String  @id @default(uuid()) @map("equipment_loan_id")
+  equipmentId        String  @map("equipment_id")
+  userId             String  @map("user_id")
+  approvedById       String? @map("approved_by_id")
+  returnedById       String? @map("returned_by_id")
   leaderApprovedById String? @map("leader_approved_by_id")
   deliveredById      String? @map("delivered_by_id")
 
@@ -110,12 +153,12 @@ model EquipmentLoan {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relaciones
-  equipment         Equipment @relation(fields: [equipmentId], references: [equipmentId])
-  user              User      @relation("EmployeeEquipmentLoans", fields: [userId], references: [userId])
-  approvedBy        User?     @relation("ApproverEquipmentLoans", fields: [approvedById], references: [userId])
-  returnedBy        User?     @relation("ReturnerEquipmentLoans", fields: [returnedById], references: [userId])
-  leaderApprovedBy  User?     @relation("LeaderApproverEquipmentLoans", fields: [leaderApprovedById], references: [userId])
-  deliveredBy       User?     @relation("DelivererEquipmentLoans", fields: [deliveredById], references: [userId])
+  equipment        Equipment @relation(fields: [equipmentId], references: [equipmentId])
+  user             User      @relation("EmployeeEquipmentLoans", fields: [userId], references: [userId])
+  approvedBy       User?     @relation("ApproverEquipmentLoans", fields: [approvedById], references: [userId])
+  returnedBy       User?     @relation("ReturnerEquipmentLoans", fields: [returnedById], references: [userId])
+  leaderApprovedBy User?     @relation("LeaderApproverEquipmentLoans", fields: [leaderApprovedById], references: [userId])
+  deliveredBy      User?     @relation("DelivererEquipmentLoans", fields: [deliveredById], references: [userId])
 
   @@index([userId])
   @@index([equipmentId])
@@ -217,7 +260,7 @@ model User {
   status             UserStatus @default(ACTIVE)
   address            String?    @map("address")
   mustChangePassword Boolean    @default(true) @map("must_change_password")
-  isSupport Boolean @default(false) @map("is_support")
+  isSupport          Boolean    @default(false) @map("is_support")
 
   //Info laboral
   department String?   @map("department") // Tecnologia, RRHH
@@ -294,14 +337,17 @@ model User {
 
   // Relaciones
 
-  equipmentLoans              EquipmentLoan[] @relation("EmployeeEquipmentLoans")
-  approvedEquipmentLoans      EquipmentLoan[] @relation("ApproverEquipmentLoans")
-  returnedEquipmentLoans      EquipmentLoan[] @relation("ReturnerEquipmentLoans")
+  equipmentLoans               EquipmentLoan[] @relation("EmployeeEquipmentLoans")
+  approvedEquipmentLoans       EquipmentLoan[] @relation("ApproverEquipmentLoans")
+  returnedEquipmentLoans       EquipmentLoan[] @relation("ReturnerEquipmentLoans")
   leaderApprovedEquipmentLoans EquipmentLoan[] @relation("LeaderApproverEquipmentLoans")
-  deliveredEquipmentLoans     EquipmentLoan[] @relation("DelivererEquipmentLoans")
+  deliveredEquipmentLoans      EquipmentLoan[] @relation("DelivererEquipmentLoans")
 
-  maintenanceRequests MaintenanceRequest[] @relation("MaintenanceRequester")
-  maintenanceAssigned MaintenanceRequest[] @relation("MaintenanceAssignee")
+  maintenanceRequests      MaintenanceRequest[]      @relation("MaintenanceRequester")
+  transferRequests         TransferRequest[]
+  transferGmailConnection  TransferGmailConnection?
+  transferGmailOAuthStates TransferGmailOAuthState[]
+  maintenanceAssigned      MaintenanceRequest[]      @relation("MaintenanceAssignee")
 
   signature Signature? @relation(fields: [signatureId], references: [signatureId])
 
@@ -345,6 +391,7 @@ model User {
   modulePermissions            ModulePermission[]
   hrValidatedLeaves            LeaveRequest[]       @relation("HRValidatorLeave")
   leaveNotTakenBy              LeaveRequest[]       @relation("LeaveNotTakenBy")
+  updatedByAuxiliaryRecord     AuxiliaryRecord[]    @relation("UpdatedByAuxiliaryRecord")
 
   @@map("users")
 }
@@ -1038,6 +1085,24 @@ model CesantiasHistorial {
   createdAt           DateTime         @default(now()) @map("created_at")
 }
 
+model AuxiliaryRecord {
+  auxiliaryRecordId String    @id @default(uuid()) @map("auxiliary_record_id")
+  kind              String
+  reference         String
+  sealed            String
+  state             String
+  revision          Int
+  updatedBy         String    @map("updated_by")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  archivedAt        DateTime? @map("archived_at")
+
+  updatedByAuxiliaryRecord User @relation("UpdatedByAuxiliaryRecord", fields: [updatedBy], references: [userId])
+
+  @@index([kind, archivedAt])
+  @@index([reference])
+  @@map("auxiliary_records")
+}
+
 // ENUMS
 
 // Cesantias
@@ -1268,6 +1333,26 @@ enum PasswordStrengthLevel {
   VERY_STRONG
 }
 
+enum TransferDestination {
+  CARTAGENA
+  SANTA_MARTA
+  SAN_ANDRES
+  PALOMINO
+  BARU
+}
+
+enum TransferProviderChannel {
+  EMAIL
+  WHATSAPP
+}
+
+enum TransferRequestStatus {
+  PENDING
+  IN_PROGRESS
+  CONFIRMED
+  CANCELLED
+}
+
 enum MaintenanceStatus {
   PENDING
   IN_REVIEW
@@ -1277,8 +1362,72 @@ enum MaintenanceStatus {
   CANCELLED
 }
 
-
 enum MaintenanceRequestType {
   EQUIPMENT
   GENERAL
+}
+
+model TransferGmailConnection {
+  userId                String   @id @map("user_id")
+  email                 String
+  encryptedRefreshToken String   @map("encrypted_refresh_token")
+  refreshTokenIv        String   @map("refresh_token_iv")
+  refreshTokenTag       String   @map("refresh_token_tag")
+  status                String   @default("CONNECTED")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  user                  User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("transfer_gmail_connections")
+}
+
+model TransferGmailOAuthState {
+  stateHash String   @id @map("state_hash")
+  userId    String   @map("user_id")
+  verifier  String
+  returnTo  String   @default("/transfers") @map("return_to")
+  expiresAt DateTime @map("expires_at")
+  user      User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("transfer_gmail_oauth_states")
+}
+
+model TransferEmailDelivery {
+  deliveryId        String          @id @default(uuid()) @map("delivery_id")
+  transferRequestId String          @map("transfer_request_id")
+  version           Int
+  previewHash       String          @map("preview_hash")
+  sender            String
+  recipients        String
+  status            String
+  providerMessageId String?         @map("provider_message_id")
+  error             String?
+  attempt           Int             @default(1)
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  request           TransferRequest @relation(fields: [transferRequestId], references: [transferRequestId], onDelete: Cascade)
+
+  @@unique([transferRequestId, version])
+  @@index([transferRequestId, createdAt])
+  @@map("transfer_email_deliveries")
+}
+
+model TransferWhatsAppDelivery {
+  deliveryId        String          @id @default(uuid()) @map("delivery_id")
+  transferRequestId String          @map("transfer_request_id")
+  version           Int
+  previewHash       String          @map("preview_hash")
+  instance          String
+  number            String
+  status            String
+  providerMessageId String?         @map("provider_message_id")
+  error             String?
+  attempt           Int             @default(1)
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  request           TransferRequest @relation(fields: [transferRequestId], references: [transferRequestId], onDelete: Cascade)
+
+  @@unique([transferRequestId, version])
+  @@index([transferRequestId, createdAt])
+  @@map("transfer_whatsapp_deliveries")
 }
