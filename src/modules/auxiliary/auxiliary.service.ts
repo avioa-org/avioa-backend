@@ -257,12 +257,38 @@ export class AuxiliaryService {
       value = this.unseal<{ base64: string }>(cipher.toString('utf8'));
     return { asset, bytes: Buffer.from(value.base64, 'base64') };
   }
+
   async pdf(id: string) {
-    const record = await this.find(id),
-      images = await Promise.all(
-        record.assets.map((a) => this.image(id, a.id)),
-      );
-    return buildAuxiliaryPdf(record, images);
+    const record = await this.find(id);
+    const images = await Promise.all(
+      record.assets.map((a) => this.image(id, a.id)),
+    );
+
+    // Si es un transfer, preparamos su branding
+    let branding: any = undefined;
+    if (record.kind === 'transfer') {
+      const v = record.payload as any;
+      const destination = v.destination; // ej: "San Andrés"
+
+      // Aquí pones los Base64 estáticos (Camino 1) o los descargas del Storage (Camino 2)
+      // Ejemplo con Base64:
+      const assetsMap: any = {
+        'San Andrés': {
+          heroBytes: Buffer.from('PEGA_AQUI_EL_BASE64_DE_LA_PLAYA', 'base64'),
+          logoBytes: Buffer.from('PEGA_AQUI_EL_BASE64_DE_PORTOFINO', 'base64'),
+          contact: {
+            name: 'Miryam Usuga',
+            role: 'Jefe Operativo Receptivos',
+            phone: '316 832 90 61',
+          },
+        },
+      };
+
+      branding = assetsMap[destination];
+    }
+
+    // Le pasamos el branding a tu generador principal
+    return buildAuxiliaryPdf(record, images, branding);
   }
 }
 function recordReference(input: SaveInput) {

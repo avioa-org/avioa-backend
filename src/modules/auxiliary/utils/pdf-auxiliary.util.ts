@@ -8,6 +8,15 @@ import {
 } from '../domain/aux-voucher';
 import { transferLabels } from '../domain/transfer-requests';
 import { transferProfiles } from '../domain/aux-transfer-profiles';
+import type { TransferVoucher } from '../domain/aux-transfer';
+import {
+  buildTransferVoucherPdf,
+  DestinationBranding,
+} from './pdf-voucher.util';
+import {
+  drawTransferItineraryImages,
+  TransferPdfImage,
+} from './transfer-pdf.util';
 
 const titles = {
   hotel: 'VOUCHER DE HOTEL',
@@ -16,22 +25,47 @@ const titles = {
   flight: 'ITINERARIO DE VUELOS',
   reply: 'RESPUESTA RÁPIDA',
 };
+
 export async function buildAuxiliaryPdf(
   record: AuxiliaryRecord,
   images: { asset: Asset; bytes: Uint8Array }[] = [],
+  branding?: DestinationBranding, // <-- NUEVO PARÁMETRO
 ) {
-  const pdf = await PDFDocument.create(),
-    font = await pdf.embedFont(StandardFonts.Helvetica),
-    bold = await pdf.embedFont(StandardFonts.HelveticaBold),
-    logo = await pdf.embedPng(
-      Uint8Array.from(atob(auxVoucherLogo), (c) => c.charCodeAt(0)),
+  // Si es un traslado, delegamos al generador específico que tiene el diseño nuevo
+  if (record.kind === 'transfer') {
+    const v = record.payload as TransferVoucher;
+    const transferImages: TransferPdfImage[] = images.map(
+      ({ asset, bytes }) => ({
+        image: {
+          id: asset.id,
+          name: asset.name,
+          contentType: asset.type,
+          size: asset.size,
+          hash: '',
+        },
+        bytes,
+      }),
     );
-  const blue = rgb(0.02, 0.47, 0.65),
-    ink = rgb(0.1, 0.22, 0.29),
-    muted = rgb(0.42, 0.51, 0.57);
-  let page!: PDFPage,
-    y = 0;
-  // La fuente estándar admite español. Otros símbolos se sustituyen para no romper la descarga.
+    return buildTransferVoucherPdf(v, transferImages, branding);
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // A PARTIR DE AQUÍ ES EL CÓDIGO ANTERIOR (HOTEL, REQUEST, FLIGHT, REPLY)
+  // ────────────────────────────────────────────────────────────
+  const pdf = await PDFDocument.create();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const logo = await pdf.embedPng(
+    Uint8Array.from(atob(auxVoucherLogo), (c) => c.charCodeAt(0)),
+  );
+
+  const blue = rgb(0.02, 0.47, 0.65);
+  const ink = rgb(0.1, 0.22, 0.29);
+  const muted = rgb(0.42, 0.51, 0.57);
+
+  let page!: PDFPage;
+  let y = 0;
+
   const clean = (value: string) =>
     [...value.normalize('NFC')]
       .map((c) => {
@@ -44,6 +78,7 @@ export async function buildAuxiliaryPdf(
         }
       })
       .join('');
+
   function newPage() {
     page = pdf.addPage([595.28, 841.89]);
     page.drawRectangle({ x: 0, y: 831, width: 596, height: 11, color: blue });
@@ -70,6 +105,7 @@ export async function buildAuxiliaryPdf(
     });
     y = 709;
   }
+
   function wrap(value: string, width = 510, size = 10) {
     const lines: string[] = [];
     for (const row of clean(value).split(/\r?\n/)) {
@@ -96,6 +132,7 @@ export async function buildAuxiliaryPdf(
     }
     return lines;
   }
+
   function block(label: string, value: string) {
     if (!value.trim()) return;
     if (y < 120) newPage();
@@ -114,18 +151,19 @@ export async function buildAuxiliaryPdf(
     }
     y -= 11;
   }
+
   newPage();
   const data = record.payload as unknown as Record<
     string,
     string | number | boolean
   >;
-  if (record.kind === 'hotel')
+
+  // HOTEL
+  if (record.kind === 'hotel') {
     for (const [key, label] of Object.entries(voucherLabels)) {
       if (key === 'supportContact') continue;
       if (
-        isHotelTemplate(
-          record.payload as import('../domain/aux-voucher').HotelVoucher,
-        ) &&
+        isHotelTemplate(record.payload as any) &&
         [
           'adults',
           'children',
@@ -147,61 +185,26 @@ export async function buildAuxiliaryPdf(
             : String(value),
         );
     }
-  if (record.kind === 'request')
+  }
+
+  // REQUEST
+  if (record.kind === 'request') {
     for (const [key, label] of Object.entries(transferLabels))
       block(label, String(data[key] || 'No aplica'));
-  if (record.kind === 'transfer') {
-    for (const [key, label] of Object.entries({
-      reservationCode: 'Reserva',
-      destination: 'Destino',
-      service: 'Servicio',
-      passengerCount: 'Cantidad de pasajeros',
-      passengers: 'Pasajeros',
-      origin: 'Punto de origen',
-      dropoff: 'Hotel o punto de llegada',
-      date: 'Fecha de ida',
-      time: 'Hora del vuelo de ida',
-      flight: 'Vuelo de ida',
-      returnDate: 'Fecha de regreso',
-      returnTime: 'Hora del vuelo de regreso',
-      returnFlight: 'Vuelo de regreso',
-      operator: 'Operador',
-      operatorReference: 'Confirmación del operador',
-      phone: 'Teléfono',
-      tourNotes: 'Tours incluidos',
-      notes: 'Observaciones',
-    }))
-      if (data[key] !== undefined) block(label, String(data[key]));
-    const profile =
-      transferProfiles[data.template as keyof typeof transferProfiles];
-    if (profile) {
-      for (const section of profile.sections)
-        block(section.title, section.text);
-      block('No incluido', profile.excluded);
-      block('Contacto del operador', profile.contacts.join('\n'));
-    }
   }
-  if (record.kind === 'flight') block('Pasajeros', String(data.passengers));
+
+  // FLIGHT
+  if (record.kind === 'flight') {
+    block('Pasajeros', String(data.passengers));
+  }
+
+  // REPLY
   if (record.kind === 'reply') {
     block(String(data.title), String(data.body));
   }
-  for (const [i, { asset, bytes }] of images.entries()) {
-    newPage();
-    block('Itinerario · imagen ' + (i + 1), asset.name);
-    const img =
-      asset.type === 'image/png'
-        ? await pdf.embedPng(bytes)
-        : await pdf.embedJpg(bytes);
-    const scale = Math.min(515 / img.width, (y - 90) / img.height);
-    page.drawImage(img, {
-      x: 40 + (515 - img.width * scale) / 2,
-      y: y - img.height * scale,
-      width: img.width * scale,
-      height: img.height * scale,
-    });
-    y -= img.height * scale + 20;
-  }
-  if (record.kind === 'request')
+
+  // ESTADO TRÁMITE (REQUEST)
+  if (record.kind === 'request') {
     block(
       'Estado del trámite',
       record.state === 'confirmed'
@@ -210,7 +213,44 @@ export async function buildAuxiliaryPdf(
           ? 'Envío manual registrado por el usuario.'
           : 'Pendiente de envío. Este documento no confirma aceptación del operador.',
     );
+  }
+
   block('Soporte aVioa', voucherSupportContact);
+
+  // IMÁGENES (Flight, etc)
+  if (images.length && record.kind !== 'transfer') {
+    const transferImages: TransferPdfImage[] = images.map(
+      ({ asset, bytes }) => ({
+        image: {
+          id: asset.id,
+          name: asset.name,
+          contentType: asset.type,
+          size: asset.size,
+          hash: '',
+        },
+        bytes,
+      }),
+    );
+
+    const imgPage = pdf.addPage([595.28, 841.89]);
+    page = imgPage;
+
+    await drawTransferItineraryImages(
+      pdf,
+      imgPage,
+      transferImages,
+      { x: 40, top: 60, width: 515, height: 690 },
+      font,
+      bold,
+      record.reference,
+      clean,
+      ink,
+      blue,
+      muted,
+    );
+  }
+
+  // FOOTER
   for (const [i, p] of pdf.getPages().entries()) {
     p.drawLine({
       start: { x: 40, y: 60 },
@@ -233,6 +273,7 @@ export async function buildAuxiliaryPdf(
       color: muted,
     });
   }
+
   pdf.setTitle(clean(titles[record.kind] + ' · ' + record.reference));
   pdf.setAuthor('aVioa');
   return pdf.save();
