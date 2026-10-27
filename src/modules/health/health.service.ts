@@ -23,7 +23,7 @@ export class HealthService extends HealthIndicator {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
       return this.getStatus(key, true);
-    } catch (error) {
+    } catch (error: any) {
       throw new HealthCheckError(
         'Database check failed: Health check failed',
         this.getStatus(key, false, { message: error?.message }),
@@ -35,7 +35,7 @@ export class HealthService extends HealthIndicator {
     try {
       const pong = await this.redis.getClient().ping();
       return this.getStatus(key, pong === 'PONG');
-    } catch (error) {
+    } catch (error: any) {
       throw new HealthCheckError(
         'Redis check failed',
         this.getStatus(key, false, { message: error?.message }),
@@ -52,7 +52,7 @@ export class HealthService extends HealthIndicator {
         'failed',
       );
       return this.getStatus(key, true);
-    } catch (error) {
+    } catch (error: any) {
       throw new HealthCheckError(
         'Queue check failed',
         this.getStatus(key, false, { message: error?.message }),
