@@ -27,6 +27,7 @@ import { RequireModule } from 'src/common/decorator/modules-permission.decorator
 import { Modules } from 'src/common/enum/modules.enum';
 import { ModulePermissionGuard } from 'src/common/guards/module-permission.guard';
 import { SetUserModulesDto } from './dto/set-user-modules.dto';
+import { SetUsersModulesBulkDto } from './dto/set-users-modules-bulk.dto';
 import { UpdateUsersAdminDto } from './dto/update-users-admin.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ImportUsersExcelDto } from './dto/import-users-excel.dto';
@@ -93,6 +94,12 @@ export class UsersController {
     return await this.usersService.getUserPermissions(userId);
   }
 
+  @Get('areas')
+  @RequireModule(Modules.USERS_ADMIN)
+  public async getAreas() {
+    return await this.usersService.getAreas();
+  }
+
   @Get(':userId')
   @RequireModule(Modules.USERS_ADMIN)
   public async getUser(@Param('userId') userId: string) {
@@ -111,6 +118,15 @@ export class UsersController {
       setUserModulesDto,
       grantedBy,
     );
+  }
+
+  @Put('permissions/bulk')
+  @RequireModule(Modules.USERS_ADMIN)
+  public async updateUsersPermissionsBulk(
+    @Body() dto: SetUsersModulesBulkDto,
+    @CurrentUser('userId') grantedBy: string,
+  ) {
+    return await this.usersService.updateUsersPermissionsBulk(dto, grantedBy);
   }
 
   @Patch(':userId')
