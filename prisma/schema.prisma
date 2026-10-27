@@ -478,6 +478,23 @@ model FormSubmission {
   @@map("form_submissions")
 }
 
+model CommercialResource {
+  id        String                  @id @default(uuid()) @map("resource_id")
+  kind      CommercialResourceKind
+  title     String                  @db.VarChar(250)
+  text      String                  @db.Text        @default("")
+  url       String                  @db.VarChar(2000) @default("")
+  category  String                  @db.VarChar(120) @default("")
+  origin    String                  @db.VarChar(80)  @default("")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt
+
+  @@index([kind])
+  @@index([updatedAt])
+  @@map("commercial_resources")
+}
+
 // Modulo de puntos
 model PointRequest {
   pointRequestId String @id @default(uuid()) @map("point_request_id")
@@ -1311,6 +1328,16 @@ enum LeaveStatus {
   APPROVED
   REJECTED
   CANCELLED
+}
+
+enum CommercialResourceKind {
+  offer
+  video
+  reply
+  protocol
+  rate
+  operator
+  document
 }
 
 enum PasswordAuditAction {
