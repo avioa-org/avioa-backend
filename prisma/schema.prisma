@@ -85,6 +85,29 @@ model MaintenanceRequest {
   @@map("maintenance_requests")
 }
 
+
+
+// ─────────────────────────────────────────────────────
+// VIDEOS DE HOTELES
+// ─────────────────────────────────────────────────────
+model CommercialVideo {
+  id          String   @id @default(uuid()) @map("video_id")
+  title       String   @db.VarChar(250)
+  description String   @db.Text @default("")
+  url         String   @db.VarChar(2000)
+  source      String   @default("db") @db.VarChar(20) // "db" | "drive"
+  revision    Int      @default(1)
+  updatedBy   String?  @map("updated_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([source])
+  @@index([updatedAt])
+  @@map("commercial_videos")
+}
+
+
+
 // EQUIPMENT LOANS MODULE
 model Equipment {
   equipmentId  String            @id @default(uuid()) @map("equipment_id")
