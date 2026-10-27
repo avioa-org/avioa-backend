@@ -15,6 +15,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.infra';
 import { BirthdayPostsResponseDto } from './dto/birthday-posts.dto';
 import { SetUserModulesDto } from './dto/set-user-modules.dto';
+import { SetUsersModulesBulkDto } from './dto/set-users-modules-bulk.dto';
 import { Role } from 'generated/prisma/enums';
 import { Modules } from 'src/common/enum/modules.enum';
 import { EncryptionService } from 'src/infrastructure/encryption/encryption.service';
@@ -362,7 +363,13 @@ export class UsersService {
 
     const modules = [...new Set(dto.modules ?? [])];
 
-    const invalid = modules.filter((m) => !Modules);
+    const invalid = modules.filter((m) => !Object.values(Modules).includes(m));
+    if (invalid.length > 0) {
+      throw new BadRequestException({
+        message: 'Módulos inválidos',
+        modules: invalid,
+      });
+    }
 
     await this.prisma.$transaction(async (tx) => {
       await tx.modulePermission.deleteMany({ where: { userId } });
@@ -382,6 +389,99 @@ export class UsersService {
     });
 
     return await this.getUserPermissions(userId);
+  }
+
+  public async updateUsersPermissionsBulk(
+    dto: SetUsersModulesBulkDto,
+    grantedBy: string,
+  ) {
+    const hasUserIds = Array.isArray(dto.userIds) && dto.userIds.length > 0;
+    const hasArea = Boolean(dto.area?.trim());
+    if (hasUserIds === hasArea) {
+      throw new BadRequestException(
+        'Indica userIds o area (solo uno de los dos).',
+      );
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: hasUserIds
+        ? { userId: { in: [...new Set(dto.userIds)] } }
+        : { area: dto.area!.trim(), status: 'ACTIVE', isUserTest: false },
+      select: { userId: true, role: true },
+    });
+
+    const requestedIds = hasUserIds ? [...new Set(dto.userIds)] : undefined;
+
+    const notFound =
+      requestedIds?.filter((id) => !users.some((user) => user.userId === id)) ??
+      [];
+
+    if (notFound.length > 0) {
+      throw new NotFoundException({
+        message: 'Algunos usuarios no existen',
+        userIds: notFound,
+      });
+    }
+
+    const targetUsers = users.filter((user) => user.role !== Role.ADMIN);
+
+    const modules = [...new Set(dto.modules ?? [])];
+
+    const invalid = modules.filter(
+      (module) => !Object.values(Modules).includes(module),
+    );
+
+    if (invalid.length > 0) {
+      throw new BadRequestException({
+        message: 'Módulos inválidos',
+        modules: invalid,
+      });
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const user of targetUsers) {
+        await tx.modulePermission.deleteMany({
+          where: { userId: user.userId },
+        });
+        if (modules.length > 0) {
+          await tx.modulePermission.createMany({
+            data: modules.map((module) => ({
+              userId: user.userId,
+              module,
+              canAccess: true,
+              actions: dto.actions?.[module] ?? [],
+              grantedBy,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+    });
+
+    return {
+      updated: targetUsers.length,
+      skippedAdmins: users.length - targetUsers.length,
+      userIds: targetUsers.map(({ userId }) => userId),
+    };
+  }
+
+  public async getAreas() {
+    const areas = await this.prisma.user.findMany({
+      where: {
+        status: 'ACTIVE',
+        isUserTest: false,
+        area: { not: null },
+      },
+      select: {
+        area: true,
+      },
+      distinct: ['area'],
+      orderBy: { area: 'asc' },
+    });
+
+    const setAreas = new Set(areas.map(({ area }) => area?.toUpperCase()));
+
+    return Array.from(setAreas);
   }
 
   public async getLeaders() {
