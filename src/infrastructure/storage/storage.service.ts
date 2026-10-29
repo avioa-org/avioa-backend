@@ -41,12 +41,9 @@ export class StorageService {
   }
 
   async downloadFile(key: string, bucket = this.bucket): Promise<Buffer> {
-    console.log('bucket', bucket);
     const { data, error } = await this.supabase.storage
       .from(bucket)
       .download(key);
-
-    console.error(data, error);
 
     if (error) throw error;
     if (!data) throw new Error(`No se pudo descargar ${key}`);
