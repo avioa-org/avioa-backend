@@ -1103,6 +1103,186 @@ model AuxiliaryRecord {
   @@map("auxiliary_records")
 }
 
+model OperationalAudit {
+  id     String @id
+  entity String
+  target String
+  action String
+  by     String
+  at     String
+
+  @@map("auxop_audit")
+}
+
+model OperationalDocuments {
+  id               String              @id
+  kind             String
+  reservation_code String              @default("")
+  encrypted_data   String
+  attachments      String
+  state            String              @default("uploaded")
+  revision         Int                 @default(1)
+  created_by       String
+  created_at       String
+  updated_by       String
+  updated_at       String
+  deleted_at       String?
+  last_operation   String
+  ai_runs          OperationalAiRuns[]
+
+  @@index([reservation_code], map: "idx_auxop_doc_reservation")
+  @@index([updated_at], map: "idx_auxop_doc_updated")
+  @@map("auxop_documents")
+}
+
+model OperationalAiRuns {
+  id            String               @id
+  document_id   String
+  by            String
+  day           String
+  status        String
+  model         String
+  input_tokens  Int                  @default(0)
+  output_tokens Int                  @default(0)
+  created_at    String
+  updated_at    String
+  document      OperationalDocuments @relation(fields: [document_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([day], map: "idx_auxop_ai_day")
+  @@index([document_id], map: "idx_auxop_ai_doc")
+  @@map("auxop_ai_runs")
+}
+
+model OperationalVouchers {
+  id               String  @id
+  reservation_code String
+  encrypted_data   String
+  revision         Int     @default(1)
+  created_by       String
+  created_at       String
+  updated_at       String
+  deleted_at       String?
+  last_operation   String
+
+  @@index([reservation_code], map: "idx_auxop_voucher_reservation")
+  @@map("auxop_vouchers")
+}
+
+model OperationalPasswords {
+  id         String @id
+  encrypted  String
+  revision   Int    @default(1)
+  updated_at String
+  updated_by String
+
+  @@map("auxop_passwords")
+}
+
+model OperationalTransferVouchers {
+  id               String  @id
+  destination      String
+  reservation_code String
+  encrypted_data   String
+  revision         Int     @default(1)
+  created_by       String
+  created_at       String
+  updated_at       String
+  deleted_at       String?
+  last_operation   String
+
+  @@index([reservation_code], map: "idx_auxop_transfer_reservation")
+  @@index([destination], map: "idx_auxop_transfer_destination")
+  @@map("auxop_transfer_vouchers")
+}
+
+model OperationalQuickReplies {
+  id         String @id
+  title      String
+  category   String
+  body       String
+  html       String @default("")
+  import_key String
+  revision   Int    @default(1)
+  updated_by String
+  updated_at String
+
+  @@unique([import_key], map: "idx_auxop_quick_import")
+  @@map("auxop_quick_replies")
+}
+
+model OperationalFlightItineraries {
+  id               String  @id
+  reservation_code String
+  encrypted_data   String
+  revision         Int     @default(1)
+  created_by       String
+  created_at       String
+  updated_at       String
+  deleted_at       String?
+  last_operation   String
+
+  @@index([reservation_code], map: "idx_auxop_flight_reservation")
+  @@map("auxop_flight_itineraries")
+}
+
+model OperationalTransferRequests {
+  id             String  @id
+  fingerprint    String
+  encrypted_data String
+  state          String  @default("pending")
+  created_by     String
+  created_at     String
+  sent_at        String?
+  provider_id    String?
+
+  @@unique([fingerprint], map: "idx_auxop_transfer_request_fingerprint")
+  @@map("auxop_transfer_requests")
+}
+
+model OperationalReservationAiRuns {
+  id            String  @id
+  thread_id     String
+  by            String
+  day           String
+  message       String
+  status        String
+  model         String
+  answer        String?
+  input_tokens  Int     @default(0)
+  output_tokens Int     @default(0)
+  created_at    String
+  updated_at    String
+
+  @@index([thread_id, by, created_at], map: "auxop_email_thread")
+  @@map("auxop_reservation_ai_runs")
+}
+
+model OperationalSacAiRuns {
+  id            String @id
+  by            String
+  day           String
+  created_at    String
+  input_tokens  Int    @default(0)
+  output_tokens Int    @default(0)
+
+  @@map("auxop_sac_ai_runs")
+}
+
+model OperationalHotelCatalog {
+  id                 String  @id
+  reservation_code   String
+  operator_reference String  @default("")
+  operator           String  @default("")
+  hotel_name         String
+  check_in           String  @default("")
+  contact_name       String  @default("")
+  updated_at         String
+  deleted_at         String?
+
+  @@index([reservation_code], map: "auxop_hotel_avi")
+  @@map("auxop_hotel_catalog")
+}
+
 // ENUMS
 
 // Cesantias
