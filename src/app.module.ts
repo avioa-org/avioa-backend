@@ -34,7 +34,6 @@ import { CertificadosModule } from './modules/certificados/certificados.module';
 import { VuelosModule } from './modules/vuelos/vuelos.module';
 import { TransfersModule } from './modules/transfers/transfers.module';
 import { AuxiliaryOperationalModule } from './modules/auxiliary-operational/auxiliary-operational.module';
-// import { AuxiliaryModule } from './modules/auxiliary-operational/auxiliary-operational.module';
 import { CommercialModule } from './modules/commercial/commercial.module';
 
 @Module({
@@ -80,7 +79,6 @@ import { CommercialModule } from './modules/commercial/commercial.module';
     VuelosModule,
     TransfersModule,
     AuxiliaryOperationalModule,
-    // AuxiliaryModule,
     CommercialModule,
   ],
   controllers: [],
