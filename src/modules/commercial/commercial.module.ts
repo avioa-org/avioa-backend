@@ -15,6 +15,8 @@ import { CommercialProtocolController } from "./commercial-protocol.controller";
 import { CommercialProtocolService } from "./commercial-protocol.service";
 import { CommercialDriveTablesController } from "./commercial-drive-tables.controller";
 import { CommercialDriveTablesService } from "./commercial-drive-tables.service";
+import { CommercialQuickRepliesController } from "./commercial-quick-replies.controller";
+import { CommercialQuickRepliesService } from "./commercial-quick-replies.service";
 
 @Module({
   imports: [PrismaModule],
@@ -27,6 +29,7 @@ import { CommercialDriveTablesService } from "./commercial-drive-tables.service"
     CommercialAiController,
     CommercialProtocolController,
     CommercialDriveTablesController,
+    CommercialQuickRepliesController,
   ],
   providers: [
     CommercialService,
@@ -35,7 +38,8 @@ import { CommercialDriveTablesService } from "./commercial-drive-tables.service"
     CommercialNiltzeService, 
     CommercialVideosService,
     CommercialProtocolService,
-    CommercialDriveTablesService     
+    CommercialDriveTablesService,
+    CommercialQuickRepliesService,
   ],
   exports: [CommercialService, CommercialVideosService],
 })
