@@ -15,4 +15,9 @@ export class VuelosController {
   getOfertas(@Query() filtros: FiltroVuelosDto) {
     return this.vuelosService.getOfertas(filtros);
   }
+
+  @Get('mejores-por-destino')
+  getMejoresPorDestino(@Query() filtros: FiltroVuelosDto) {
+    return this.vuelosService.getMejoresPorDestino(filtros);
+  }
 }
