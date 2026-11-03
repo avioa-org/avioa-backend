@@ -1,4 +1,10 @@
-import { IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class CreateAuxiliaryChatDto {
   @IsUUID()
@@ -11,4 +17,8 @@ export class CreateAuxiliaryChatDto {
   @MinLength(2)
   @MaxLength(6000)
   message!: string;
+
+  @IsString()
+  @IsOptional()
+  action?: string;
 }
