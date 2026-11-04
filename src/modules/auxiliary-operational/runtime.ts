@@ -12,6 +12,7 @@ export interface OperationalRuntime {
   VAULT_ENCRYPTION_KEY: string;
   TRANSFER_RESEND_API_KEY?: string;
   TRANSFER_EMAIL_ENABLED?: string;
+  TRANSFER_N8N_WEBHOOK_URL?: string;
   actor: string;
   name: string;
   canWrite: boolean;

@@ -19,6 +19,7 @@ import { AuxiliaryOperationalService } from './auxiliary-operational.service';
 @RequireModule(Modules.AUXILIARY)
 export class AuxiliaryOperationalController {
   constructor(private readonly service: AuxiliaryOperationalService) {}
+
   @All(['', '*path'])
   @UseInterceptors(
     AnyFilesInterceptor({
