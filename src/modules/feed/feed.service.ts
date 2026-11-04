@@ -348,6 +348,7 @@ export class FeedService {
     FROM users
     WHERE birth_date IS NOT NULL
       AND EXTRACT(MONTH FROM birth_date) = EXTRACT(MONTH FROM CURRENT_DATE)
+      AND status = 'ACTIVE'
     ORDER BY EXTRACT(DAY FROM birth_date) ASC
   `;
   }

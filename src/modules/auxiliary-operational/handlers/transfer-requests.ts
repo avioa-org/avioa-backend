@@ -1,4 +1,4 @@
-import { voucherFromTransferRequest } from '../domain/transfer-request-voucher';
+﻿import { voucherFromTransferRequest } from '../domain/transfer-request-voucher';
 import type {
   TransferVoucher,
   TransferVoucherRow,
@@ -19,6 +19,7 @@ import {
   transferEmailHtml,
   type TransferRequestData,
 } from '../domain/transfer-requests';
+import { envs } from 'src/config/env.config';
 
 type Row = {
   id: string;
@@ -33,8 +34,10 @@ type Row = {
 const settings = () => ({
   key: getRuntime().TRANSFER_RESEND_API_KEY,
   enabled: getRuntime().TRANSFER_EMAIL_ENABLED === 'true',
+  n8nWebhook: getRuntime().TRANSFER_N8N_WEBHOOK_URL,
 });
-const configured = () => !!settings().key && settings().enabled;
+const configured = () =>
+  !!(settings().n8nWebhook || (settings().key && settings().enabled));
 const digest = async (value: string) =>
   Array.from(
     new Uint8Array(
@@ -45,7 +48,7 @@ const digest = async (value: string) =>
     .join('');
 async function dto(row: Row) {
   const voucher = await getRuntime()
-    .DB!.prepare(
+    .DB.prepare(
       'SELECT id FROM auxop_transfer_vouchers WHERE id=? AND deleted_at IS NULL',
     )
     .bind(row.id)
@@ -56,7 +59,7 @@ async function dto(row: Row) {
     id: row.id,
     data: await openAuxData<TransferRequestData>(
       row.encrypted_data,
-      getRuntime().VAULT_ENCRYPTION_KEY!,
+      getRuntime().VAULT_ENCRYPTION_KEY,
       'request:' + row.id,
     ),
     state: row.state,
@@ -67,7 +70,7 @@ async function dto(row: Row) {
   };
 }
 async function ensureVoucher(row: Row, email: string) {
-  const db = getRuntime().DB!,
+  const db = getRuntime().DB,
     existing = await db
       .prepare('SELECT id,deleted_at FROM auxop_transfer_vouchers WHERE id=?')
       .bind(row.id)
@@ -81,14 +84,14 @@ async function ensureVoucher(row: Row, email: string) {
   }
   const d = await openAuxData<TransferRequestData>(
     row.encrypted_data,
-    getRuntime().VAULT_ENCRYPTION_KEY!,
+    getRuntime().VAULT_ENCRYPTION_KEY,
     'request:' + row.id,
   );
   const v = voucherFromTransferRequest(d, row.id),
     at = new Date().toISOString();
   const cipher = await sealAuxData(
     v,
-    getRuntime().VAULT_ENCRYPTION_KEY!,
+    getRuntime().VAULT_ENCRYPTION_KEY,
     'transfer:' + row.id,
   );
   await db
@@ -128,7 +131,7 @@ export async function GET(r: Request) {
   try {
     const rows = (
       await getRuntime()
-        .DB!.prepare(
+        .DB.prepare(
           "SELECT * FROM auxop_transfer_requests WHERE state<>'deleted' ORDER BY created_at DESC LIMIT 100",
         )
         .all<Row>()
@@ -149,7 +152,7 @@ export async function POST(r: Request) {
     if (raw.length > 16000)
       return auxJson({ error: 'La solicitud es demasiado extensa.' }, 413);
     const p = JSON.parse(raw),
-      db = getRuntime().DB!;
+      db = getRuntime().DB;
     if (p.action === 'save') {
       if (!auxUuid(p.requestId))
         return auxJson({ error: 'Identificador inválido.' }, 400);
@@ -171,7 +174,7 @@ export async function POST(r: Request) {
         .join('');
       const cipher = await sealAuxData(
           d,
-          getRuntime().VAULT_ENCRYPTION_KEY!,
+          getRuntime().VAULT_ENCRYPTION_KEY,
           'request:' + p.requestId,
         ),
         at = new Date().toISOString();
@@ -193,7 +196,7 @@ export async function POST(r: Request) {
           },
           409,
         );
-      const failure = await prepareVoucher(row, a.email!);
+      const failure = await prepareVoucher(row, a.email);
       if (failure) return failure;
       return auxJson({ record: await dto(row), emailConfigured: configured() });
     }
@@ -283,7 +286,7 @@ export async function POST(r: Request) {
         );
       const original = await openAuxData<TransferRequestData>(
         row.encrypted_data,
-        getRuntime().VAULT_ENCRYPTION_KEY!,
+        getRuntime().VAULT_ENCRYPTION_KEY,
         'request:' + row.id,
       );
       let d: TransferRequestData;
@@ -325,7 +328,7 @@ export async function POST(r: Request) {
         );
       const current = await openAuxData<TransferVoucher>(
         voucher.encrypted_data,
-        getRuntime().VAULT_ENCRYPTION_KEY!,
+        getRuntime().VAULT_ENCRYPTION_KEY,
         'transfer:' + row.id,
       );
       // Older vouchers repeated the generated tours line in observations. Remove only that exact prefix.
@@ -355,12 +358,12 @@ export async function POST(r: Request) {
       const nextState = row.state === 'pending' ? 'pending' : 'correction';
       const requestCipher = await sealAuxData(
           d,
-          getRuntime().VAULT_ENCRYPTION_KEY!,
+          getRuntime().VAULT_ENCRYPTION_KEY,
           'request:' + row.id,
         ),
         voucherCipher = await sealAuxData(
           updated,
-          getRuntime().VAULT_ENCRYPTION_KEY!,
+          getRuntime().VAULT_ENCRYPTION_KEY,
           'transfer:' + row.id,
         ),
         at = new Date().toISOString();
@@ -426,7 +429,7 @@ export async function POST(r: Request) {
       });
     }
     if (p.action === 'voucher') {
-      const failure = await prepareVoucher(row, a.email!);
+      const failure = await prepareVoucher(row, a.email);
       if (failure) return failure;
       return auxJson({ record: await dto(row) });
     }
@@ -440,7 +443,7 @@ export async function POST(r: Request) {
         );
       if (p.confirmed !== true)
         return auxJson({ error: 'Confirma la gestión realizada.' }, 400);
-      const failure = await prepareVoucher(row, a.email!);
+      const failure = await prepareVoucher(row, a.email);
       if (failure) return failure;
       const state = p.action === 'manual' ? 'manual' : 'confirmed',
         at = new Date().toISOString();
@@ -486,7 +489,7 @@ export async function POST(r: Request) {
         503,
       );
     if (row.state === 'sent' || row.state === 'confirmed') {
-      const failure = await prepareVoucher(row, a.email!);
+      const failure = await prepareVoucher(row, a.email);
       return failure || auxJson({ ok: true });
     }
     if (row.state !== 'pending')
@@ -500,12 +503,12 @@ export async function POST(r: Request) {
     const record = await dto(row),
       d = record.data,
       op = operatorFor(d);
-    if (!op.emails.length)
+    if (!op.emails.length && !settings().n8nWebhook)
       return auxJson(
-        { error: 'Este destino no tiene envío por correo configurado.' },
+        { error: 'Este destino no tiene env�o por correo configurado.' },
         400,
       );
-    const failure = await prepareVoucher(row, a.email!);
+    const failure = await prepareVoucher(row, a.email);
     if (failure) return failure;
     const locked = await db
       .prepare(
@@ -521,26 +524,63 @@ export async function POST(r: Request) {
         },
         409,
       );
-    let response: Response, result: any;
+    const s = settings();
+    let response: Response;
     try {
-      response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        signal: AbortSignal.timeout(20000),
-        headers: {
-          Authorization: 'Bearer ' + settings().key,
-          'Content-Type': 'application/json',
-          'Idempotency-Key': 'avioa-transfer-' + row.id,
-        },
-        body: JSON.stringify({
-          from: 'aVioa Reservas <reservas@avioa.co>',
-          to: op.emails,
-          reply_to: 'reservas@avioa.co',
-          subject: transferSubject(d),
-          text: transferMessage(d),
-          html: transferEmailHtml(d),
-        }),
-      });
-      result = await response.json();
+      if (envs.TRANSFER_N8N_WEBHOOK_URL) {
+        const arrivalParts = d.arrivalDate.split('-');
+        const returnParts = d.returnDate.split('-');
+        const arrivalDateFormatted =
+          arrivalParts[2] + '/' + arrivalParts[1] + '/' + arrivalParts[0];
+        const returnDateFormatted =
+          returnParts[2] + '/' + returnParts[1] + '/' + returnParts[0];
+        response = await fetch(envs.TRANSFER_N8N_WEBHOOK_URL, {
+          method: 'POST',
+          signal: AbortSignal.timeout(20000),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            'Marca temporal': new Date().toLocaleString('es-CO', {
+              timeZone: 'America/Bogota',
+            }),
+            'Número de reserva iTraffic': d.reservationCode,
+            'Titular de la reserva': d.holder,
+            'Teléfono titular de la reserva': d.phone,
+            'Cantidad de personas mayores a 2 años': d.adults,
+            'Cantidad de infantes (0 a 2 años)': d.infants,
+            Destino: d.destination,
+            Hotel: d.hotel,
+            'Aerolínea de llegada': d.arrivalAirline,
+            'Fecha de llegada': arrivalDateFormatted,
+            'Hora de llegada': d.arrivalTime + ':00',
+            'Aerolínea de regreso': d.returnAirline,
+            'Fecha de regreso': returnDateFormatted,
+            'Hora de regreso ': d.returnTime + ':00',
+            Asesor: d.advisor,
+            'Número de vuelo de llegada': d.arrivalFlight,
+            'Número de vuelo de regreso': d.returnFlight,
+            'Incluye tours': d.tours,
+            'Observaciones tours': d.tourNotes,
+          }),
+        });
+      } else {
+        response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          signal: AbortSignal.timeout(20000),
+          headers: {
+            Authorization: 'Bearer ' + s.key,
+            'Content-Type': 'application/json',
+            'Idempotency-Key': 'avioa-transfer-' + row.id,
+          },
+          body: JSON.stringify({
+            from: 'aVioa Reservas <reservas@avioa.co>',
+            to: op.emails,
+            reply_to: 'reservas@avioa.co',
+            subject: transferSubject(d),
+            text: transferMessage(d),
+            html: transferEmailHtml(d),
+          }),
+        });
+      }
     } catch {
       await db
         .prepare(
@@ -551,12 +591,12 @@ export async function POST(r: Request) {
       return auxJson(
         {
           error:
-            'No se pudo confirmar el resultado. Revisa el servicio de correo antes de reenviar; podría haberse enviado.',
+            'No se pudo confirmar el resultado. Revisa el servicio de correo antes de reenviar; podía haberse enviado.',
         },
         502,
       );
     }
-    if (!response.ok || typeof result.id !== 'string') {
+    if (!response.ok) {
       const safeRejected = [400, 401, 403, 422, 429].includes(response.status);
       await db
         .prepare('UPDATE auxop_transfer_requests SET state=? WHERE id=?')
@@ -566,17 +606,27 @@ export async function POST(r: Request) {
         {
           error: safeRejected
             ? 'El servicio de correo rechazó el envío. Revisa la conexión y el remitente.'
-            : 'Resultado de envío por verificar. No reenvíes hasta comprobarlo.',
+            : 'Resultado de envío por verificar. No reenviés hasta comprobarlo.',
         },
         502,
       );
+    }
+    let providerId: string | null = null;
+    if (!s.n8nWebhook) {
+      let resendResult: any;
+      try {
+        resendResult = await response.json();
+      } catch {
+        resendResult = {};
+      }
+      providerId = typeof resendResult.id === 'string' ? resendResult.id : null;
     }
     await db.batch([
       db
         .prepare(
           "UPDATE auxop_transfer_requests SET state='sent',provider_id=?,sent_at=? WHERE id=?",
         )
-        .bind(result.id, new Date().toISOString(), p.id),
+        .bind(providerId, new Date().toISOString(), p.id),
       db
         .prepare(
           'INSERT INTO auxop_audit(id,entity,target,action,by,at) VALUES(?,?,?,?,?,?)',
