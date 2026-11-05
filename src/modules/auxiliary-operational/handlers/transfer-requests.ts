@@ -411,6 +411,7 @@ export async function POST(r: Request) {
             requestCipher,
           ),
       ]);
+
       if (!results[0].meta.changes)
         return auxJson(
           {
@@ -428,25 +429,33 @@ export async function POST(r: Request) {
         }),
       });
     }
+
     if (p.action === 'voucher') {
       const failure = await prepareVoucher(row, a.email);
       if (failure) return failure;
       return auxJson({ record: await dto(row) });
     }
+
     if (p.action === 'manual' || p.action === 'confirm') {
       const allowed =
         p.action === 'manual' ? ['pending'] : ['manual', 'sent', 'correction'];
+
       if (!allowed.includes(row.state))
         return auxJson(
           { error: 'Actualiza la solicitud antes de continuar.' },
           409,
         );
+
       if (p.confirmed !== true)
         return auxJson({ error: 'Confirma la gestión realizada.' }, 400);
+
       const failure = await prepareVoucher(row, a.email);
+
       if (failure) return failure;
+
       const state = p.action === 'manual' ? 'manual' : 'confirmed',
         at = new Date().toISOString();
+
       const result = await db.batch([
         db
           .prepare(
@@ -469,6 +478,7 @@ export async function POST(r: Request) {
             row.encrypted_data,
           ),
       ]);
+
       if (!result[0].meta.changes)
         return auxJson(
           {
@@ -479,7 +489,9 @@ export async function POST(r: Request) {
         );
       return auxJson({ ok: true });
     }
+
     if (p.action !== 'send') return auxJson({ error: 'Acción inválida.' }, 400);
+
     if (!configured())
       return auxJson(
         {
@@ -488,10 +500,12 @@ export async function POST(r: Request) {
         },
         503,
       );
+
     if (row.state === 'sent' || row.state === 'confirmed') {
       const failure = await prepareVoucher(row, a.email);
       return failure || auxJson({ ok: true });
     }
+
     if (row.state !== 'pending')
       return auxJson(
         {
@@ -500,22 +514,28 @@ export async function POST(r: Request) {
         },
         409,
       );
+
     const record = await dto(row),
       d = record.data,
       op = operatorFor(d);
+
     if (!op.emails.length && !settings().n8nWebhook)
       return auxJson(
         { error: 'Este destino no tiene env�o por correo configurado.' },
         400,
       );
+
     const failure = await prepareVoucher(row, a.email);
+
     if (failure) return failure;
+
     const locked = await db
       .prepare(
         "UPDATE auxop_transfer_requests SET state='sending' WHERE id=? AND state='pending' AND encrypted_data=?",
       )
       .bind(p.id, row.encrypted_data)
       .run();
+
     if (!locked.meta.changes)
       return auxJson(
         {
@@ -524,16 +544,23 @@ export async function POST(r: Request) {
         },
         409,
       );
+
     const s = settings();
+
     let response: Response;
+
     try {
       if (envs.TRANSFER_N8N_WEBHOOK_URL) {
         const arrivalParts = d.arrivalDate.split('-');
+
         const returnParts = d.returnDate.split('-');
+
         const arrivalDateFormatted =
           arrivalParts[2] + '/' + arrivalParts[1] + '/' + arrivalParts[0];
+
         const returnDateFormatted =
           returnParts[2] + '/' + returnParts[1] + '/' + returnParts[0];
+
         response = await fetch(envs.TRANSFER_N8N_WEBHOOK_URL, {
           method: 'POST',
           signal: AbortSignal.timeout(20000),
@@ -596,6 +623,7 @@ export async function POST(r: Request) {
         502,
       );
     }
+
     if (!response.ok) {
       const safeRejected = [400, 401, 403, 422, 429].includes(response.status);
       await db
@@ -611,14 +639,18 @@ export async function POST(r: Request) {
         502,
       );
     }
+
     let providerId: string | null = null;
+
     if (!s.n8nWebhook) {
       let resendResult: any;
+
       try {
         resendResult = await response.json();
       } catch {
         resendResult = {};
       }
+
       providerId = typeof resendResult.id === 'string' ? resendResult.id : null;
     }
     await db.batch([
@@ -640,6 +672,7 @@ export async function POST(r: Request) {
           new Date().toISOString(),
         ),
     ]);
+
     return auxJson({ ok: true });
   } catch {
     return auxJson(
