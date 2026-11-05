@@ -14,7 +14,7 @@ import {
 export interface DriveVideo {
   title: string;
   description: string;
-  url: string;
+  url?: string;
 }
 
 export interface VideoEntry {
@@ -23,7 +23,7 @@ export interface VideoEntry {
   source: "db" | "drive";
   title: string;
   description: string;
-  url: string;
+  url?: string;
 }
 
 export interface VideosResponse {
@@ -253,7 +253,7 @@ export class CommercialVideosService {
     userId: string,
   ): Promise<VideosResponse> {
     const url = this.safeUrl(entry.url);
-    if (!url) throw new BadRequestException("Enlace inválido.");
+    // if (!url) throw new BadRequestException("Enlace inválido.");
 
     // Evitar duplicado por (title, url)
     const existing = await this.prisma.commercialVideo.findFirst({
@@ -284,7 +284,7 @@ export class CommercialVideosService {
     userId: string,
   ): Promise<VideosResponse> {
     const url = this.safeUrl(entry.url);
-    if (!url) throw new BadRequestException("Enlace inválido.");
+    // if (!url) throw new BadRequestException("Enlace inválido.");
 
     const current = await this.prisma.commercialVideo.findUnique({
       where: { id },
