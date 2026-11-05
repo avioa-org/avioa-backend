@@ -85,15 +85,13 @@ model MaintenanceRequest {
   @@map("maintenance_requests")
 }
 
-
-
 // ─────────────────────────────────────────────────────
 // VIDEOS DE HOTELES
 // ─────────────────────────────────────────────────────
 model CommercialVideo {
   id          String   @id @default(uuid()) @map("video_id")
   title       String   @db.VarChar(250)
-  description String   @db.Text @default("")
+  description String   @default("") @db.Text
   url         String   @db.VarChar(2000)
   source      String   @default("db") @db.VarChar(20) // "db" | "drive"
   revision    Int      @default(1)
@@ -105,8 +103,6 @@ model CommercialVideo {
   @@index([updatedAt])
   @@map("commercial_videos")
 }
-
-
 
 // EQUIPMENT LOANS MODULE
 model Equipment {
@@ -502,13 +498,13 @@ model FormSubmission {
 }
 
 model CommercialResource {
-  id        String                  @id @default(uuid()) @map("resource_id")
-  kind      CommercialResourceKind
-  title     String                  @db.VarChar(250)
-  text      String                  @db.Text        @default("")
-  url       String                  @db.VarChar(2000) @default("")
-  category  String                  @db.VarChar(120) @default("")
-  origin    String                  @db.VarChar(80)  @default("")
+  id       String                 @id @default(uuid()) @map("resource_id")
+  kind     CommercialResourceKind
+  title    String                 @db.VarChar(250)
+  text     String                 @default("") @db.Text
+  url      String                 @default("") @db.VarChar(2000)
+  category String                 @default("") @db.VarChar(120)
+  origin   String                 @default("") @db.VarChar(80)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt
@@ -1321,6 +1317,18 @@ model OperationalHotelCatalog {
 
   @@index([reservation_code], map: "auxop_hotel_avi")
   @@map("auxop_hotel_catalog")
+}
+
+model Tutorial {
+  tutorialId  String   @id @default(uuid()) @map("tutorial_id")
+  title       String
+  description String?
+  driveUrl    String   @map("drive_url")
+  category    String   @default("General")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("tutorials")
 }
 
 // ENUMS
