@@ -6,9 +6,14 @@ export class TutorialService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll() {
-    return this.prisma.tutorial.findMany({
-      orderBy: { createdAt: 'asc' },
-    });
+    const tutorials = await this.prisma.tutorial.findMany();
+
+    return tutorials.sort((a, b) =>
+      new Intl.Collator('es', { numeric: true, sensitivity: 'base' }).compare(
+        a.title,
+        b.title,
+      ),
+    );
   }
 
   async create(data: {
