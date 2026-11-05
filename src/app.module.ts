@@ -35,6 +35,7 @@ import { VuelosModule } from './modules/vuelos/vuelos.module';
 import { TransfersModule } from './modules/transfers/transfers.module';
 import { AuxiliaryOperationalModule } from './modules/auxiliary-operational/auxiliary-operational.module';
 import { CommercialModule } from './modules/commercial/commercial.module';
+import { TutorialModule } from './modules/tutorial/tutorial.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { CommercialModule } from './modules/commercial/commercial.module';
     TransfersModule,
     AuxiliaryOperationalModule,
     CommercialModule,
+    TutorialModule,
   ],
   controllers: [],
   providers: [
