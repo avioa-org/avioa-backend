@@ -7,7 +7,7 @@ export class TutorialService {
 
   async findAll() {
     return this.prisma.tutorial.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
     });
   }
 
