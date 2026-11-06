@@ -36,6 +36,10 @@ export class LoanDto {
   @IsOptional()
   @IsUUID()
   targetUserId?: string;
+
+  @IsOptional()
+  @IsString()
+  forUserId?: string;
 }
 
 export class UpdateLoanStatusDto {
