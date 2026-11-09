@@ -1226,9 +1226,33 @@ model OperationalTransferVouchers {
   deleted_at       String?
   last_operation   String
 
+  thread_id     String? @map("thread_id")
+  reply_count   Int     @default(0) @map("reply_count")
+  last_reply_at String? @map("last_reply_at")
+
+  replies OperationalTransferVoucherReplies[]
+
   @@index([reservation_code], map: "idx_auxop_transfer_reservation")
   @@index([destination], map: "idx_auxop_transfer_destination")
   @@map("auxop_transfer_vouchers")
+}
+
+model OperationalTransferVoucherReplies {
+  id          String  @id
+  voucher_id  String
+  thread_id   String
+  message_id  String  @unique(map: "auxop_transfer_voucher_replies_message_id_key")
+  from_email  String
+  body        String // version limpia
+  raw_body    String? // version original completa
+  received_at String
+  created_at  String
+
+  voucher OperationalTransferVouchers @relation(fields: [voucher_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([thread_id], map: "idx_auxop_transfer_reply_thread")
+  @@index([voucher_id], map: "idx_auxop_transfer_reply_voucher")
+  @@map("auxop_transfer_voucher_replies")
 }
 
 model OperationalQuickReplies {
