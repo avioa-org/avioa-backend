@@ -506,7 +506,8 @@ export async function POST(r: Request) {
       return failure || auxJson({ ok: true });
     }
 
-    if (row.state !== 'pending')
+    if (row.state !== 'pending') {
+      console.log('row', row);
       return auxJson(
         {
           error:
@@ -514,6 +515,7 @@ export async function POST(r: Request) {
         },
         409,
       );
+    }
 
     const record = await dto(row),
       d = record.data,
@@ -641,8 +643,11 @@ export async function POST(r: Request) {
     }
 
     let providerId: string | null = null;
+    let threadId: string | null = null;
 
-    if (!s.n8nWebhook) {
+    console.log('response n8n', response);
+
+    if (!envs.TRANSFER_N8N_WEBHOOK_URL) {
       let resendResult: any;
 
       try {
@@ -652,13 +657,29 @@ export async function POST(r: Request) {
       }
 
       providerId = typeof resendResult.id === 'string' ? resendResult.id : null;
+    } else {
+      let n8nResult: any;
+
+      try {
+        n8nResult = await response.json();
+      } catch {
+        n8nResult = {};
+      }
+
+      console.log(n8nResult);
+
+      const candidate =
+        n8nResult?.threadId ?? n8nResult?.thread_id ?? n8nResult?.id ?? null;
+      threadId = typeof candidate === 'string' ? candidate : null;
     }
-    await db.batch([
+
+    const at = new Date().toISOString();
+    const ops: any[] = [
       db
         .prepare(
           "UPDATE auxop_transfer_requests SET state='sent',provider_id=?,sent_at=? WHERE id=?",
         )
-        .bind(providerId, new Date().toISOString(), p.id),
+        .bind(providerId, at, p.id),
       db
         .prepare(
           'INSERT INTO auxop_audit(id,entity,target,action,by,at) VALUES(?,?,?,?,?,?)',
@@ -669,9 +690,33 @@ export async function POST(r: Request) {
           p.id,
           'email_accepted',
           a.email,
-          new Date().toISOString(),
+          at,
         ),
-    ]);
+    ];
+
+    if (threadId) {
+      ops.push(
+        db
+          .prepare(
+            'UPDATE auxop_transfer_vouchers SET thread_id=?,updated_at=? WHERE id=? AND deleted_at IS NULL',
+          )
+          .bind(threadId, at, p.id),
+        db
+          .prepare(
+            'INSERT INTO auxop_audit(id,entity,target,action,by,at) VALUES(?,?,?,?,?,?)',
+          )
+          .bind(
+            crypto.randomUUID(),
+            'transfer_voucher',
+            p.id,
+            'thread_linked',
+            a.email,
+            at,
+          ),
+      );
+    }
+
+    await db.batch(ops);
 
     return auxJson({ ok: true });
   } catch {

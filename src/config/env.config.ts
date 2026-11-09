@@ -67,6 +67,7 @@ const envSchema = z.object({
   SUPABASE_BUCKET_CERTIFICADOS: z.string().optional(),
   SERPAPI_VUELOS_URL: z.string(),
   TRANSFER_N8N_WEBHOOK_URL: z.string().optional(),
+  GMAIL_WEBHOOK_SECRET: z.string(),
 });
 
 let envs: z.infer<typeof envSchema>;

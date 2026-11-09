@@ -36,6 +36,7 @@ import { TransfersModule } from './modules/transfers/transfers.module';
 import { AuxiliaryOperationalModule } from './modules/auxiliary-operational/auxiliary-operational.module';
 import { CommercialModule } from './modules/commercial/commercial.module';
 import { TutorialModule } from './modules/tutorial/tutorial.module';
+import { GmailWebhookModule } from './modules/gmail-webhook/gmail-webhook.module';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { TutorialModule } from './modules/tutorial/tutorial.module';
     AuxiliaryOperationalModule,
     CommercialModule,
     TutorialModule,
+    GmailWebhookModule,
   ],
   controllers: [],
   providers: [

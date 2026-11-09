@@ -21,7 +21,7 @@ export async function GET(r: Request) {
     const q = (new URL(r.url).searchParams.get('q') || '').trim().slice(0, 200);
     const rows = (
       await getRuntime()
-        .DB!.prepare(
+        .DB.prepare(
           'SELECT * FROM auxop_vouchers WHERE deleted_at IS NULL AND instr(lower(reservation_code),lower(?))>0 ORDER BY updated_at DESC LIMIT 50',
         )
         .bind(q)
@@ -33,7 +33,7 @@ export async function GET(r: Request) {
           id: row.id,
           data: await openAuxData<HotelVoucher>(
             row.encrypted_data,
-            getRuntime().VAULT_ENCRYPTION_KEY!,
+            getRuntime().VAULT_ENCRYPTION_KEY,
             row.id,
           ),
           revision: row.revision,
@@ -70,7 +70,7 @@ export async function POST(r: Request) {
         400,
       );
     p.data = applyHotelDefaults(p.data);
-    const db = getRuntime().DB!,
+    const db = getRuntime().DB,
       id = p.id || p.requestId,
       old = await db
         .prepare('SELECT * FROM auxop_vouchers WHERE id=?')
@@ -84,7 +84,7 @@ export async function POST(r: Request) {
     if (old && old.last_operation === p.requestId) {
       const saved = await openAuxData<HotelVoucher>(
         old.encrypted_data,
-        getRuntime().VAULT_ENCRYPTION_KEY!,
+        getRuntime().VAULT_ENCRYPTION_KEY,
         id,
       );
       if (JSON.stringify(saved) !== JSON.stringify(p.data))
@@ -110,11 +110,7 @@ export async function POST(r: Request) {
         409,
       );
     const at = new Date().toISOString(),
-      cipher = await sealAuxData(
-        p.data,
-        getRuntime().VAULT_ENCRYPTION_KEY!,
-        id,
-      );
+      cipher = await sealAuxData(p.data, getRuntime().VAULT_ENCRYPTION_KEY, id);
     const result = old
       ? await db
           .prepare(
@@ -141,7 +137,7 @@ export async function POST(r: Request) {
         { error: 'El voucher cambió. Actualiza antes de guardar.' },
         409,
       );
-    await auxAudit(db, a.email!, 'voucher', id, old ? 'update' : 'create');
+    await auxAudit(db, a.email, 'voucher', id, old ? 'update' : 'create');
     const saved = await db
       .prepare('SELECT * FROM auxop_vouchers WHERE id=?')
       .bind(id)
