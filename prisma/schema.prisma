@@ -217,6 +217,34 @@ enum LoanStatus {
   CANCELLED
 }
 
+// ─────────────────────────────────────────────────────
+// COMMERCIAL AI QUOTE RUNS
+// Ejecuciones del cotizador IA (guarda idempotencia + auditoría)
+// ─────────────────────────────────────────────────────
+model CommercialQuoteRun {
+  id           String   @id @default(uuid()) @map("id")
+  requestId    String   @unique @map("request_id")
+  threadId     String?  @map("thread_id")
+  userId       String   @map("user_id")
+  message      String   @db.Text
+  status       String   @default("PENDING") @map("status") // PENDING | COMPLETED | FAILED
+  model        String   @map("model")
+  answer       Json?    @map("answer")
+  intent       Json?    @map("intent")
+  sources      Json?    @map("sources")
+  errorMessage String?  @map("error_message") @db.Text
+  inputTokens  Int      @default(0) @map("input_tokens")
+  outputTokens Int      @default(0) @map("output_tokens")
+  durationMs   Int?     @map("duration_ms")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, createdAt])
+  @@index([threadId, createdAt])
+  @@index([status])
+  @@map("commercial_quote_runs")
+}
+
 model AlertaReserva {
   threadId          String    @id @map("thread_id")
   tipo              String?
@@ -1226,9 +1254,33 @@ model OperationalTransferVouchers {
   deleted_at       String?
   last_operation   String
 
+  thread_id     String? @map("thread_id")
+  reply_count   Int     @default(0) @map("reply_count")
+  last_reply_at String? @map("last_reply_at")
+
+  replies OperationalTransferVoucherReplies[]
+
   @@index([reservation_code], map: "idx_auxop_transfer_reservation")
   @@index([destination], map: "idx_auxop_transfer_destination")
   @@map("auxop_transfer_vouchers")
+}
+
+model OperationalTransferVoucherReplies {
+  id          String  @id
+  voucher_id  String
+  thread_id   String
+  message_id  String  @unique(map: "auxop_transfer_voucher_replies_message_id_key")
+  from_email  String
+  body        String // version limpia
+  raw_body    String? // version original completa
+  received_at String
+  created_at  String
+
+  voucher OperationalTransferVouchers @relation(fields: [voucher_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([thread_id], map: "idx_auxop_transfer_reply_thread")
+  @@index([voucher_id], map: "idx_auxop_transfer_reply_voucher")
+  @@map("auxop_transfer_voucher_replies")
 }
 
 model OperationalQuickReplies {
