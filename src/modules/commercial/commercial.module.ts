@@ -14,9 +14,10 @@ import { CommercialDriveTablesService } from "./commercial-drive-tables.service"
 import { CommercialQuickRepliesController } from "./commercial-quick-replies.controller";
 import { CommercialQuickRepliesService } from "./commercial-quick-replies.service";
 import { AiQuoteModule } from "./ai-quote/domain/ai-quote.module";
+import { CommercialEmailModule } from './email/commercial-email.module';
 
 @Module({
-  imports: [PrismaModule, AiQuoteModule],
+  imports: [PrismaModule, AiQuoteModule, CommercialEmailModule],
   controllers: [
     CommercialController,
     CommercialNiltzeController,

@@ -8,7 +8,7 @@ export class AiQuoteRequestDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(4000)
-  message?: string;
+  message;
 
   @IsOptional()
   @IsArray()
@@ -17,4 +17,5 @@ export class AiQuoteRequestDto {
   @IsOptional()
   @IsString()
   threadId?: string;
+
 }
