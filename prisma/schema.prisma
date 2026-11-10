@@ -217,6 +217,34 @@ enum LoanStatus {
   CANCELLED
 }
 
+// ─────────────────────────────────────────────────────
+// COMMERCIAL AI QUOTE RUNS
+// Ejecuciones del cotizador IA (guarda idempotencia + auditoría)
+// ─────────────────────────────────────────────────────
+model CommercialQuoteRun {
+  id           String   @id @default(uuid()) @map("id")
+  requestId    String   @unique @map("request_id")
+  threadId     String?  @map("thread_id")
+  userId       String   @map("user_id")
+  message      String   @db.Text
+  status       String   @default("PENDING") @map("status") // PENDING | COMPLETED | FAILED
+  model        String   @map("model")
+  answer       Json?    @map("answer")
+  intent       Json?    @map("intent")
+  sources      Json?    @map("sources")
+  errorMessage String?  @map("error_message") @db.Text
+  inputTokens  Int      @default(0) @map("input_tokens")
+  outputTokens Int      @default(0) @map("output_tokens")
+  durationMs   Int?     @map("duration_ms")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, createdAt])
+  @@index([threadId, createdAt])
+  @@index([status])
+  @@map("commercial_quote_runs")
+}
+
 model AlertaReserva {
   threadId          String    @id @map("thread_id")
   tipo              String?
