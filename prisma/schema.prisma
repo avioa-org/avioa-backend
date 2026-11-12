@@ -996,12 +996,30 @@ model FeedPost {
   comments  FeedComment[]
 
   // PARA RECONOCIMIENTS: A QUIEN SE RECONOCE
-  recognizedUserId String? @map("recognized_user_id")
-  recognizedUser   User?   @relation("RecognizedUser", fields: [recognizedUserId], references: [userId])
+  recognizedUserId String?          @map("recognized_user_id")
+  recognizedUser   User?            @relation("RecognizedUser", fields: [recognizedUserId], references: [userId])
+  attachments      FeedAttachment[]
 
   @@index([createdAt])
   @@index([type])
   @@map("feed_post")
+}
+
+model FeedAttachment {
+  feedAttachmentId String             @id @default(uuid()) @map("feed_attachment_id")
+  postId           String             @map("post_id")
+  post             FeedPost           @relation(fields: [postId], references: [feedPostId], onDelete: Cascade)
+  type             FeedAttachmentType
+  storageKey       String             @map("storage_key")
+  fileName         String             @map("file_name")
+  mimeType         String             @map("mime_type")
+  sizeBytes        Int                @map("size_bytes")
+  width            Int?
+  height           Int?
+  createdAt        DateTime           @default(now()) @map("created_at")
+
+  @@index([postId])
+  @@map("feed_attchment")
 }
 
 model FeedReaction {
@@ -1056,7 +1074,10 @@ model KnowledgeFolder {
 model KnowledgeFile {
   knowledgeFileId String          @id @default(uuid()) @map("knowledge_file_id")
   title           String
-  driveUrl        String          @map("drive_url")
+  driveUrl        String?         @map("drive_url")
+  storageKey      String?         @map("storage_key")
+  mimeType        String?         @map("mime_type")
+  fileSize        Int?            @map("file_size")
   folderId        String          @map("folder_id")
   folder          KnowledgeFolder @relation(fields: [folderId], references: [knowledgeFolderId], onDelete: Cascade)
   createdById     String          @map("created_by_id")
@@ -1384,6 +1405,11 @@ model Tutorial {
 }
 
 // ENUMS
+
+enum FeedAttachmentType {
+  IMAGE
+  FILE
+}
 
 // Cesantias
 enum CensatiasStatus {

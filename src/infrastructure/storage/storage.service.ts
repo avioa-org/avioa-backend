@@ -30,7 +30,40 @@ export class StorageService {
       .createSignedUrl(key, expiresInSeconds);
 
     if (error) throw error;
-    return data.signedUrl;
+
+    let url = data.signedUrl;
+
+    if (url.startsWith('/')) {
+      const baseUrl = envs.SUPABASE_URL.replace(/\/$/, '');
+      url = `${baseUrl}/storage/v1${url}`;
+    }
+
+    return url;
+  }
+
+  async getPresignedDownloadUrls(keys: string[], expiresInSeconds = 3600) {
+    if (keys.length === 0) return {};
+
+    const { data, error } = await this.supabase.storage
+      .from(this.bucket)
+      .createSignedUrls(keys, expiresInSeconds);
+
+    if (error) throw error;
+
+    const baseUrl = envs.SUPABASE_URL.replace(/\/$/, '');
+
+    return Object.fromEntries(
+      data.map((d) => {
+        let finalUrl = d.signedUrl;
+
+        // Si la URL viene relativa, la hacemos absoluta
+        if ((finalUrl as string).startsWith('/')) {
+          finalUrl = `${baseUrl}/storage/v1${finalUrl}`;
+        }
+
+        return [d.path, finalUrl];
+      }),
+    );
   }
 
   async deleteFile(key: string) {
