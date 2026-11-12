@@ -5,12 +5,14 @@ import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 import { JwtModule } from '@nestjs/jwt';
 import { envs } from 'src/config/env.config';
 import { FeedGateway } from './feed.gateway';
+import { StorageModule } from 'src/infrastructure/storage/storage.module';
 
 @Module({
   imports: [
     JwtModule.register({
       secret: envs.JWT_SECRET,
     }),
+    StorageModule,
   ],
   controllers: [FeedController],
   providers: [FeedService, PrismaService, FeedGateway],

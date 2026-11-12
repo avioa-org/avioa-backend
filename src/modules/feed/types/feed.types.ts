@@ -15,11 +15,22 @@ export interface MappedComment {
   createdAt: Date;
 }
 
+export interface MappedAttachment {
+  feedAttachmentId: string;
+  type: 'IMAGE' | 'FILE';
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  width: number | null;
+  height: number | null;
+  url: string;
+}
+
 export interface MappedPost {
   feedPostId: string;
   type: 'PUBLICATION' | 'RECOGNITION' | 'ANNOUNCEMENT';
   content: string;
-  images: string[];
+  // images: string[];
   pinned: boolean;
   author: MappedAuthor;
   recognizedUser: MappedAuthor | null;
@@ -31,6 +42,7 @@ export interface MappedPost {
   commentsCount: number;
   createdAt: Date;
   updatedAt: Date;
+  attachments: MappedAttachment[];
 }
 
 export interface ReactionPayload {

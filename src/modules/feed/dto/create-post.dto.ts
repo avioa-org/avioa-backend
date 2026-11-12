@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   IsArray,
   IsEnum,
@@ -6,8 +7,10 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  ValidateNested,
 } from 'class-validator';
 import { FeedPostType } from 'generated/prisma/enums';
+import { AttachmentInputDto } from './attachment.dto';
 
 export class CreatePostDto {
   @IsEnum(FeedPostType)
@@ -26,4 +29,9 @@ export class CreatePostDto {
   @IsOptional()
   @IsUUID()
   recognizedUserId?: string;
+
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => AttachmentInputDto)
+  attachments?: AttachmentInputDto[];
 }

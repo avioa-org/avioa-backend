@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseArrayPipe,
   Patch,
   Post,
   Query,
@@ -26,11 +27,16 @@ import {
   RequireAction,
 } from 'src/common/decorator/modules-permission.decorator';
 import { Modules } from 'src/common/enum/modules.enum';
+import { StorageService } from 'src/infrastructure/storage/storage.service';
+import { PresignAttachmentDto } from './dto/attachment.dto';
 
 @Controller('feed')
 @UseGuards(JwtAuthGuard, ModulePermissionGuard)
 export class FeedController {
-  constructor(private readonly feedService: FeedService) {}
+  constructor(
+    private readonly feedService: FeedService,
+    private readonly storageService: StorageService,
+  ) {}
 
   @Get()
   findAll(@Query() query: FeedQueryDto, @CurrentUser('userId') user: string) {
@@ -40,6 +46,32 @@ export class FeedController {
   @Get('birthdays')
   getBirthdays() {
     return this.feedService.getBirthdaysThisMonth();
+  }
+
+  // ── Presigned URLs para subida de imágenes del feed ──
+  @Post('upload-url')
+  async getUploadUrl(
+    @Body() dto: { fileName: string; contentType: string },
+    @CurrentUser('userId') userId: string,
+  ) {
+    const key = `feed/${userId}/${Date.now()}-${dto.fileName}`;
+    return this.storageService.getPresignedUploadUrl(key);
+  }
+
+  @Post('download-url')
+  async getDownloadUrl(@Body() dto: { key: string }) {
+    const url = await this.storageService.getPresignedDownloadUrl(dto.key);
+    return { downloadUrl: url };
+  }
+
+  @Post('attachments/presign')
+  @UseGuards(JwtAuthGuard)
+  presign(
+    @Body(new ParseArrayPipe({ items: PresignAttachmentDto }))
+    dto: PresignAttachmentDto[],
+    @CurrentUser('userId') userId: string,
+  ) {
+    return this.feedService.presignAttachments(dto, userId);
   }
 
   @Delete('comments/:commentId')

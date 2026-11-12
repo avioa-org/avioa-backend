@@ -11,7 +11,10 @@ import { CreateReactionDto } from './dto/create-reaction.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { FeedGateway } from './feed.gateway';
-import { ReactionPayload } from './types/feed.types';
+import { MappedAttachment, ReactionPayload } from './types/feed.types';
+import { AttachmentInputDto, PresignAttachmentDto } from './dto/attachment.dto';
+import { StorageService } from 'src/infrastructure/storage/storage.service';
+import { randomUUID } from 'crypto';
 
 const AUTHOR_SELECT = {
   userId: true,
@@ -33,6 +36,7 @@ export class FeedService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly feedGateway: FeedGateway,
+    private readonly storageService: StorageService,
   ) {}
 
   async findAll(query: FeedQueryDto, userId: string) {
@@ -51,6 +55,7 @@ export class FeedService {
       include: {
         author: { select: AUTHOR_SELECT },
         recognizedUser: { select: AUTHOR_SELECT },
+        attachments: true,
         _count: { select: { reactions: true } },
         reactions: REACTION_SELECT,
         comments: {
@@ -73,7 +78,7 @@ export class FeedService {
     const nextCursor = page.length > 0 ? page[page.length - 1].createdAt : null;
 
     return {
-      posts: page.map((p) => this.mapPost(p, userId)),
+      posts: await Promise.all(page.map((p) => this.mapPost(p, userId))),
       hasMore,
       nextCursor,
     };
@@ -85,6 +90,7 @@ export class FeedService {
       include: {
         author: { select: AUTHOR_SELECT },
         recognizedUser: { select: AUTHOR_SELECT },
+        attachments: true,
         _count: { select: { reactions: true } },
         reactions: REACTION_SELECT,
         comments: {
@@ -111,6 +117,8 @@ export class FeedService {
       throw new ForbiddenException('Debes indicar a quién reconoces');
     }
 
+    this.assertOwnedKeys(dto.attachments, user.userId);
+
     const post = await this.prisma.feedPost.create({
       data: {
         authorId: user.userId,
@@ -118,14 +126,26 @@ export class FeedService {
         content: dto.content,
         images: dto.images ?? [],
         recognizedUserId: dto.recognizedUserId ?? null,
+        attachments: {
+          create: (dto.attachments ?? []).map((a) => ({
+            type: a.type,
+            storageKey: a.storageKey,
+            fileName: a.fileName,
+            mimeType: a.mimeType,
+            sizeBytes: a.sizeBytes,
+            width: a.width ?? null,
+            height: a.height ?? null,
+          })),
+        },
       },
       include: {
         author: { select: AUTHOR_SELECT },
         recognizedUser: { select: AUTHOR_SELECT },
+        attachments: true,
       },
     });
 
-    const mapped = this.mapPost(
+    const mapped = await this.mapPost(
       {
         ...post,
         _count: { reactions: 0 },
@@ -142,41 +162,89 @@ export class FeedService {
 
   async update(feedPostId: string, dto: UpdatePostDto, user: ICurrentUser) {
     await this.getOwnedPostOrThrow(feedPostId, user);
+    this.assertOwnedKeys(dto.attachments, user.userId);
 
-    const updated = await this.prisma.feedPost.update({
-      where: { feedPostId },
-      data: dto,
-      include: {
-        author: { select: AUTHOR_SELECT },
-        recognizedUser: { select: AUTHOR_SELECT },
-        _count: { select: { reactions: true } },
-        reactions: REACTION_SELECT,
-        comments: {
-          where: { deletedAt: null, parentId: null },
-          orderBy: { createdAt: 'asc' },
-          include: {
-            author: { select: AUTHOR_SELECT },
-            replies: {
-              where: { deletedAt: null },
-              orderBy: { createdAt: 'asc' },
-              include: { author: { select: AUTHOR_SELECT } },
+    const current = await this.prisma.feedAttachment.findMany({
+      where: { postId: feedPostId },
+      select: { feedAttachmentId: true, storageKey: true },
+    });
+
+    const newKeys = new Set((dto.attachments ?? []).map((a) => a.storageKey));
+    const toDelete = current.filter((c) => !newKeys.has(c.storageKey));
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      if (dto.attachments) {
+        await tx.feedAttachment.deleteMany({ where: { postId: feedPostId } });
+        await tx.feedAttachment.createMany({
+          data: dto.attachments.map((a) => ({
+            postId: feedPostId,
+            type: a.type,
+            storageKey: a.storageKey,
+            fileName: a.fileName,
+            mimeType: a.mimeType,
+            sizeBytes: a.sizeBytes,
+            width: a.width ?? null,
+            height: a.height ?? null,
+          })),
+        });
+      }
+
+      return tx.feedPost.update({
+        where: { feedPostId },
+        data: {
+          content: dto.content,
+          // type: dto.type,
+          recognizedUserId: dto.recognizedUserId,
+        },
+        include: {
+          author: { select: AUTHOR_SELECT },
+          recognizedUser: { select: AUTHOR_SELECT },
+          _count: { select: { reactions: true } },
+          reactions: REACTION_SELECT,
+          attachments: true,
+          comments: {
+            where: { deletedAt: null, parentId: null },
+            orderBy: { createdAt: 'asc' },
+            include: {
+              author: { select: AUTHOR_SELECT },
+              replies: {
+                where: { deletedAt: null },
+                orderBy: { createdAt: 'asc' },
+                include: { author: { select: AUTHOR_SELECT } },
+              },
             },
           },
         },
-      },
+      });
     });
 
-    const mapped = this.mapPost(updated, user.userId);
+    // borrar huérfanos de storage (best-effort)
+    await Promise.allSettled(
+      toDelete.map((d) => this.storageService.deleteFile(d.storageKey)),
+    );
+
+    const mapped = await this.mapPost(updated, user.userId);
     this.feedGateway.emitPostUpdated(mapped);
     return mapped;
   }
 
   async remove(feedPostId: string, user: ICurrentUser) {
     await this.getOwnedPostOrThrow(feedPostId, user);
+
+    const attachments = await this.prisma.feedAttachment.findMany({
+      where: { postId: feedPostId },
+      select: { storageKey: true },
+    });
+
     await this.prisma.feedPost.update({
       where: { feedPostId },
       data: { deletedAt: new Date() },
     });
+
+    await Promise.allSettled(
+      attachments.map((a) => this.storageService.deleteFile(a.storageKey)),
+    );
+
     this.feedGateway.emitPostDeleted(feedPostId);
     return { success: true };
   }
@@ -322,6 +390,56 @@ export class FeedService {
     return { success: true };
   }
 
+  async presignAttachments(items: PresignAttachmentDto[], userId: string) {
+    return Promise.all(
+      items.map(async (f) => {
+        const safeName = f.fileName.replace(/[^\w.\-]+/g, '_');
+        const key = `feed/${userId}/${randomUUID()}-${safeName}`;
+        const signed = await this.storageService.getPresignedUploadUrl(key);
+        return {
+          ...signed,
+          type: f.type,
+          fileName: f.fileName,
+          mimeType: f.mimeType,
+        };
+      }),
+    );
+  }
+
+  private async mapAttachments(
+    attachments: any[],
+  ): Promise<MappedAttachment[]> {
+    if (!attachments.length) return [];
+
+    const urls = await this.storageService.getPresignedDownloadUrls(
+      attachments.map((a) => a.storageKey),
+    );
+
+    return Promise.all(
+      attachments.map(async (a) => ({
+        feedAttachmentId: a.feedAttachmentId,
+        type: a.type,
+        fileName: a.fileName,
+        mimeType: a.mimeType,
+        sizeBytes: a.sizeBytes,
+        width: a.width ?? null,
+        height: a.height ?? null,
+        url: urls[a.storageKey],
+      })),
+    );
+  }
+
+  private assertOwnedKeys(
+    attachments: AttachmentInputDto[] | undefined,
+    userId: string,
+  ) {
+    for (const a of attachments ?? []) {
+      if (!a.storageKey.startsWith(`feed/${userId}/`)) {
+        throw new ForbiddenException('storageKey inválido');
+      }
+    }
+  }
+
   private countComments(postId: string) {
     return this.prisma.feedComment.count({
       where: { postId, deletedAt: null },
@@ -385,9 +503,8 @@ export class FeedService {
     };
   }
 
-  private mapPost(post: any, currentUserId: string) {
+  private async mapPost(post: any, currentUserId: string) {
     const reactions = post.reactions ?? [];
-
     const reactionsSummary = reactions.reduce(
       (acc: Record<string, number>, r: any) => {
         acc[r.type] = (acc[r.type] ?? 0) + 1;
@@ -395,7 +512,6 @@ export class FeedService {
       },
       {},
     );
-
     const myReaction =
       reactions.find((r: any) => r.userId === currentUserId)?.type ?? null;
     const recentReactors = reactions.slice(0, 5).map((r: any) => r.user);
@@ -406,14 +522,16 @@ export class FeedService {
       0,
     );
 
+    const attachments = await this.mapAttachments(post.attachments ?? []);
+
     return {
       feedPostId: post.feedPostId,
       type: post.type,
       content: post.content,
-      images: post.images ?? [],
       pinned: post.pinned,
       author: post.author,
       recognizedUser: post.recognizedUser ?? null,
+      attachments, // { type, url, fileName, mimeType, sizeBytes, ... }
       reactionsCount: reactions.length,
       reactionsSummary,
       recentReactors,
