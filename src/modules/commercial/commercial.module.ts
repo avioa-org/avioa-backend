@@ -15,6 +15,8 @@ import { CommercialQuickRepliesController } from "./commercial-quick-replies.con
 import { CommercialQuickRepliesService } from "./commercial-quick-replies.service";
 import { AiQuoteModule } from "./ai-quote/domain/ai-quote.module";
 import { CommercialEmailModule } from './email/commercial-email.module';
+import { GoogleSheetClient } from "../flight-blockings/google-sheet.client";
+
 
 @Module({
   imports: [PrismaModule, AiQuoteModule, CommercialEmailModule],
@@ -34,6 +36,7 @@ import { CommercialEmailModule } from './email/commercial-email.module';
     CommercialProtocolService,
     CommercialDriveTablesService,
     CommercialQuickRepliesService,
+    GoogleSheetClient,
   ],
   exports: [CommercialService, CommercialVideosService],
 })

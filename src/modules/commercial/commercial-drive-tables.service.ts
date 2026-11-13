@@ -4,6 +4,7 @@ import {
   Logger,
   ServiceUnavailableException,
 } from "@nestjs/common";
+import { GoogleSheetClient } from "../flight-blockings/google-sheet.client";
 
 export interface TableRow {
   id: string;
@@ -29,7 +30,6 @@ export interface TableData {
 
 type TableLayout = "standard" | "dynamic" | "calendar" | "text";
 
-const SHEET_ID = "1NEyuaFSPM0gymMETM_fxMHI8VWDIVoRmvPT73tdOpWU";
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 const TABLES: Record<
@@ -49,6 +49,8 @@ export class CommercialDriveTablesService {
   private readonly logger = new Logger(CommercialDriveTablesService.name);
   private cache = new Map<string, { data: TableData; checkedAt: Date }>();
 
+  constructor(private readonly google: GoogleSheetClient) {}
+
   async getTable(source: string, force = false): Promise<TableData> {
     if (!TABLES[source]) {
       throw new BadRequestException(`Fuente desconocida: ${source}`);
@@ -62,22 +64,11 @@ export class CommercialDriveTablesService {
 
     try {
       const config = TABLES[source];
-      const csvUrl = new URL(
-        `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export`,
+      
+      const rows = await this.google.readAuthenticated(
+        Number(config.gid), 
+        config.range
       );
-      csvUrl.searchParams.set("format", "csv");
-      csvUrl.searchParams.set("gid", config.gid);
-      csvUrl.searchParams.set("range", config.range);
-
-      const response = await fetch(csvUrl.toString(), {
-        cache: "no-store",
-        signal: AbortSignal.timeout(20000),
-      });
-
-      if (!response.ok) throw new Error(`Drive HTTP ${response.status}`);
-
-      const csv = await response.text();
-      const rows = this.parseCsv(csv);
 
       const data =
         source === "operadores"
@@ -88,7 +79,7 @@ export class CommercialDriveTablesService {
       data.checkedAt = checkedAt.toISOString();
       this.cache.set(source, { data, checkedAt });
       return data;
-    } catch (e) {
+    } catch (e: any) {
       const msg = (e as Error).message;
       this.logger.warn(`Drive tables ${source} falló: ${msg}`);
 
@@ -109,133 +100,55 @@ export class CommercialDriveTablesService {
 
   private parseByLayout(rows: string[][], layout: TableLayout): TableData {
     switch (layout) {
-      case "dynamic":  return this.parseDynamic(rows);
+      case "dynamic":  return this.parseTable(rows);
       case "calendar": return this.parseCalendar(rows);
       case "text":
       case "standard":
-      default:         return this.parseRates(rows);
+      default:         return this.parseTable(rows);
     }
   }
 
-  private parseTextBlocks(rows: string[][]): TableData {
-    // Buscamos la fila que tiene el texto largo (la que tú ves en la captura)
-    const contentIdx = rows.findIndex((r) =>
-      r.some((c) => (c || "").length > 50),
-    );
-    
-    const idx = contentIdx === -1 ? 1 : contentIdx;
-    const contentRow = rows[idx] || [];
-    
-    const maxWidth = Math.max(0, ...rows.map((r) => r.length));
-    const headers: string[] = [];
-    const dataCells: string[] = [];
-
-    let blockCount = 1;
-    for (let i = 0; i < maxWidth; i++) {
-      const val = (contentRow[i] || "").trim();
-      
-      if (val) {
-        // Título genérico para cada columna con contenido
-        headers.push(`BLOQUE ${blockCount}`);
-        // Reemplazamos los saltos de línea por <br> o espacios para que el front lo entienda
-        dataCells.push(val.replace(/\n/g, " ").replace(/\s+/g, " "));
-        blockCount++;
-      }
-    }
-
-    // Metemos todo el texto en una sola fila ficticia para que el frontend lo pinte
-    const dataRows: TableRow[] = [];
-    if (dataCells.length > 0) {
-      dataRows.push({
-        id: String(idx + 1),
-        cells: dataCells,
-      });
-    }
-
-    return { headers, rows: dataRows };
-  }
-
-  private parseCsv(csv: string): string[][] {
-    if (/^\s*</.test(csv)) {
-      throw new Error("La hoja no está pública. Revisa los permisos de lectura.");
-    }
-
-    const rows: string[][] = [];
-    let row: string[] = [];
-    let cell = "";
-    let quoted = false;
-
-    for (let i = 0; i < csv.length; i++) {
-      const c = csv[i];
-      if (c === '"') {
-        if (quoted && csv[i + 1] === '"') {
-          cell += '"';
-          i++;
-        } else quoted = !quoted;
-      } else if (c === "," && !quoted) {
-        row.push(cell);
-        cell = "";
-      } else if ((c === "\n" || c === "\r") && !quoted) {
-        if (c === "\r" && csv[i + 1] === "\n") i++;
-        row.push(cell);
-        rows.push(row);
-        row = [];
-        cell = "";
-      } else cell += c;
-    }
-    if (cell || row.length) {
-      row.push(cell);
-      rows.push(row);
-    }
-    return rows;
-  }
-
-  /**
-   * Baja 2026, Baja 2027, Navidad:
-   * Ahora lee la fila principal (DESTINO, HOTEL...) y la fila de abajo
-   * (TARIFA ADULTO, TARIFA NIÑOS...) para unirlas y no perder columnas.
-   */
-  private parseRates(rows: string[][]): TableData {
+  // 🔥 NUEVO PARSER GENÉRICO (Funciona para Baja, Alta, Navidad, etc.)
+  private parseTable(rows: string[][]): TableData {
     if (rows.length === 0) return { rows: [], headers: [] };
 
-    const headerIdx = rows.findIndex((r) => {
-      const t = r.map((c) => (c || "").toUpperCase()).join(" ");
-      return t.includes("DESTINO") || t.includes("HOTEL") || t.includes("FECHA");
-    });
+    // Buscamos la primera fila que tenga al menos 3 celdas no vacías.
+    // Esa será nuestra cabecera.
+    const headerIdx = rows.findIndex((r) => r.filter((c) => c && c.trim() !== "").length >= 3);
 
-    if (headerIdx < 0) return { rows: [], headers: [] };
+    // Si no encontramos una cabecera clara, usamos la fila 0 o 1.
+    const idx = headerIdx === -1 ? (rows[0]?.length > 0 ? 0 : 1) : headerIdx;
 
-    const main = rows[headerIdx] || [];
-    const sub = rows[headerIdx + 1] || []; // Capturamos la fila de abajo
-    const dataStart = headerIdx + 2;       // Los datos empiezan 2 filas abajo
+    const main = rows[idx] || [];
+    const sub = rows[idx + 1] || [];
+    const dataStart = idx + 1; 
     const maxWidth = Math.max(0, ...rows.map((r) => r.length));
 
-    const clean = (s: string) => s.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
+    const clean = (s: string) => (s || "").replace(/\n/g, " ").replace(/\s+/g, " ").trim();
 
     const headers: string[] = [];
     for (let i = 0; i < maxWidth; i++) {
-      const a = (main[i] || "").trim();
-      const b = (sub[i] || "").trim();
+      const a = clean(main[i]);
+      const b = clean(sub[i]);
       
+      // Si ambas filas tienen texto distinto, las unimos
       let label = "";
-      // Si hay título arriba y abajo, los unimos (ej: DOBLE · TARIFA ADULTO)
-      if (a && b && !b.includes(a)) label = `${clean(a)} · ${clean(b)}`;
-      else label = clean(a || b);
+      if (a && b && !b.includes(a) && a !== b) label = `${a} · ${b}`;
+      else label = a || b;
 
-      // Si no hay texto, lo dejamos vacío para que el frontend lo oculte
-      headers.push(label ? label.toUpperCase() : "");
+      headers.push(label ? label.toUpperCase() : `COL ${i + 1}`);
     }
 
     const notes: string[] = [];
-    for (let i = 0; i < headerIdx; i++) {
-      const line = rows[i].filter(Boolean).join(" · ").trim();
+    for (let i = 0; i < idx; i++) {
+      const line = (rows[i] || []).filter(Boolean).join(" · ").trim();
       if (line) notes.push(line);
     }
 
     const dataRows: TableRow[] = [];
     for (let i = dataStart; i < rows.length; i++) {
       const r = rows[i];
-      if (!r.some((c) => c.trim())) continue;
+      if (!r.some((c) => c && c.trim())) continue; // Ignorar filas vacías
       dataRows.push({
         id: String(i + 1),
         cells: headers.map((_, j) => r[j] || ""),
@@ -245,51 +158,7 @@ export class CommercialDriveTablesService {
     return { headers, notes, rows: dataRows };
   }
 
-  private parseDynamic(rows: string[][]): TableData {
-    const headerIdx = rows.findIndex((r) =>
-      r.some((c) => /DESTINO/i.test((c || "").trim())),
-    );
-
-    if (headerIdx === -1) return this.parseRates(rows);
-
-    const main = rows[headerIdx] || [];
-    const sub = rows[headerIdx + 1] || [];
-    const dataStart = headerIdx + 2;
-    const maxWidth = Math.max(0, ...rows.map((r) => r.length));
-
-    const clean = (s: string) => s.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
-
-    const headers: string[] = [];
-    for (let i = 0; i < maxWidth; i++) {
-      const a = (main[i] || "").trim();
-      const b = (sub[i] || "").trim();
-      
-      let label = "";
-      if (a && b && !b.includes(a)) label = `${clean(a)} · ${clean(b)}`;
-      else label = clean(a || b);
-
-      headers.push(label ? label.toUpperCase() : "");
-    }
-
-    const notes: string[] = [];
-    for (let i = 0; i < headerIdx; i++) {
-      const line = rows[i].filter(Boolean).join(" · ").trim();
-      if (line) notes.push(line);
-    }
-
-    const dataRows: TableRow[] = [];
-    for (let i = dataStart; i < rows.length; i++) {
-      const r = rows[i];
-      if (!r.some((c) => c.trim())) continue;
-      dataRows.push({
-        id: String(i + 1),
-        cells: headers.map((_, j) => r[j] || ""),
-      });
-    }
-
-    return { headers, notes, rows: dataRows };
-  }
-
+  // El parser de calendario (Naio) que ya funcionaba
   private parseCalendar(rows: string[][]): TableData {
     if (rows.length === 0) return { rows: [], headers: [] };
 
@@ -330,7 +199,7 @@ export class CommercialDriveTablesService {
     const entries: TableEntry[] = [];
 
     rows.forEach((r, i) => {
-      const cells = r.map((c) => c.trim());
+      const cells = r.map((c) => (c || "").trim());
       if (!cells.some(Boolean)) return;
       const [category = "", destination = "", operator = "", raw = ""] = cells;
       if (!raw && !destination && !operator) return;
