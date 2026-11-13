@@ -37,6 +37,7 @@ import { AuxiliaryOperationalModule } from './modules/auxiliary-operational/auxi
 import { CommercialModule } from './modules/commercial/commercial.module';
 import { TutorialModule } from './modules/tutorial/tutorial.module';
 import { GmailWebhookModule } from './modules/gmail-webhook/gmail-webhook.module';
+import { FlightBlockingsModule } from "./modules/flight-blockings/flight-blockings.module";
 
 @Module({
   imports: [
@@ -84,6 +85,7 @@ import { GmailWebhookModule } from './modules/gmail-webhook/gmail-webhook.module
     CommercialModule,
     TutorialModule,
     GmailWebhookModule,
+    FlightBlockingsModule,
   ],
   controllers: [],
   providers: [

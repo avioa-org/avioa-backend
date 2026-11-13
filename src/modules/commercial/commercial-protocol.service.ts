@@ -3,6 +3,7 @@ import {
   Logger,
   ServiceUnavailableException,
 } from "@nestjs/common";
+import { GoogleSheetClient } from "../flight-blockings/google-sheet.client";
 
 export interface ProtocolStep {
   id: string;
@@ -24,7 +25,6 @@ export interface ProtocolResponse {
   warning?: string;
 }
 
-const SHEET_ID = "1NEyuaFSPM0gymMETM_fxMHI8VWDIVoRmvPT73tdOpWU";
 const GID = "216144764";
 const RANGE = "A1:C1034";
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -37,6 +37,8 @@ export class CommercialProtocolService {
     checkedAt: Date;
   } | null = null;
 
+  constructor(private readonly google: GoogleSheetClient) {}
+
   async getProtocol(force = false): Promise<ProtocolResponse> {
     const now = Date.now();
     if (
@@ -48,30 +50,15 @@ export class CommercialProtocolService {
     }
 
     try {
-      const csvUrl = new URL(
-        `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export`,
-      );
-      csvUrl.searchParams.set("format", "csv");
-      csvUrl.searchParams.set("gid", GID);
-      csvUrl.searchParams.set("range", RANGE);
-
-      const response = await fetch(csvUrl.toString(), {
-        cache: "no-store",
-        signal: AbortSignal.timeout(20000),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Drive HTTP ${response.status}`);
-      }
-
-      const csv = await response.text();
-      const rows = this.parseCsv(csv);
+      // Usamos la lectura autenticada en lugar del fetch
+      const rows = await this.google.readAuthenticated(Number(GID), RANGE);
+      
       const sections = this.parseProtocol(rows);
 
       const checkedAt = new Date();
       this.cache = { sections, checkedAt };
       return this.serialize(sections, checkedAt);
-    } catch (e) {
+    } catch (e: any) {
       const msg = (e as Error).message;
       this.logger.warn(`Protocolo no disponible: ${msg}`);
 
@@ -95,47 +82,6 @@ export class CommercialProtocolService {
     checkedAt: Date,
   ): ProtocolResponse {
     return { sections, checkedAt: checkedAt.toISOString() };
-  }
-
-  private parseCsv(csv: string): string[][] {
-    if (/^\s*</.test(csv)) {
-      throw new Error(
-        "La hoja del protocolo no está pública. Revisa los permisos.",
-      );
-    }
-
-    const rows: string[][] = [];
-    let row: string[] = [];
-    let cell = "";
-    let quoted = false;
-
-    for (let i = 0; i < csv.length; i++) {
-      const c = csv[i];
-      if (c === '"') {
-        if (quoted && csv[i + 1] === '"') {
-          cell += '"';
-          i++;
-        } else {
-          quoted = !quoted;
-        }
-      } else if (c === "," && !quoted) {
-        row.push(cell);
-        cell = "";
-      } else if ((c === "\n" || c === "\r") && !quoted) {
-        if (c === "\r" && csv[i + 1] === "\n") i++;
-        row.push(cell);
-        rows.push(row);
-        row = [];
-        cell = "";
-      } else {
-        cell += c;
-      }
-    }
-    if (cell || row.length) {
-      row.push(cell);
-      rows.push(row);
-    }
-    return rows;
   }
 
   /**

@@ -487,6 +487,150 @@ model Template {
   @@map("templates")
 }
 
+
+// ─────────────────────────────────────────────────────
+// BLOQUEOS JETSMART
+// ─────────────────────────────────────────────────────
+
+model FlightBlocking {
+  id             String   @id @default(uuid())
+  code           String
+  title          String
+  departDate     String   @db.VarChar(10)
+  returnDate     String   @db.VarChar(10)
+  departTime     String
+  returnTime     String
+  origin         String
+  destination    String
+  flight         String
+  capacity       Int?
+  notes          String   @default("")
+  aliases        String[] @default([])
+  source         String   @default("manual")
+  drive          Json?
+  revision       Int      @default(1)
+  paidAt         DateTime?
+  paidBy         String?
+  namesAt        DateTime?
+  namesBy        String?
+  namesSignature String?
+  deletedAt      DateTime?
+  updatedBy      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  links       FlightBlockingLink[]
+  alerts      FlightBlockingAlert[]
+  attachments FlightBlockingAttachment[]
+  events      FlightBlockingEvent[]
+
+  @@unique([code, departDate])
+  @@index([departDate, deletedAt])
+}
+
+model FlightBlockingService {
+  id        String    @id
+  avi       String
+  source    String    @default("tc")
+  data      Json
+  sourceAt  DateTime
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  link   FlightBlockingLink?
+  events FlightBlockingEvent[]
+
+  @@index([avi])
+}
+
+model FlightBlockingLink {
+  serviceId String   @id
+  blockId   String
+  seats     Int?
+  signature String
+  by        String
+  at        DateTime @default(now())
+
+  service FlightBlockingService @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  block   FlightBlocking         @relation(fields: [blockId], references: [id], onDelete: Restrict)
+}
+
+model FlightBlockingSplit {
+  key       String   @id
+  avi       String
+  blockId   String
+  splits    Json
+  signature String
+  revision  String
+  by        String
+  at        DateTime @default(now())
+
+  @@index([avi, blockId])
+}
+
+model FlightBlockingReview {
+  key       String   @id
+  signature String
+  by        String
+  at        DateTime @default(now())
+}
+
+model FlightBlockingAlert {
+  id         String    @id @default(uuid())
+  blockId    String
+  kind       String
+  due        String    @db.VarChar(10)
+  active     Boolean
+  resolvedAt DateTime?
+  updatedAt  DateTime  @updatedAt
+
+  block FlightBlocking @relation(fields: [blockId], references: [id], onDelete: Restrict)
+
+  @@unique([blockId, kind])
+  @@index([active, due])
+}
+
+model FlightBlockingAttachment {
+  id      String   @id @default(uuid())
+  blockId String
+  kind    String
+  name    String
+  mime    String
+  bytes   Bytes
+  size    Int
+  by      String
+  at      DateTime @default(now())
+
+  block FlightBlocking @relation(fields: [blockId], references: [id], onDelete: Restrict)
+
+  @@index([blockId, kind])
+}
+
+model FlightBlockingEvent {
+  id        String   @id @default(uuid())
+  blockId   String?
+  serviceId String?
+  action    String
+  data      Json
+  by        String
+  at        DateTime @default(now())
+
+  block   FlightBlocking?        @relation(fields: [blockId], references: [id], onDelete: Restrict)
+  service FlightBlockingService? @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@index([at])
+}
+
+model FlightBlockingSync {
+  id            Int       @id
+  integrationAt DateTime
+  lastSuccess   DateTime?
+  sheetCheckedAt DateTime?
+  tcCheckedAt   DateTime?
+  error         String?
+}
+
 model Form {
   formId      String  @id @default(uuid()) @map("form_id")
   title       String  @map("title")
@@ -1721,3 +1865,5 @@ model TransferWhatsAppDelivery {
   @@index([transferRequestId, createdAt])
   @@map("transfer_whatsapp_deliveries")
 }
+
+
