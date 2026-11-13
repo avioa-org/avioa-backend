@@ -19,6 +19,7 @@ import type { Response } from "express";
 import { FlightBlockingsService } from "./flight-blockings.service";
 import { JwtAuthGuard } from "src/common/guards/jwt-auth.guard";
 import { CurrentUser } from "src/common/decorator/current-user.decorator";
+import { Public } from 'src/common/decorator/public.decorator'; // <-- Ajusta la ruta si es necesario
 
 interface Upload {
   fieldname: string;
@@ -33,7 +34,8 @@ interface Upload {
 @UseGuards(JwtAuthGuard)
 export class FlightBlockingsController {
   constructor(private readonly service: FlightBlockingsService) {}
-
+  
+  @Public()
   @Post('webhook-tc')
   @HttpCode(200)
   async handleTcWebhook(@Body() body: any) {
