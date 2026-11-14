@@ -132,7 +132,11 @@ export class FeedGateway implements OnGatewayConnection, OnGatewayDisconnect {
       commentsCount,
     });
   }
-  s;
+
+  emitCommentReaction(postId: string, commentId: string, payload: any) {
+    this.server.emit('feed:comment:reacted', { postId, commentId, payload });
+  }
+
   private broadcast(event: string, payload: unknown, excludeUserId?: string) {
     const room = this.server.to(this.ROOM);
 

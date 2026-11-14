@@ -63,11 +63,13 @@ export class FeedService {
           orderBy: { createdAt: 'asc' },
           include: {
             author: { select: AUTHOR_SELECT },
+            // orderBy: { createdAt: 'asc' },
             replies: {
               where: { deletedAt: null },
               orderBy: { createdAt: 'asc' },
               include: { author: { select: AUTHOR_SELECT } },
             },
+            reactions: { select: { type: true, userId: true } },
           },
         },
       },
@@ -101,7 +103,10 @@ export class FeedService {
             replies: {
               where: { deletedAt: null },
               orderBy: { createdAt: 'asc' },
-              include: { author: { select: AUTHOR_SELECT } },
+              include: {
+                author: { select: AUTHOR_SELECT },
+                reactions: { select: { type: true, userId: true } },
+              },
             },
           },
         },
@@ -210,7 +215,10 @@ export class FeedService {
               replies: {
                 where: { deletedAt: null },
                 orderBy: { createdAt: 'asc' },
-                include: { author: { select: AUTHOR_SELECT } },
+                include: {
+                  author: { select: AUTHOR_SELECT },
+                  reactions: { select: { type: true, userId: true } },
+                },
               },
             },
           },
@@ -348,7 +356,7 @@ export class FeedService {
       include: { author: { select: AUTHOR_SELECT } },
     });
 
-    const mapped = this.mapComment({ ...comment, replies: [] });
+    const mapped = this.mapComment({ ...comment, replies: [] }, userId);
     const commentsCount = await this.countComments(postId);
 
     this.feedGateway.emitNewComment(postId, mapped, commentsCount);
@@ -471,6 +479,65 @@ export class FeedService {
   `;
   }
 
+  async reactToComment(
+    commentId: string,
+    dto: CreateReactionDto,
+    userId: string,
+  ) {
+    const comment = await this.prisma.feedComment.findFirst({
+      where: { feedCommentId: commentId, deletedAt: null },
+      select: { postId: true },
+    });
+
+    if (!comment) throw new NotFoundException('Comentario no encontrado');
+
+    await this.prisma.feedCommentReaction.upsert({
+      where: { commentId_userId: { commentId, userId } },
+      create: { commentId, userId, type: dto.type },
+      update: { type: dto.type },
+    });
+
+    const payload = await this.buildCommentReactionPayload(commentId, userId);
+
+    this.feedGateway.emitCommentReaction(comment.postId, commentId, payload);
+
+    return { commentId, ...payload, myReaction: dto.type };
+  }
+
+  async unreactToComment(commentId: string, userId: string) {
+    await this.prisma.feedCommentReaction
+      .delete({ where: { commentId_userId: { commentId, userId } } })
+      .catch(() => null);
+
+    const payload = await this.buildCommentReactionPayload(commentId, userId);
+
+    return { commentId, ...payload, myReaction: null };
+  }
+
+  private async buildCommentReactionPayload(
+    commentId: string,
+    currentUserId: string,
+  ) {
+    const reactions = await this.prisma.feedCommentReaction.findMany({
+      where: { commentId },
+      select: { type: true, userId: true },
+    });
+
+    const reactionsSummary: Record<string, number> = {};
+    const reactionsByUser: Record<string, string> = {};
+
+    for (const r of reactions) {
+      reactionsSummary[r.type] = (reactionsSummary[r.type] ?? 0) + 1;
+      reactionsByUser[r.userId] = r.type;
+    }
+
+    return {
+      reactionsCount: reactions.length,
+      reactionsSummary,
+      reactionsByUser,
+    };
+  }
+
   private async ensurePostExists(feedPostId: string) {
     const post = await this.prisma.feedPost.findFirst({
       where: { feedPostId, deletedAt: null },
@@ -492,14 +559,31 @@ export class FeedService {
     return post;
   }
 
-  private mapComment(comment: any) {
+  private mapComment(comment: any, currentUserId?: string) {
+    const reactions = comment.reactions ?? [];
+
+    const reactionsSummary = reactions.reduce(
+      (acc: Record<string, number>, r: any) => {
+        acc[r.type] = (acc[r.type] ?? 0) + 1;
+        return acc;
+      },
+      {},
+    );
+
     return {
       feedCommentId: comment.feedCommentId,
       content: comment.content,
       author: comment.author,
       parentId: comment.parentId ?? null,
-      replies: (comment.replies ?? []).map((r: any) => this.mapComment(r)),
+      replies: (comment.replies ?? []).map((r: any) =>
+        this.mapComment(r, currentUserId),
+      ),
       createdAt: comment.createdAt,
+      reactionsCount: reactions.length,
+      reactionsSummary: reactionsSummary,
+      myReaction: currentUserId
+        ? (reactions.find((r: any) => r.userId === currentUserId)?.type ?? null)
+        : null,
     };
   }
 
@@ -516,7 +600,9 @@ export class FeedService {
       reactions.find((r: any) => r.userId === currentUserId)?.type ?? null;
     const recentReactors = reactions.slice(0, 5).map((r: any) => r.user);
 
-    const comments = (post.comments ?? []).map((c: any) => this.mapComment(c));
+    const comments = (post.comments ?? []).map((c: any) =>
+      this.mapComment(c, currentUserId),
+    );
     const commentsCount = comments.reduce(
       (sum: number, c: any) => sum + 1 + (c.replies?.length ?? 0),
       0,
