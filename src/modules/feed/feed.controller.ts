@@ -22,11 +22,6 @@ import { UpdatePostDto } from './dto/update-post.dto';
 import { CreateReactionDto } from './dto/create-reaction.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { ModulePermissionGuard } from 'src/common/guards/module-permission.guard';
-import {
-  RequireModule,
-  RequireAction,
-} from 'src/common/decorator/modules-permission.decorator';
-import { Modules } from 'src/common/enum/modules.enum';
 import { StorageService } from 'src/infrastructure/storage/storage.service';
 import { PresignAttachmentDto } from './dto/attachment.dto';
 
@@ -127,6 +122,23 @@ export class FeedController {
     @CurrentUser('userId') userId: string,
   ) {
     return this.feedService.react(feedPostId, dto, userId);
+  }
+
+  @Post('comments/:commentId/react')
+  reactToComment(
+    @Param('commentId') commentId: string,
+    @Body() dto: CreateReactionDto,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    return this.feedService.reactToComment(commentId, dto, user.userId);
+  }
+
+  @Delete('comments/:commentId/react')
+  unreactToComment(
+    @Param('commentId') commentId: string,
+    @CurrentUser() user: ICurrentUser,
+  ) {
+    return this.feedService.unreactToComment(commentId, user.userId);
   }
 
   @Delete(':feedPostId/reactions')
