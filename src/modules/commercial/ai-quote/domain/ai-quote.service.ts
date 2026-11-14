@@ -1,4 +1,4 @@
-import { Injectable, Logger, InternalServerErrorException, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 import { envs } from 'src/config/env.config';
 import OpenAI from 'openai';
@@ -12,6 +12,7 @@ import { selectOffers, selectCierres } from '../domain/offers-selector';
 import { interpretIntent } from '../domain/intent-interpreter';
 import { buildQuote } from '../domain/quote-builder';
 import { validateQuote } from '../domain/quote-validator';
+import { GoogleSheetClient } from '../../../flight-blockings/google-sheet.client';
 import {
   CierreEvidence,
   InterpretedIntent,
@@ -26,7 +27,10 @@ export class AiQuoteService {
   private readonly openai: OpenAI;
   private readonly model: string;
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly googleSheet: GoogleSheetClient,
+  ) {
     this.openai = new OpenAI({ apiKey: envs.OPENAI_API_KEY });
     this.model = envs.OPENAI_MODEL ?? 'gpt-4o-mini';
   }
@@ -101,8 +105,8 @@ export class AiQuoteService {
         : SHEET_OFFERS;
 
       const fetchPromises = [
-        ...sheetsToFetch.map((s) => fetchSheet(s)),
-        fetchSheet(SHEET_CIERRES),
+        ...sheetsToFetch.map((s) => fetchSheet(s, this.googleSheet)),
+        fetchSheet(SHEET_CIERRES, this.googleSheet),
       ];
 
       const fetchResults: SheetFetchResult[] = await Promise.all(fetchPromises);
