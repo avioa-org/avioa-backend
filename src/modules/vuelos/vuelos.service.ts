@@ -24,7 +24,7 @@ export class VuelosService {
       this.logger.log(`SerpApi respondio con HTTP ${response.status}`);
 
       return { data: response.data };
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (axios.isAxiosError(error)) {
         this.logger.error(
           `Error consultando SerpApi: ${error.message}; ` +

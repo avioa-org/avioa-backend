@@ -110,6 +110,16 @@ export class EquipmentLoansController {
     return this.service.findMyTeam(user.userId);
   }
 
+  @Get('users-to-lend')
+  @HttpCode(HttpStatus.OK)
+  findUsersToLend(@CurrentUser() user: ICurrentUser) {
+    return this.service.findUsersToLend({
+      userId: user.userId,
+      role: user.role,
+      isSupport: user.isSupport,
+    });
+  }
+
   @Get('loans/my')
   @HttpCode(HttpStatus.OK)
   findMyLoans(@CurrentUser() user: ICurrentUser) {

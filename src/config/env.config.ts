@@ -68,6 +68,15 @@ const envSchema = z.object({
   SERPAPI_VUELOS_URL: z.string(),
   TRANSFER_N8N_WEBHOOK_URL: z.string().optional(),
   GMAIL_WEBHOOK_SECRET: z.string(),
+  OPENAI_MODEL: z.string().optional(),
+  GOOGLE_SERVICE_ACCOUNT_EMAIL: z.string().email().optional(),
+  GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: z.string().optional(),
+  TC_API_USERNAME: z.string().optional(),
+  TC_API_PASSWORD: z.string().optional(),
+  TC_API_MICROSITE: z.string().optional(),
+  TC_DEPARTURE_FROM: z.string().optional(),
+  TC_MAX_PAGES: z.string().optional(),
+  FLIGHT_BLOCKINGS_INTEGRATION_AT: z.string().optional(),
 });
 
 let envs: z.infer<typeof envSchema>;
