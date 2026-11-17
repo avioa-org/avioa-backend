@@ -1908,3 +1908,42 @@ model TransferWhatsAppDelivery {
 }
 
 
+// ─────────────────────────────────────────────────────
+// TARIFAS Y PLANES (Migrado de Drive a BD)
+// ─────────────────────────────────────────────────────
+
+model CommercialRateTable {
+  id        String   @id @default(uuid())
+  slug      String   @unique // "alta-2026", "baja-2026", "alta-2027"
+  title     String   // "ALTA 2026", "BAJA 2026"
+  year      Int      // 2026, 2027
+  type      String   // "ALTA", "BAJA"
+  isActive  Boolean  @default(true)
+  checkedAt DateTime @default(now())
+  rows      CommercialRateRow[]
+
+  @@map("commercial_rate_tables")
+}
+
+model CommercialRateRow {
+  id             String  @id @default(uuid())
+  tableId        String
+  rowIndex       Int
+  
+
+  destination    String  // DESTINO
+  hotel          String  // HOTEL
+  date           String  // FECHA
+  mealPlan       String  // ALIMENTACION
+  singleRate     String  // SENCILLA
+  doubleAdult    String  // DOBLE · TARIFA ADULTO
+  doubleChild    String  // TARIFA NIÑOS (Doble)
+  multipleAdult  String  // MULTIPLE · TARIFA ADULTO
+  multipleChild  String  // TARIFA NIÑOS (Múltiple)
+  childAge       String  // EDAD NIÑOS
+
+  table          CommercialRateTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+
+  @@index([tableId, rowIndex])
+  @@map("commercial_rate_rows")
+}
