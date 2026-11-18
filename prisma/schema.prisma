@@ -1947,3 +1947,19 @@ model CommercialRateRow {
   @@index([tableId, rowIndex])
   @@map("commercial_rate_rows")
 }
+
+
+
+//OPERADORES
+
+
+model CommercialOperator {
+  id          String   @id @default(uuid())
+  category    String
+  destination String
+  operator    String
+  raw         String
+  updatedAt   DateTime @updatedAt
+
+  @@map("commercial_operators")
+}
