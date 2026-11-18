@@ -9,8 +9,7 @@ import { CommercialVideosController } from "./commercial-videos.controller";
 import { CommercialVideosService } from "./commercial-videos.service";
 import { CommercialProtocolController } from "./commercial-protocol.controller";
 import { CommercialProtocolService } from "./commercial-protocol.service";
-// import { CommercialDriveTablesController } from "./commercial-drive-tables.controller";
-// import { CommercialDriveTablesService } from "./commercial-drive-tables.service";
+import { OperatorsModule } from "./operators/operators.module"
 import { CommercialQuickRepliesController } from "./commercial-quick-replies.controller";
 import { CommercialQuickRepliesService } from "./commercial-quick-replies.service";
 import { AiQuoteModule } from "./ai-quote/domain/ai-quote.module";
@@ -19,14 +18,13 @@ import { GoogleSheetClient } from "../flight-blockings/google-sheet.client";
 
 
 @Module({
-  imports: [PrismaModule, AiQuoteModule, CommercialEmailModule],
+  imports: [PrismaModule, AiQuoteModule, CommercialEmailModule, OperatorsModule],
   controllers: [
     CommercialController,
     CommercialNiltzeController,
     CommercialVideosController,
     CommercialAiController,
     CommercialProtocolController,
-    // CommercialDriveTablesController,
     CommercialQuickRepliesController,
   ],
   providers: [
@@ -34,7 +32,6 @@ import { GoogleSheetClient } from "../flight-blockings/google-sheet.client";
     CommercialNiltzeService,
     CommercialVideosService,
     CommercialProtocolService,
-    // CommercialDriveTablesService,
     CommercialQuickRepliesService,
     GoogleSheetClient,
   ],
