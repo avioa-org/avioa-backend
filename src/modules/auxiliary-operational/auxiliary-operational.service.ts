@@ -88,7 +88,9 @@ export class AuxiliaryOperationalService {
     // Reading an existing password intentionally requires the same read permission as the source module.
     if (!['GET', 'HEAD'].includes(req.method) && !allowed(action))
       throw new ForbiddenException('Acción no autorizada para Auxiliares.');
+
     const route = routes.find((route) => route.pattern.test(path));
+
     const handler = route?.handlers[req.method];
     if (!route || !handler)
       throw new NotFoundException('Ruta de Auxiliares no encontrada.');
