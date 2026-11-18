@@ -46,6 +46,7 @@ export class CertificadosService {
       day: '2-digit',
       month: 'long',
       year: 'numeric',
+      timeZone: 'UTC',
     }).format(d);
   }
 
@@ -53,10 +54,20 @@ export class CertificadosService {
     const d1 = new Date(desde);
     const d2 = new Date(hasta);
     if (Number.isNaN(d1.getTime())) return 0;
-    return (
-      (d2.getFullYear() - d1.getFullYear()) * 12 +
-      (d2.getMonth() - d1.getMonth())
-    );
+
+    const y1 = d1.getUTCFullYear();
+    const m1 = d1.getUTCMonth();
+    const day1 = d1.getUTCDate();
+
+    const y2 = d2.getUTCFullYear();
+    const m2 = d2.getUTCMonth();
+    const day2 = d2.getUTCDate();
+
+    let meses = (y2 - y1) * 12 + (m2 - m1);
+
+    if (day2 < day1) meses -= 1;
+
+    return Math.max(0, meses);
   }
 
   private readonly templateByLegalEntity: Record<LegalEntity, string> = {
@@ -131,8 +142,6 @@ export class CertificadosService {
     const templateKey = user.hasTransportAllowance
       ? baseTemplateKey
       : baseTemplateKey.replace(/\.docx$/i, '_no_auxilio.docx');
-
-    console.log('templateKey', templateKey);
 
     let salaryNumber: number | null = null;
     if (user.salary) {
