@@ -90,7 +90,7 @@ export class FlightBlockingsService {
       return {
         checkedAt,
         blocks: parseDriveBlocks(
-          await this.google.readAuthenticated(985693555, "A1:V981"),
+          await this.google.readAuthenticated(985693555, 'A1:V981'),
           checkedAt,
         ),
       };
@@ -121,7 +121,7 @@ export class FlightBlockingsService {
       return {
         checkedAt,
         blocks: parseDriveBlocks(
-          await this.google.readAuthenticated(985693555, "A1:V981"),
+          await this.google.readAuthenticated(985693555, 'A1:V981'),
           checkedAt,
         ),
       };
@@ -273,11 +273,22 @@ export class FlightBlockingsService {
         error: sync?.error ?? null,
       },
       files: files.map((f) => ({ ...f, at: f.at.toISOString() })),
-      events: events.map((e) => ({
-        ...e,
-        data: JSON.stringify(e.data),
-        at: e.at.toISOString(),
-      })),
+      events: await Promise.all(
+        events.map(async (e) => {
+          // Buscamos el usuario por su ID (e.by)
+          const user = await tx.user.findUnique({
+            where: { userId: e.by },
+            select: { name: true },
+          });
+
+          return {
+            ...e,
+            by: user?.name || e.by, // Si encuentra el nombre, lo usa. Si no, deja el ID.
+            data: JSON.stringify(e.data),
+            at: e.at.toISOString(),
+          };
+        }),
+      ),
       sync: {
         configured: !!(
           process.env.TC_API_USERNAME &&
@@ -319,157 +330,21 @@ export class FlightBlockingsService {
     return board;
   }
 
-   async getBoard(actor: Actor) {
-    const started = new Date();
+  async getBoard(actor: Actor) {
     try {
-      // 1. Descargar el Excel
-      const sheet = await this.sheet();
-      
-      const oldest = await this.prisma.flightBlocking.aggregate({
-        _min: { departDate: true },
-      });
-      const dates = [
-        ...sheet.blocks.map((b) => b.departDate),
-        oldest._min.departDate || "",
-      ]
-        .filter(Boolean)
-        .sort();
-      const departureFrom = process.env.TC_DEPARTURE_FROM || dates[0] || today();
-
-      // 2. Intentar conectar con Travel Compositor (con timeout de 10s)
-      let tc: { trips: any[]; checkedAt: string };
-      try {
-        tc = await Promise.race([
-          this.tc.fetchAll(departureFrom),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("TIMEOUT_TC")), 10000),
-          ),
-        ]);
-      } catch (error: any) {
-        console.warn(`⚠️ Travel Compositor falló o tardó demasiado (${error.message}). Continuando solo con el Excel.`);
-        tc = { trips: [], checkedAt: new Date().toISOString() };
-      }
-
-      const sources = extractFlights(tc.trips);
-
-      // 3. Guardar en base de datos (transacción segura)
-      const board = await this.transaction(async (tx) => {
-        const sync = await tx.flightBlockingSync.findUnique({
-          where: { id: 1 },
-        });
-        if (sync?.lastSuccess && sync.lastSuccess > started)
-          throw new ConflictException(
-            "Otra sincronización más reciente terminó. Reintenta el GET.",
-          );
-          
-        const cutover = process.env.FLIGHT_BLOCKINGS_INTEGRATION_AT
-          ? new Date(process.env.FLIGHT_BLOCKINGS_INTEGRATION_AT)
-          : started;
-        if (!Number.isFinite(cutover.getTime()))
-          throw new BadRequestException("FLIGHT_BLOCKINGS_INTEGRATION_AT inválido.");
-          
-        await tx.flightBlockingSync.upsert({
-          where: { id: 1 },
-          create: { id: 1, integrationAt: cutover },
-          update: {},
-        });
-
-        // Guardar reservas de TC (si hubo)
-        const oldSources = new Map(
-          (await tx.flightBlockingService.findMany()).map((row) => [row.id, row]),
-        );
-        for (const source of sources) {
-          const old = oldSources.get(source.id);
-          if (source.status === "OUT_OF_SCOPE" && !old) continue;
-          if (old && old.avi !== source.avi) continue; 
-          if (old && isDeepStrictEqual(old.data, json(source))) continue;
-          
-          await tx.flightBlockingService.upsert({
-            where: { id: source.id },
-            create: { id: source.id, avi: source.avi, source: "tc", data: json(source), sourceAt: new Date(source.sourceAt) },
-            update: { avi: source.avi, data: json(source), sourceAt: new Date(source.sourceAt) },
-          });
-        }
-
-        // Guardar los bloqueos del Excel
-        const existingBlocks = await tx.flightBlocking.findMany();
-        const findExisting = (incoming: (typeof sheet.blocks)[number]) =>
-          existingBlocks.find((b) => b.id === incoming.id) ||
-          existingBlocks.find((b) => b.code === incoming.code && b.source === "drive") ||
-          existingBlocks.find((b) => b.code === incoming.code && b.departDate === incoming.departDate);
-
-        for (const incoming of sheet.blocks) {
-          const existing = findExisting(incoming);
-          if (existing?.deletedAt) continue;
-
-          const data = {
-            code: incoming.code,
-            title: incoming.title,
-            departDate: incoming.departDate,
-            returnDate: incoming.returnDate,
-            departTime: incoming.departTime,
-            returnTime: incoming.returnTime,
-            origin: incoming.origin,
-            destination: incoming.destination,
-            flight: incoming.flight,
-            capacity: existing?.capacity ?? null,
-            notes: existing?.notes ?? incoming.notes,
-            aliases: existing?.aliases ?? [],
-            source: "drive",
-            drive: json(incoming.drive),
-            updatedBy: "Google Sheets",
-          };
-
-          if (existing) {
-            await tx.flightBlocking.update({
-              where: { id: existing.id },
-              data: { ...data, revision: { increment: 1 } },
-            });
-          } else {
-            await tx.flightBlocking.create({ data: { id: incoming.id, ...data } });
-          }
-        }
-
-        // Actualizar la fecha de sincronización
-        await tx.flightBlockingSync.update({
-          where: { id: 1 },
-          data: {
-            sheetCheckedAt: new Date(sheet.checkedAt),
-            tcCheckedAt: new Date(tc.checkedAt),
-            lastSuccess: new Date(),
-            error: null,
-          },
-        });
-
-        return this.persistAlerts(tx);
+      // Leemos todo directamente de la base de datos (instantáneo)
+      const board = await this.prisma.$transaction(async (tx) => {
+        return this.snapshot(tx);
       });
 
-      return actor.permissions.includes("flight-blockings:admin")
+      return actor.permissions.includes('flight-blockings:admin')
         ? board
         : this.publicBoard(board);
-        
     } catch (error: any) {
-      if (
-        error instanceof BadRequestException ||
-        error instanceof ConflictException
-      )
-        throw error;
-      
-      console.warn("Error en la sincronización principal, devolviendo solo datos locales:", error);
-      
-      // Si falla la sincronización global, al menos devolvemos lo que ya está en Postgres
-      try {
-        const board = await this.prisma.$transaction(async (tx) => {
-          return this.snapshot(tx);
-        });
-        return actor.permissions.includes("flight-blockings:admin")
-          ? board
-          : this.publicBoard(board);
-      } catch (innerError) {
-         throw new ServiceUnavailableException(
-          "No se completó la sincronización y no se pudieron leer datos locales.",
-        );
-      }
+      console.error('Error obteniendo el tablero:', error);
+      throw new ServiceUnavailableException(
+        'Error al cargar los datos del tablero.',
+      );
     }
   }
 
@@ -859,34 +734,6 @@ export class FlightBlockingsService {
           },
         });
         await this.event(tx, 'manual_reservation', source, by, block.id, id);
-      } else if (p.action === 'deleteManualReservation') {
-        const service = board.services.find((s) => s.id === p.serviceId);
-        if (
-          !service ||
-          service.source !== 'manual' ||
-          service.sourceSignature !== p.signature
-        )
-          throw new ConflictException('La reserva manual cambió o no existe.');
-        const row = await tx.flightBlockingService.findUniqueOrThrow({
-          where: { id: service.id },
-        });
-        if (row.deletedAt) return { ok: true };
-        const source = row.data as unknown as FlightSource;
-        await tx.flightBlockingService.update({
-          where: { id: service.id },
-          data: {
-            deletedAt: new Date(),
-            data: json({ ...source, status: 'CANCELLED' }),
-          },
-        });
-        await this.event(
-          tx,
-          'delete_manual_reservation',
-          { avi: service.avi },
-          by,
-          service.blockId,
-          service.id,
-        );
       } else if (p.action === 'deleteBlock') {
         const block = requireBlock(p.blockId, p.revision);
         const links = await tx.flightBlockingLink.findMany({
@@ -1055,40 +902,40 @@ export class FlightBlockingsService {
 
   // Dentro de FlightBlockingsService
 
-async syncFromWebhook(trips: any[]) {
-  console.log(`Recibidas ${trips.length} reservas desde Webhook de TC`);
-  
-  // 1. Extraer la información usando la misma función que usábamos en el fetch masivo
-  const sources = extractFlights(trips);
+  async syncFromWebhook(trips: any[]) {
+    console.log(`Recibidas ${trips.length} reservas desde Webhook de TC`);
 
-  if (sources.length === 0) {
-    console.log("El webhook no contenía vuelos (transportservice vacío).");
-    return;
-  }
+    // 1. Extraer la información usando la misma función que usábamos en el fetch masivo
+    const sources = extractFlights(trips);
 
-  // 2. Guardar en la base de datos
-  await this.transaction(async (tx) => {
-    for (const source of sources) {
-      if (source.status === "OUT_OF_SCOPE") continue;
-      
-      await tx.flightBlockingService.upsert({
-        where: { id: source.id },
-        create: {
-          id: source.id,
-          avi: source.avi,
-          source: "tc",
-          data: json(source),
-          sourceAt: new Date(source.sourceAt),
-        },
-        update: {
-          avi: source.avi,
-          data: json(source),
-          sourceAt: new Date(source.sourceAt),
-        },
-      });
+    if (sources.length === 0) {
+      console.log('El webhook no contenía vuelos (transportservice vacío).');
+      return;
     }
-  });
-  
-  console.log(`Reservas de vuelo sincronizadas correctamente desde Webhook.`);
-}
+
+    // 2. Guardar en la base de datos
+    await this.transaction(async (tx) => {
+      for (const source of sources) {
+        if (source.status === 'OUT_OF_SCOPE') continue;
+
+        await tx.flightBlockingService.upsert({
+          where: { id: source.id },
+          create: {
+            id: source.id,
+            avi: source.avi,
+            source: 'tc',
+            data: json(source),
+            sourceAt: new Date(source.sourceAt),
+          },
+          update: {
+            avi: source.avi,
+            data: json(source),
+            sourceAt: new Date(source.sourceAt),
+          },
+        });
+      }
+    });
+
+    console.log(`Reservas de vuelo sincronizadas correctamente desde Webhook.`);
+  }
 }
