@@ -440,10 +440,6 @@ export class FlightBlockingsService {
             throw new ConflictException(
               'El bloqueo cambió. Actualiza antes de guardar.',
             );
-          if (old?.drive)
-            throw new BadRequestException(
-              'Usa ajuste de inventario para un bloqueo de Drive.',
-            );
           const duplicate = await tx.flightBlocking.findUnique({
             where: {
               code_departDate: { code: row.code, departDate: row.departDate },
