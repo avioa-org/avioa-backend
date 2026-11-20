@@ -237,30 +237,40 @@ export class TravelCompositorClient {
 
 export function extractFlights(trips: TcTrip[]): FlightSource[] {
   const result: FlightSource[] = [];
+  
+  // Validación flexible del operador
   const blocking = (operator: string) =>
-    /^transport contract avioa(?:\. contract: transport-\d+(?:,\s*transport-\d+)*)?$/.test(
-      operator.trim().toLowerCase().replace(/\s+/g, ' '),
-    );
+    /transport contract avioa/i.test(operator || '');
+
   for (const trip of trips) {
     if (!trip.bookingReference) continue;
+    
+    // Validación segura de distribution
     const people = new Map(
-      (trip.distribution || []).flatMap((d) =>
-        (d.person || []).map((p) => [p.id, p] as const),
+      (trip.distribution || []).flatMap((d) => 
+        (d.person || []).map((p) => [p.id, p] as const)
       ),
     );
-    for (const service of trip.transportservice) {
+
+    // Validación segura de transportservice
+    for (const service of (trip.transportservice || [])) {
       if (!service.id) continue;
+      
       const operator =
         service.providerDescription ||
         service.providerName ||
         service.supplierName ||
-        service.provider;
-      const first = service.segment[0];
+        service.provider || '';
+        
+      const first = (service.segment || [])[0];
+      
+      // Validación segura de personFareBreakdown
       const fareIds = [
         ...new Set(
-          service.personFareBreakdown.map((f) => f.personId).filter(Boolean),
+          (service.personFareBreakdown || []).map((f) => f.personId).filter(Boolean),
         ),
       ];
+      
       let seats: number | null = null;
       if (
         fareIds.length &&
@@ -271,52 +281,57 @@ export function extractFlights(trips: TcTrip[]): FlightSource[] {
       )
         seats = fareIds.length;
       else if (
-        trip.transportservice.length === 1 &&
+        (trip.transportservice || []).length === 1 &&
         Number.isInteger(trip.adultCount) &&
         Number.isInteger(trip.childCount) &&
         (trip.adultCount ?? 0) + (trip.childCount ?? 0) > 0 &&
         trip.infantCount === 0
       )
         seats = (trip.adultCount ?? 0) + (trip.childCount ?? 0);
+        
       if (seats !== null && (seats < 1 || seats > 500)) seats = null;
+      
       const sourceAt =
         service.lastUpdateDate || trip.lastUpdateDate || trip.creationDate;
+        
       if (
         !/^\d{4}-\d{2}-\d{2}T/.test(sourceAt) ||
         !Number.isFinite(Date.parse(sourceAt))
       )
         throw new ServiceUnavailableException(
-          'Una reserva no tiene fecha de actualización válida.',
+          "Una reserva no tiene fecha de actualización válida.",
         );
+        
       const reference =
-        service.providerBookingReference || service.bookingReference;
+        service.providerBookingReference || service.bookingReference || '';
+        
       result.push({
-        id: 'FLIGHT-' + service.id,
+        id: "FLIGHT-" + service.id,
         avi: trip.bookingReference,
         operator,
         passenger: [trip.contactPerson?.name, trip.contactPerson?.lastName]
           .filter(Boolean)
-          .join(' '),
+          .join(" "),
         advisor:
-          [trip.user?.name, trip.user?.surname].filter(Boolean).join(' ') ||
+          [trip.user?.name, trip.user?.surname].filter(Boolean).join(" ") ||
           trip.user?.username ||
-          '',
-        date: (service.startDate || first?.departureDate || '').slice(0, 10),
-        returnDate: service.returnDepartureDate.slice(0, 10),
-        origin: service.departureAirport || first?.departureAirport || '',
-        destination: service.arrivalAirport || first?.arrivalAirport || '',
-        flight: first?.flightNumber || '',
-        time: (first?.departureDate || service.startDate).slice(11, 16),
+          "",
+        date: (service.startDate || first?.departureDate || "").slice(0, 10),
+        returnDate: (service.returnDepartureDate || "").slice(0, 10),
+        origin: service.departureAirport || first?.departureAirport || "",
+        destination: service.arrivalAirport || first?.arrivalAirport || "",
+        flight: first?.flightNumber || "",
+        time: (first?.departureDate || service.startDate || "").slice(11, 16),
         seats,
         reference,
         references: [
           reference,
           service.externalCode,
-          ...service.segment.map((s) => s.airlineReference),
-        ].filter(Boolean),
+          ...(service.segment || []).map((s) => s.airlineReference),
+        ].filter(Boolean) as string[],
         status: blocking(operator)
-          ? service.status.toUpperCase()
-          : 'OUT_OF_SCOPE',
+          ? (service.status || '').toUpperCase()
+          : "OUT_OF_SCOPE",
         sourceAt,
         createdAt: trip.creationDate,
       });
@@ -324,3 +339,4 @@ export function extractFlights(trips: TcTrip[]): FlightSource[] {
   }
   return result;
 }
+
