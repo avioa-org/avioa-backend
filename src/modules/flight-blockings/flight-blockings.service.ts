@@ -330,24 +330,28 @@ export class FlightBlockingsService {
     return board;
   }
 
-  async getBoard(actor: Actor) {
-    try {
-      // Leemos todo directamente de la base de datos (instantáneo)
-      const board = await this.prisma.$transaction(async (tx) => {
-        return this.snapshot(tx);
-      });
+    async getBoard(actor: Actor) {
+      try {
+        const board = await this.prisma.$transaction(async (tx) => {
+          return this.snapshot(tx);
+        });
 
-      return actor.permissions.includes('flight-blockings:admin')
-        ? board
-        : this.publicBoard(board);
-    } catch (error: any) {
-      console.error('Error obteniendo el tablero:', error);
-      throw new ServiceUnavailableException(
-        'Error al cargar los datos del tablero.',
-      );
+      
+        console.log(`[DIAGNÓSTICO] Servicios (reservas) en BD: ${board.services.length}`);
+        console.log(`[DIAGNÓSTICO] Bloqueos en BD: ${board.blocks.length}`);
+        console.log(`[DIAGNÓSTICO] Alertas generadas: ${board.alerts.length}`);
+    
+
+        return actor.permissions.includes('flight-blockings:admin')
+          ? board
+          : this.publicBoard(board);
+      } catch (error: any) {
+        console.error('Error obteniendo el tablero:', error);
+        throw new ServiceUnavailableException(
+          'Error al cargar los datos del tablero.',
+        );
+      }
     }
-  }
-
   private publicBoard(
     board: Awaited<ReturnType<FlightBlockingsService['snapshot']>>,
   ) {
