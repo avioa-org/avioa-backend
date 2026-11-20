@@ -3,6 +3,12 @@
   "collection": "@nestjs/schematics",
   "sourceRoot": "src",
   "compilerOptions": {
-    "deleteOutDir": true
+    "deleteOutDir": true,
+    "assets": [
+      {
+        "include": "infrastructure/offers-runtime/*.cjs",
+        "watchAssets": true
+      }
+    ]
   }
 }

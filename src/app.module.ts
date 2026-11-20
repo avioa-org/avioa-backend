@@ -37,8 +37,10 @@ import { AuxiliaryOperationalModule } from './modules/auxiliary-operational/auxi
 import { CommercialModule } from './modules/commercial/commercial.module';
 import { TutorialModule } from './modules/tutorial/tutorial.module';
 import { GmailWebhookModule } from './modules/gmail-webhook/gmail-webhook.module';
-import { FlightBlockingsModule } from "./modules/flight-blockings/flight-blockings.module";
-import { CommercialRatesModule } from  "./modules/commercial/rates/commercial-rates.module"
+import { FlightBlockingsModule } from './modules/flight-blockings/flight-blockings.module';
+import { OffersManagerModule } from './modules/offers-manager/offers-manager.module';
+import { CommercialRatesModule } from './modules/commercial/rates/commercial-rates.module';
+import { OffersRuntimeModule } from './infrastructure/offers-runtime/offers-runtime.module';
 
 @Module({
   imports: [
@@ -88,6 +90,8 @@ import { CommercialRatesModule } from  "./modules/commercial/rates/commercial-ra
     GmailWebhookModule,
     FlightBlockingsModule,
     CommercialRatesModule,
+    OffersManagerModule,
+    OffersRuntimeModule,
   ],
   controllers: [],
   providers: [

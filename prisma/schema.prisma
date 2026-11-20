@@ -488,28 +488,27 @@ model Template {
   @@map("templates")
 }
 
-
 // ─────────────────────────────────────────────────────
 // BLOQUEOS JETSMART
 // ─────────────────────────────────────────────────────
 
 model FlightBlocking {
-  id             String   @id @default(uuid())
+  id             String    @id @default(uuid())
   code           String
   title          String
-  departDate     String   @db.VarChar(10)
-  returnDate     String   @db.VarChar(10)
+  departDate     String    @db.VarChar(10)
+  returnDate     String    @db.VarChar(10)
   departTime     String
   returnTime     String
   origin         String
   destination    String
   flight         String
   capacity       Int?
-  notes          String   @default("")
-  aliases        String[] @default([])
-  source         String   @default("manual")
+  notes          String    @default("")
+  aliases        String[]  @default([])
+  source         String    @default("manual")
   drive          Json?
-  revision       Int      @default(1)
+  revision       Int       @default(1)
   paidAt         DateTime?
   paidBy         String?
   namesAt        DateTime?
@@ -517,8 +516,8 @@ model FlightBlocking {
   namesSignature String?
   deletedAt      DateTime?
   updatedBy      String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   links       FlightBlockingLink[]
   alerts      FlightBlockingAlert[]
@@ -554,7 +553,7 @@ model FlightBlockingLink {
   at        DateTime @default(now())
 
   service FlightBlockingService @relation(fields: [serviceId], references: [id], onDelete: Restrict)
-  block   FlightBlocking         @relation(fields: [blockId], references: [id], onDelete: Restrict)
+  block   FlightBlocking        @relation(fields: [blockId], references: [id], onDelete: Restrict)
 }
 
 model FlightBlockingSplit {
@@ -624,12 +623,12 @@ model FlightBlockingEvent {
 }
 
 model FlightBlockingSync {
-  id            Int       @id
-  integrationAt DateTime
-  lastSuccess   DateTime?
+  id             Int       @id
+  integrationAt  DateTime
+  lastSuccess    DateTime?
   sheetCheckedAt DateTime?
-  tcCheckedAt   DateTime?
-  error         String?
+  tcCheckedAt    DateTime?
+  error          String?
 }
 
 model Form {
@@ -1563,6 +1562,34 @@ model Tutorial {
   @@map("tutorials")
 }
 
+model OffersWorkspaceState {
+  id        Int    @id
+  revision  Int
+  payload   String @db.Text
+  updatedAt String @map("updated_at")
+
+  @@map("offers_workspace_state")
+}
+
+model OffersAuditHistory {
+  revision  Int    @id
+  actor     String
+  actorId   String @map("actor_id")
+  action    String
+  createdAt String @map("created_at")
+  payload   String @db.Text
+  summary   String @db.Text
+
+  @@map("offers_audit_history")
+}
+
+model OffersLegacyRole {
+  userId String @id @map("user_id")
+  role   String
+
+  @@map("offers_workspace_roles")
+}
+
 // ENUMS
 
 enum FeedAttachmentType {
@@ -1907,51 +1934,46 @@ model TransferWhatsAppDelivery {
   @@map("transfer_whatsapp_deliveries")
 }
 
-
 // ─────────────────────────────────────────────────────
 // TARIFAS Y PLANES (Migrado de Drive a BD)
 // ─────────────────────────────────────────────────────
 
 model CommercialRateTable {
-  id        String   @id @default(uuid())
-  slug      String   @unique // "alta-2026", "baja-2026", "alta-2027"
-  title     String   // "ALTA 2026", "BAJA 2026"
-  year      Int      // 2026, 2027
-  type      String   // "ALTA", "BAJA"
-  isActive  Boolean  @default(true)
-  checkedAt DateTime @default(now())
+  id        String              @id @default(uuid())
+  slug      String              @unique // "alta-2026", "baja-2026", "alta-2027"
+  title     String // "ALTA 2026", "BAJA 2026"
+  year      Int // 2026, 2027
+  type      String // "ALTA", "BAJA"
+  isActive  Boolean             @default(true)
+  checkedAt DateTime            @default(now())
   rows      CommercialRateRow[]
 
   @@map("commercial_rate_tables")
 }
 
 model CommercialRateRow {
-  id             String  @id @default(uuid())
-  tableId        String
-  rowIndex       Int
-  
+  id       String @id @default(uuid())
+  tableId  String
+  rowIndex Int
 
-  destination    String  // DESTINO
-  hotel          String  // HOTEL
-  date           String  // FECHA
-  mealPlan       String  // ALIMENTACION
-  singleRate     String  // SENCILLA
-  doubleAdult    String  // DOBLE · TARIFA ADULTO
-  doubleChild    String  // TARIFA NIÑOS (Doble)
-  multipleAdult  String  // MULTIPLE · TARIFA ADULTO
-  multipleChild  String  // TARIFA NIÑOS (Múltiple)
-  childAge       String  // EDAD NIÑOS
+  destination   String // DESTINO
+  hotel         String // HOTEL
+  date          String // FECHA
+  mealPlan      String // ALIMENTACION
+  singleRate    String // SENCILLA
+  doubleAdult   String // DOBLE · TARIFA ADULTO
+  doubleChild   String // TARIFA NIÑOS (Doble)
+  multipleAdult String // MULTIPLE · TARIFA ADULTO
+  multipleChild String // TARIFA NIÑOS (Múltiple)
+  childAge      String // EDAD NIÑOS
 
-  table          CommercialRateTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  table CommercialRateTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
 
   @@index([tableId, rowIndex])
   @@map("commercial_rate_rows")
 }
 
-
-
 //OPERADORES
-
 
 model CommercialOperator {
   id          String   @id @default(uuid())
