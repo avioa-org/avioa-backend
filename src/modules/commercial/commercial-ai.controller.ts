@@ -9,12 +9,14 @@ import { ModulePermissionGuard } from 'src/common/guards/module-permission.guard
 import { AiQuoteService } from './ai-quote/domain/ai-quote.service';
 import { AiQuoteRequestDto } from './ai-quote/domain/ai-quote-request.dto';
 import { CommercialEmailService } from './email/commercial-email.service';
+import { GoogleSheetClient } from '../flight-blockings/google-sheet.client';
+import { Get, Query, BadRequestException  } from "@nestjs/common";
 
 @Controller('commercial')
 @UseGuards(JwtAuthGuard, ModulePermissionGuard)
-@RequireModule(Modules.COMMERCIAL)
 export class CommercialAiController {
   constructor(
+    private readonly google: GoogleSheetClient,
     private readonly aiQuote: AiQuoteService,
     private readonly emailService: CommercialEmailService,
   ) {}
@@ -34,4 +36,18 @@ export class CommercialAiController {
   ) {
     return this.emailService.generateEmail(userId, body.threadId, body.requestId, body.message);
   }
+
+    @Get('offers/raw')
+  async getRawOffers(
+    @Query('gid') gid: string,
+    @Query('range') range: string,
+  ) {
+    if (!gid || !range) throw new BadRequestException('Faltan parámetros gid y range');
+    
+    // El backend lee el Excel usando la cuenta de servicio (la llave privada)
+    const rows = await this.google.readAuthenticated(Number(gid), range);
+    return { rows };
+  }
+
+  
 }
