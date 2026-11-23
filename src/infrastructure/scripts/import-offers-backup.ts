@@ -102,7 +102,9 @@ async function scan(consume?: (record: any) => Promise<void>) {
 async function main() {
   const result = await scan();
   const prisma = new PrismaClient({
-    adapter: new PrismaPg({ connectionString: envs.DATABASE_URL || process.env.DATABASE_URL! }),
+    adapter: new PrismaPg({
+      connectionString: envs.DATABASE_URL || process.env.DATABASE_URL!,
+    }),
   });
   try {
     await prisma.$transaction(
