@@ -4,6 +4,7 @@ import {
   Logger,
   OnModuleInit,
 } from '@nestjs/common';
+import { HunterSyncService } from '../hunter-sync/hunter-sync.service';
 import { createRequire } from 'node:module';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -19,6 +20,9 @@ const loadCjs = (modulePath: string) => {
 
 type RuntimeHandle = {
   HTML: string;
+  prepareProductImport: (input: any, current: any) => any[];
+  mergeNamed: (payload: any, current: any) => any;
+  available: (offer: any) => any;
   worker: { fetch: (req: Request, env: { DB: unknown }) => Promise<Response> };
 };
 
@@ -39,7 +43,7 @@ export class OffersRuntimeService implements OnModuleInit {
   private runtime!: RuntimeHandle;
   private PostgresAdapter!: PostgresAdapterCtor;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly hunterSync: HunterSyncService) {}
 
   private resolveAsset(filename: string): string {
     const candidates = [
@@ -110,9 +114,25 @@ export class OffersRuntimeService implements OnModuleInit {
     }
   }
 
-  getHtml(): string {
-    return this.runtime.HTML;
+  normalizePayload(payload: any): any {
+    const result = structuredClone(payload);
+    result.offers.forEach(this.runtime.available);
+    return result;
   }
+
+  plannedState(payload: any, current: any): any {
+    return this.runtime.mergeNamed(this.normalizePayload(payload), this.normalizePayload(current));
+  }
+
+  prepareImport(input: any, current: any): any[] {
+    return this.runtime.prepareProductImport(input, current);
+  }
+
+  async getHtml(): Promise<string> {
+    return this.hunterSync.html(this.runtime.HTML);
+  }
+  hunterStatus() { return this.hunterSync.status(); }
+  hunterStart(full = false) { return this.hunterSync.trigger(full); }
 
   async dispatch(opts: {
     user: { userId: string; email: string };

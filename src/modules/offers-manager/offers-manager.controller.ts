@@ -26,14 +26,19 @@ export class OffersManagerController {
   constructor(private readonly offersManagerService: OffersManagerService) {}
 
   @Get('runtime')
-  runtime(@Res() res: Response) {
+  async runtime(@CurrentUser() user: ICurrentUser, @Res() res: Response) {
     res
       .status(200)
       .setHeader('Cache-Control', 'no-store')
       .setHeader('X-Content-Type-Options', 'nosniff')
       .type('text/html; charset=utf-8')
-      .send(this.offersManagerService.getRuntimeHtml());
+      .send(await this.offersManagerService.getRuntimeHtml(user));
   }
+
+  @Get('hunter/status')
+  hunterStatus(@CurrentUser() user: ICurrentUser, @Res() res: Response) { return this.respond(user,'hunter/status','GET','',{},res); }
+  @Post('hunter/sync')
+  hunterSync(@CurrentUser() user: ICurrentUser, @Body() body: Record<string, unknown>, @Res() res: Response) { return this.respond(user,'hunter/sync','POST','',body||{},res); }
 
   @Get('session')
   async session(@CurrentUser() user: ICurrentUser, @Res() res: Response) {
