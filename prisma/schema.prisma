@@ -1985,3 +1985,22 @@ model CommercialOperator {
 
   @@map("commercial_operators")
 }
+
+model OffersHunterCapture {
+  captureDate String @id @map("capture_date")
+  payload String @db.Text
+  rates Int
+  sourceCount Int @default(0) @map("source_count")
+  snapshotUntilId Int @default(0) @map("snapshot_until_id")
+  updatedAt DateTime @map("updated_at") @db.Timestamptz(3)
+  @@map("offers_hunter_captures")
+}
+model OffersHunterSyncState {
+  id Int @id
+  lastSuccessAt DateTime? @map("last_success_at") @db.Timestamptz(3)
+  lastFullAt DateTime? @map("last_full_at") @db.Timestamptz(3)
+  lastError String? @map("last_error") @db.Text
+  lastWatermark Int @default(0) @map("last_watermark")
+  totalRates Int @default(0) @map("total_rates")
+  @@map("offers_hunter_sync_state")
+}
