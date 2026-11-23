@@ -11,6 +11,6 @@ class Statement {
 class PostgresAdapter {
  constructor(client,role){this.client=client;this.role=role;}
  prepare(text){return new Statement(this,text);}
- async batch(statements){return this.client.$transaction(async transaction=>{await transaction.$queryRawUnsafe('SELECT pg_advisory_xact_lock(894612)');const db=new PostgresAdapter(transaction,this.role);const results=[];for(const s of statements)results.push(await new Statement(db,s.text,s.values).run());return results;});}
+ async batch(statements){return this.client.$transaction(async transaction=>{await transaction.$queryRawUnsafe('SELECT 1 AS locked FROM pg_advisory_xact_lock(894612)');const db=new PostgresAdapter(transaction,this.role);const results=[];for(const s of statements)results.push(await new Statement(db,s.text,s.values).run());return results;});}
 }
 module.exports={PostgresAdapter,sql};
