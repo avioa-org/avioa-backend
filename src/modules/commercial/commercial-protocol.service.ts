@@ -1,9 +1,11 @@
 import {
   Injectable,
   Logger,
-  ServiceUnavailableException,
+  NotFoundException,
+  BadRequestException,
 } from "@nestjs/common";
-import { GoogleSheetClient } from "../flight-blockings/google-sheet.client";
+import * as XLSX from "xlsx";
+import { PrismaService } from "src/infrastructure/prisma/prisma.service";
 
 export interface ProtocolStep {
   id: string;
@@ -25,117 +27,119 @@ export interface ProtocolResponse {
   warning?: string;
 }
 
-const GID = "216144764";
-const RANGE = "A1:C1034";
-const CACHE_TTL_MS = 5 * 60 * 1000;
-
 @Injectable()
 export class CommercialProtocolService {
   private readonly logger = new Logger(CommercialProtocolService.name);
-  private cache: {
-    sections: ProtocolSection[];
-    checkedAt: Date;
-  } | null = null;
 
-  constructor(private readonly google: GoogleSheetClient) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  async getProtocol(force = false): Promise<ProtocolResponse> {
-    const now = Date.now();
-    if (
-      !force &&
-      this.cache &&
-      now - this.cache.checkedAt.getTime() < CACHE_TTL_MS
-    ) {
-      return this.serialize(this.cache.sections, this.cache.checkedAt);
-    }
-
+  async getProtocol(z): Promise<ProtocolResponse> {
     try {
-      // Usamos la lectura autenticada en lugar del fetch
-      const rows = await this.google.readAuthenticated(Number(GID), RANGE);
-      
-      const sections = this.parseProtocol(rows);
-
-      const checkedAt = new Date();
-      this.cache = { sections, checkedAt };
-      return this.serialize(sections, checkedAt);
-    } catch (e: any) {
-      const msg = (e as Error).message;
-      this.logger.warn(`Protocolo no disponible: ${msg}`);
-
-      if (this.cache) {
-        return {
-          ...this.serialize(this.cache.sections, this.cache.checkedAt),
-          warning: `No se pudo consultar Drive. Se muestran datos en caché de hace ${Math.round(
-            (now - this.cache.checkedAt.getTime()) / 60000,
-          )} min.`,
-        };
-      }
-
-      throw new ServiceUnavailableException(
-        "El protocolo no está disponible en este momento. Intenta de nuevo más tarde.",
-      );
-    }
-  }
-
-  private serialize(
-    sections: ProtocolSection[],
-    checkedAt: Date,
-  ): ProtocolResponse {
-    return { sections, checkedAt: checkedAt.toISOString() };
-  }
-
-  /**
-   * Adaptado de `parseCommercialProtocol` del módulo original.
-   * Mantiene el mismo formato: `{ sections: [{ id, title, row, steps: [{ id, row, label, text }] }] }`
-   */
-  private parseProtocol(rows: string[][]): ProtocolSection[] {
-    const sections: ProtocolSection[] = [];
-    let current: ProtocolSection | undefined;
-    let objection = "";
-
-    rows.forEach((cells, index) => {
-      const values = cells.slice(0, 3).map((v) => (v || "").trim());
-      const [a, b, c] = values;
-
-      if (!values.some(Boolean)) return;
-
-      if (/^escenario\s*\d+/i.test(a) || /^manejo de objeciones$/i.test(a)) {
-        current = {
-          id: String(index + 1),
-          title: values.filter(Boolean).join(" · "),
-          row: index + 1,
-          steps: [],
-        };
-        sections.push(current);
-        objection = "";
-        return;
-      }
-
-      if (!current) return;
-
-      if (/^manejo de objeciones/i.test(current.title) && a) {
-        objection = a;
-      }
-
-      const text = c || b || "";
-      const label = c
-        ? [a || objection, b].filter(Boolean).join(" · ")
-        : a || objection;
-
-      current.steps.push({
-        id: String(index + 1),
-        row: index + 1,
-        label,
-        text,
+      const dbSections = await this.prisma.commercialProtocolSection.findMany({
+        orderBy: { rowIndex: "asc" },
+        include: {
+          steps: { orderBy: { rowIndex: "asc" } },
+        },
       });
-    });
 
-    if (!sections.length) {
-      throw new Error(
-        "No se reconocen los escenarios del protocolo. Revisa la hoja de origen.",
-      );
+      const sections: ProtocolSection[] = dbSections.map((s) => ({
+        id: s.id,
+        title: s.title,
+        row: s.rowIndex,
+        steps: s.steps.map((step) => ({
+          id: step.id,
+          row: step.rowIndex,
+          label: step.label,
+          text: step.text,
+        })),
+      }));
+
+      return {
+        sections,
+        checkedAt: new Date().toISOString(),
+      };
+    } catch (error: any) {
+      this.logger.error("Error cargando protocolo:", error);
+      throw new Error("No se pudo cargar el protocolo.");
     }
+  }
 
-    return sections;
+    async importFromExcel(fileBuffer: Buffer) {
+    try {
+      const workbook = XLSX.read(fileBuffer, { type: "buffer" });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, raw: false, defval: "" });
+
+      // Limpiamos la base de datos antes de importar
+      await this.prisma.commercialProtocolSection.deleteMany();
+
+      let currentSection: any = null;
+      let sectionCount = 0;
+      let objection = "";
+
+      for (let i = 0; i < rows.length; i++) {
+        const cells = rows[i].slice(0, 3).map(v => (v || "").trim());
+        const [a, b, c] = cells;
+        if (!cells.some(Boolean)) continue;
+
+        if (/^escenario\s*\d+/i.test(a) || /^manejo de objeciones$/i.test(a)) {
+          const title = cells.filter(Boolean).join(" · ");
+          currentSection = await this.prisma.commercialProtocolSection.create({
+            data: { title, rowIndex: sectionCount++ }
+          });
+          objection = "";
+          continue;
+        }
+
+        if (!currentSection) continue;
+        if (/^manejo de objeciones/i.test(currentSection.title) && a) objection = a;
+
+        const text = c || b || "";
+        const label = c ? [a || objection, b].filter(Boolean).join(" · ") : a || objection;
+
+        await this.prisma.commercialProtocolStep.create({
+          data: { sectionId: currentSection.id, label, text, rowIndex: i }
+        });
+      }
+
+      return { success: true, imported: true };
+    } catch (error: any) {
+      this.logger.error("Error importando protocolo:", error);
+      throw new BadRequestException(`Error al importar: ${error.message}`);
+    }
+  }
+
+  async updateSection(id: string, title: string) {
+    return this.prisma.commercialProtocolSection.update({
+      where: { id },
+      data: { title },
+    });
+  }
+
+
+  async createSection(title: string) {
+    const count = await this.prisma.commercialProtocolSection.count();
+    return this.prisma.commercialProtocolSection.create({
+      data: { title, rowIndex: count },
+    });
+  }
+
+  async deleteSection(id: string) {
+    return this.prisma.commercialProtocolSection.delete({ where: { id } });
+  }
+
+
+  async createStep(sectionId: string, label: string, text: string) {
+    const count = await this.prisma.commercialProtocolStep.count({
+      where: { sectionId },
+    });
+    return this.prisma.commercialProtocolStep.create({
+      data: { sectionId, label, text, rowIndex: count },
+    });
+  }
+
+  async deleteStep(id: string) {
+    return this.prisma.commercialProtocolStep.delete({ where: { id } });
   }
 }
