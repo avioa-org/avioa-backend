@@ -1,3 +1,4 @@
+import { OffersQueryService } from '../offers-query/offers-query.service';
 import {
   BadRequestException,
   ForbiddenException,
@@ -14,6 +15,7 @@ import { PortalUser } from './offers-manager.types';
 export class OffersManagerService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly queries: OffersQueryService,
     private readonly runtime: OffersRuntimeService,
   ) {}
 
@@ -44,7 +46,7 @@ export class OffersManagerService {
 
   getRuntimeHtml(user: PortalUser): Promise<string> {
     this.assertRead(user);
-    return this.runtime.getHtml();
+    return this.runtime.getHtml().then(html => this.queries.attachSimulator(html));
   }
 
   async dispatch(
@@ -55,6 +57,8 @@ export class OffersManagerService {
     body: Record<string, unknown> = {},
   ): Promise<OffersRuntimeResponse> {
     this.assertRead(user);
+
+    if (path === 'simulation/query' && method === 'POST') return { status: 200, contentType: 'application/json', body: JSON.stringify(await this.queries.search(body)) };
 
     if (path === 'hunter/status' && method === 'GET') return {status:200,contentType:'application/json',body:JSON.stringify(await this.runtime.hunterStatus())};
     if (path === 'hunter/sync' && method === 'POST') { this.assertAction(user,'update');return {status:202,contentType:'application/json',body:JSON.stringify(this.runtime.hunterStart(body.full===true))}; }

@@ -6,3 +6,14 @@ for(const folder of candidates){if(!existsSync(join(folder,'offers-runtime')))co
  }
 }
 if(!copied)throw Error('No se encontró la infraestructura compilada de Ofertas.');console.log('Ofertas: '+copied+' assets CJS copiados a dist.');
+
+// AVIOA v41 commercial API assets; fail the build if an asset is missing.
+for (const folder of candidates) {
+ const target=join(folder,'..','modules','offers-query');
+ if(!existsSync(target))continue;
+ for(const file of ['engine.cjs','simulator.js','openapi.json']) {
+  const src=join(root,'src','modules','offers-query',file);
+  if(!existsSync(src))throw Error('Falta asset API de Ofertas: '+file);
+  copyFileSync(src,join(target,file));
+ }
+}

@@ -1,3 +1,4 @@
+import { OffersQueryModule } from '../offers-query/offers-query.module';
 import { Module } from '@nestjs/common';
 import { OffersManagerService } from './offers-manager.service';
 import { OffersManagerController } from './offers-manager.controller';
@@ -7,6 +8,6 @@ import { OffersRuntimeModule } from 'src/infrastructure/offers-runtime/offers-ru
 @Module({
   controllers: [OffersManagerController],
   providers: [OffersManagerService],
-  imports: [PrismaModule, OffersRuntimeModule],
+  imports: [PrismaModule, OffersRuntimeModule, OffersQueryModule],
 })
 export class OffersManagerModule {}

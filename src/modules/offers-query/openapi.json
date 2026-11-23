@@ -1,0 +1,3187 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "aVioa · API comercial de ofertas",
+    "version": "41.0.0",
+    "description": "REST de lectura para el bot externo. No captura tarifas ni reserva. Nunca comparte notas internas, costos de armado ni credenciales del cazador. Los endpoints plan separa/armado no son parte de esta API externa."
+  },
+  "servers": [
+    {
+      "url": "/api/v1/ofertas-api",
+      "description": "Mismo host HTTPS del backend; confirmar host al desplegar."
+    }
+  ],
+  "security": [
+    {
+      "BearerLectura": []
+    }
+  ],
+  "paths": {
+    "/ofertas": {
+      "get": {
+        "operationId": "buscar_ofertas",
+        "description": "Producto primero; dentro de grupos comparables orden por precio. Cada variante del cazador usa su captura más reciente. El mensaje principal no depende de la página de la lista.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Texto literal para nombre de oferta, destino, origen u hotel. No es un parser de lenguaje natural.",
+            "schema": {
+              "type": "string",
+              "maxLength": 240
+            }
+          },
+          {
+            "name": "origen",
+            "in": "query",
+            "required": false,
+            "description": "Código IATA o nombre completo de ciudad.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "destino",
+            "in": "query",
+            "required": false,
+            "description": "Código IATA o nombre completo de destino.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hotel",
+            "in": "query",
+            "required": false,
+            "description": "Parte del nombre o código del hotel.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fecha_desde",
+            "in": "query",
+            "required": false,
+            "description": "Salida desde esta fecha, inclusiva. Excluye fechas sin año/ISO.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "fecha_hasta",
+            "in": "query",
+            "required": false,
+            "description": "Salida hasta esta fecha, inclusiva.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "adultos",
+            "in": "query",
+            "required": false,
+            "description": "Ocupación base comprobada exacta; no se recalcula la tarifa.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          },
+          {
+            "name": "noches",
+            "in": "query",
+            "required": false,
+            "description": "Noches de alojamiento.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            }
+          },
+          {
+            "name": "fuente",
+            "in": "query",
+            "required": false,
+            "description": "Origen comercial de la oferta.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "producto",
+                "cazador"
+              ]
+            }
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "description": "Tipo de plan.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "vuelo_hotel",
+                "crucero",
+                "circuito",
+                "otro"
+              ]
+            }
+          },
+          {
+            "name": "regimen",
+            "in": "query",
+            "required": false,
+            "description": "Texto del régimen; filtro sin distinción de acentos.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "precio_max",
+            "in": "query",
+            "required": false,
+            "description": "Máximo por la unidad y moneda indicadas. Requiere ambos filtros.",
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "moneda",
+            "in": "query",
+            "required": false,
+            "description": "Moneda, sin conversiones.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "COP",
+                "USD",
+                "MXN"
+              ]
+            }
+          },
+          {
+            "name": "unidad",
+            "in": "query",
+            "required": false,
+            "description": "No comparar por persona con por pareja.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "por_persona",
+                "por_pareja",
+                "por_paquete"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página. Máximo 50.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco. Si el catálogo cambió: 409 y reiniciar sin cursor.",
+            "schema": {
+              "type": "string",
+              "maxLength": 1600
+            }
+          },
+          {
+            "name": "seleccion",
+            "in": "query",
+            "required": false,
+            "description": "ID de la oferta principal. Debe coincidir con los filtros.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "opcion",
+            "in": "query",
+            "required": false,
+            "description": "ID de opción concreta de la oferta seleccionada.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Busqueda"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Filtro o cursor inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Oferta u opción inexistente/vencida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catálogo actualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de consultas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo interno",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "API deshabilitada o catálogo no disponible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ofertas/{id}": {
+      "get": {
+        "operationId": "obtener_oferta",
+        "description": "Detalle con opciones paginadas; sigue next_cursor para obtenerlas todas.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Texto literal para nombre de oferta, destino, origen u hotel. No es un parser de lenguaje natural.",
+            "schema": {
+              "type": "string",
+              "maxLength": 240
+            }
+          },
+          {
+            "name": "origen",
+            "in": "query",
+            "required": false,
+            "description": "Código IATA o nombre completo de ciudad.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "destino",
+            "in": "query",
+            "required": false,
+            "description": "Código IATA o nombre completo de destino.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hotel",
+            "in": "query",
+            "required": false,
+            "description": "Parte del nombre o código del hotel.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fecha_desde",
+            "in": "query",
+            "required": false,
+            "description": "Salida desde esta fecha, inclusiva. Excluye fechas sin año/ISO.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "fecha_hasta",
+            "in": "query",
+            "required": false,
+            "description": "Salida hasta esta fecha, inclusiva.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "adultos",
+            "in": "query",
+            "required": false,
+            "description": "Ocupación base comprobada exacta; no se recalcula la tarifa.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          },
+          {
+            "name": "noches",
+            "in": "query",
+            "required": false,
+            "description": "Noches de alojamiento.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            }
+          },
+          {
+            "name": "fuente",
+            "in": "query",
+            "required": false,
+            "description": "Origen comercial de la oferta.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "producto",
+                "cazador"
+              ]
+            }
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "description": "Tipo de plan.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "vuelo_hotel",
+                "crucero",
+                "circuito",
+                "otro"
+              ]
+            }
+          },
+          {
+            "name": "regimen",
+            "in": "query",
+            "required": false,
+            "description": "Texto del régimen; filtro sin distinción de acentos.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "precio_max",
+            "in": "query",
+            "required": false,
+            "description": "Máximo por la unidad y moneda indicadas. Requiere ambos filtros.",
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "moneda",
+            "in": "query",
+            "required": false,
+            "description": "Moneda, sin conversiones.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "COP",
+                "USD",
+                "MXN"
+              ]
+            }
+          },
+          {
+            "name": "unidad",
+            "in": "query",
+            "required": false,
+            "description": "No comparar por persona con por pareja.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "por_persona",
+                "por_pareja",
+                "por_paquete"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página. Máximo 50.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco. Si el catálogo cambió: 409 y reiniciar sin cursor.",
+            "schema": {
+              "type": "string",
+              "maxLength": 1600
+            }
+          },
+          {
+            "name": "opcion",
+            "in": "query",
+            "required": false,
+            "description": "ID de opción concreta de la oferta seleccionada.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Detalle"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Filtro o cursor inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Oferta u opción inexistente/vencida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catálogo actualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de consultas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo interno",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "API deshabilitada o catálogo no disponible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ofertas/{id}/fechas": {
+      "get": {
+        "operationId": "obtener_fechas",
+        "description": "Opciones y salidas paginadas con precios y fecha de captura.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Texto literal para nombre de oferta, destino, origen u hotel. No es un parser de lenguaje natural.",
+            "schema": {
+              "type": "string",
+              "maxLength": 240
+            }
+          },
+          {
+            "name": "origen",
+            "in": "query",
+            "required": false,
+            "description": "Código IATA o nombre completo de ciudad.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "destino",
+            "in": "query",
+            "required": false,
+            "description": "Código IATA o nombre completo de destino.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hotel",
+            "in": "query",
+            "required": false,
+            "description": "Parte del nombre o código del hotel.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fecha_desde",
+            "in": "query",
+            "required": false,
+            "description": "Salida desde esta fecha, inclusiva. Excluye fechas sin año/ISO.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "fecha_hasta",
+            "in": "query",
+            "required": false,
+            "description": "Salida hasta esta fecha, inclusiva.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "adultos",
+            "in": "query",
+            "required": false,
+            "description": "Ocupación base comprobada exacta; no se recalcula la tarifa.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          },
+          {
+            "name": "noches",
+            "in": "query",
+            "required": false,
+            "description": "Noches de alojamiento.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            }
+          },
+          {
+            "name": "fuente",
+            "in": "query",
+            "required": false,
+            "description": "Origen comercial de la oferta.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "producto",
+                "cazador"
+              ]
+            }
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "description": "Tipo de plan.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "vuelo_hotel",
+                "crucero",
+                "circuito",
+                "otro"
+              ]
+            }
+          },
+          {
+            "name": "regimen",
+            "in": "query",
+            "required": false,
+            "description": "Texto del régimen; filtro sin distinción de acentos.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "precio_max",
+            "in": "query",
+            "required": false,
+            "description": "Máximo por la unidad y moneda indicadas. Requiere ambos filtros.",
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "moneda",
+            "in": "query",
+            "required": false,
+            "description": "Moneda, sin conversiones.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "COP",
+                "USD",
+                "MXN"
+              ]
+            }
+          },
+          {
+            "name": "unidad",
+            "in": "query",
+            "required": false,
+            "description": "No comparar por persona con por pareja.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "por_persona",
+                "por_pareja",
+                "por_paquete"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página. Máximo 50.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco. Si el catálogo cambió: 409 y reiniciar sin cursor.",
+            "schema": {
+              "type": "string",
+              "maxLength": 1600
+            }
+          },
+          {
+            "name": "opcion",
+            "in": "query",
+            "required": false,
+            "description": "ID de opción concreta de la oferta seleccionada.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Opcion"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "snapshot": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "total",
+                    "next_cursor",
+                    "snapshot"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Filtro o cursor inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Oferta u opción inexistente/vencida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catálogo actualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de consultas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo interno",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "API deshabilitada o catálogo no disponible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ofertas/{id}/mensaje": {
+      "get": {
+        "operationId": "obtener_mensaje",
+        "description": "Mensaje de la oferta y opciones filtradas, sin alternativas de otros grupos. Producto: agrupa fechas con iguales hoteles y tarifas (máximo 20 bloques, 30 fechas y 30 tarifas por bloque). Cazador: hasta 4 salidas del mismo régimen y duración. Usa /fechas para todas las opciones.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Texto literal para nombre de oferta, destino, origen u hotel. No es un parser de lenguaje natural.",
+            "schema": {
+              "type": "string",
+              "maxLength": 240
+            }
+          },
+          {
+            "name": "origen",
+            "in": "query",
+            "required": false,
+            "description": "Código IATA o nombre completo de ciudad.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "destino",
+            "in": "query",
+            "required": false,
+            "description": "Código IATA o nombre completo de destino.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hotel",
+            "in": "query",
+            "required": false,
+            "description": "Parte del nombre o código del hotel.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fecha_desde",
+            "in": "query",
+            "required": false,
+            "description": "Salida desde esta fecha, inclusiva. Excluye fechas sin año/ISO.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "fecha_hasta",
+            "in": "query",
+            "required": false,
+            "description": "Salida hasta esta fecha, inclusiva.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "adultos",
+            "in": "query",
+            "required": false,
+            "description": "Ocupación base comprobada exacta; no se recalcula la tarifa.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          },
+          {
+            "name": "noches",
+            "in": "query",
+            "required": false,
+            "description": "Noches de alojamiento.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            }
+          },
+          {
+            "name": "fuente",
+            "in": "query",
+            "required": false,
+            "description": "Origen comercial de la oferta.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "producto",
+                "cazador"
+              ]
+            }
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "description": "Tipo de plan.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "vuelo_hotel",
+                "crucero",
+                "circuito",
+                "otro"
+              ]
+            }
+          },
+          {
+            "name": "regimen",
+            "in": "query",
+            "required": false,
+            "description": "Texto del régimen; filtro sin distinción de acentos.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "precio_max",
+            "in": "query",
+            "required": false,
+            "description": "Máximo por la unidad y moneda indicadas. Requiere ambos filtros.",
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "moneda",
+            "in": "query",
+            "required": false,
+            "description": "Moneda, sin conversiones.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "COP",
+                "USD",
+                "MXN"
+              ]
+            }
+          },
+          {
+            "name": "unidad",
+            "in": "query",
+            "required": false,
+            "description": "No comparar por persona con por pareja.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "por_persona",
+                "por_pareja",
+                "por_paquete"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página. Máximo 50.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco. Si el catálogo cambió: 409 y reiniciar sin cursor.",
+            "schema": {
+              "type": "string",
+              "maxLength": 1600
+            }
+          },
+          {
+            "name": "opcion",
+            "in": "query",
+            "required": false,
+            "description": "ID de opción concreta de la oferta seleccionada.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "mensaje_whatsapp": {
+                      "type": "string"
+                    },
+                    "snapshot": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "mensaje_whatsapp",
+                    "snapshot"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Filtro o cursor inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Oferta u opción inexistente/vencida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catálogo actualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de consultas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo interno",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "API deshabilitada o catálogo no disponible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/destinos": {
+      "get": {
+        "operationId": "listar_destinos",
+        "description": "Lista completa paginada de destinos con ofertas dentro de los filtros.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Texto literal para nombre de oferta, destino, origen u hotel. No es un parser de lenguaje natural.",
+            "schema": {
+              "type": "string",
+              "maxLength": 240
+            }
+          },
+          {
+            "name": "origen",
+            "in": "query",
+            "required": false,
+            "description": "Código IATA o nombre completo de ciudad.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "destino",
+            "in": "query",
+            "required": false,
+            "description": "Código IATA o nombre completo de destino.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hotel",
+            "in": "query",
+            "required": false,
+            "description": "Parte del nombre o código del hotel.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fecha_desde",
+            "in": "query",
+            "required": false,
+            "description": "Salida desde esta fecha, inclusiva. Excluye fechas sin año/ISO.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "fecha_hasta",
+            "in": "query",
+            "required": false,
+            "description": "Salida hasta esta fecha, inclusiva.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "adultos",
+            "in": "query",
+            "required": false,
+            "description": "Ocupación base comprobada exacta; no se recalcula la tarifa.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          },
+          {
+            "name": "noches",
+            "in": "query",
+            "required": false,
+            "description": "Noches de alojamiento.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            }
+          },
+          {
+            "name": "fuente",
+            "in": "query",
+            "required": false,
+            "description": "Origen comercial de la oferta.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "producto",
+                "cazador"
+              ]
+            }
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "description": "Tipo de plan.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "vuelo_hotel",
+                "crucero",
+                "circuito",
+                "otro"
+              ]
+            }
+          },
+          {
+            "name": "regimen",
+            "in": "query",
+            "required": false,
+            "description": "Texto del régimen; filtro sin distinción de acentos.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "precio_max",
+            "in": "query",
+            "required": false,
+            "description": "Máximo por la unidad y moneda indicadas. Requiere ambos filtros.",
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "moneda",
+            "in": "query",
+            "required": false,
+            "description": "Moneda, sin conversiones.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "COP",
+                "USD",
+                "MXN"
+              ]
+            }
+          },
+          {
+            "name": "unidad",
+            "in": "query",
+            "required": false,
+            "description": "No comparar por persona con por pareja.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "por_persona",
+                "por_pareja",
+                "por_paquete"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página. Máximo 50.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco. Si el catálogo cambió: 409 y reiniciar sin cursor.",
+            "schema": {
+              "type": "string",
+              "maxLength": 1600
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Ciudad"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "snapshot": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "total",
+                    "next_cursor",
+                    "snapshot"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Filtro o cursor inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Oferta u opción inexistente/vencida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catálogo actualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de consultas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo interno",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "API deshabilitada o catálogo no disponible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/origenes": {
+      "get": {
+        "operationId": "listar_origenes",
+        "description": "Orígenes con ofertas dentro de los filtros.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Texto literal para nombre de oferta, destino, origen u hotel. No es un parser de lenguaje natural.",
+            "schema": {
+              "type": "string",
+              "maxLength": 240
+            }
+          },
+          {
+            "name": "origen",
+            "in": "query",
+            "required": false,
+            "description": "Código IATA o nombre completo de ciudad.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "destino",
+            "in": "query",
+            "required": false,
+            "description": "Código IATA o nombre completo de destino.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hotel",
+            "in": "query",
+            "required": false,
+            "description": "Parte del nombre o código del hotel.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fecha_desde",
+            "in": "query",
+            "required": false,
+            "description": "Salida desde esta fecha, inclusiva. Excluye fechas sin año/ISO.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "fecha_hasta",
+            "in": "query",
+            "required": false,
+            "description": "Salida hasta esta fecha, inclusiva.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "adultos",
+            "in": "query",
+            "required": false,
+            "description": "Ocupación base comprobada exacta; no se recalcula la tarifa.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          },
+          {
+            "name": "noches",
+            "in": "query",
+            "required": false,
+            "description": "Noches de alojamiento.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            }
+          },
+          {
+            "name": "fuente",
+            "in": "query",
+            "required": false,
+            "description": "Origen comercial de la oferta.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "producto",
+                "cazador"
+              ]
+            }
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "description": "Tipo de plan.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "vuelo_hotel",
+                "crucero",
+                "circuito",
+                "otro"
+              ]
+            }
+          },
+          {
+            "name": "regimen",
+            "in": "query",
+            "required": false,
+            "description": "Texto del régimen; filtro sin distinción de acentos.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "precio_max",
+            "in": "query",
+            "required": false,
+            "description": "Máximo por la unidad y moneda indicadas. Requiere ambos filtros.",
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "moneda",
+            "in": "query",
+            "required": false,
+            "description": "Moneda, sin conversiones.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "COP",
+                "USD",
+                "MXN"
+              ]
+            }
+          },
+          {
+            "name": "unidad",
+            "in": "query",
+            "required": false,
+            "description": "No comparar por persona con por pareja.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "por_persona",
+                "por_pareja",
+                "por_paquete"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página. Máximo 50.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco. Si el catálogo cambió: 409 y reiniciar sin cursor.",
+            "schema": {
+              "type": "string",
+              "maxLength": 1600
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Ciudad"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "snapshot": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "total",
+                    "next_cursor",
+                    "snapshot"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Filtro o cursor inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Oferta u opción inexistente/vencida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catálogo actualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de consultas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo interno",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "API deshabilitada o catálogo no disponible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hoteles": {
+      "get": {
+        "operationId": "listar_hoteles",
+        "description": "Hoteles y sus rutas dentro de los filtros.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Texto literal para nombre de oferta, destino, origen u hotel. No es un parser de lenguaje natural.",
+            "schema": {
+              "type": "string",
+              "maxLength": 240
+            }
+          },
+          {
+            "name": "origen",
+            "in": "query",
+            "required": false,
+            "description": "Código IATA o nombre completo de ciudad.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "destino",
+            "in": "query",
+            "required": false,
+            "description": "Código IATA o nombre completo de destino.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hotel",
+            "in": "query",
+            "required": false,
+            "description": "Parte del nombre o código del hotel.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fecha_desde",
+            "in": "query",
+            "required": false,
+            "description": "Salida desde esta fecha, inclusiva. Excluye fechas sin año/ISO.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "fecha_hasta",
+            "in": "query",
+            "required": false,
+            "description": "Salida hasta esta fecha, inclusiva.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "adultos",
+            "in": "query",
+            "required": false,
+            "description": "Ocupación base comprobada exacta; no se recalcula la tarifa.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          },
+          {
+            "name": "noches",
+            "in": "query",
+            "required": false,
+            "description": "Noches de alojamiento.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            }
+          },
+          {
+            "name": "fuente",
+            "in": "query",
+            "required": false,
+            "description": "Origen comercial de la oferta.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "producto",
+                "cazador"
+              ]
+            }
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "description": "Tipo de plan.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "vuelo_hotel",
+                "crucero",
+                "circuito",
+                "otro"
+              ]
+            }
+          },
+          {
+            "name": "regimen",
+            "in": "query",
+            "required": false,
+            "description": "Texto del régimen; filtro sin distinción de acentos.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "precio_max",
+            "in": "query",
+            "required": false,
+            "description": "Máximo por la unidad y moneda indicadas. Requiere ambos filtros.",
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "moneda",
+            "in": "query",
+            "required": false,
+            "description": "Moneda, sin conversiones.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "COP",
+                "USD",
+                "MXN"
+              ]
+            }
+          },
+          {
+            "name": "unidad",
+            "in": "query",
+            "required": false,
+            "description": "No comparar por persona con por pareja.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "por_persona",
+                "por_pareja",
+                "por_paquete"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página. Máximo 50.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco. Si el catálogo cambió: 409 y reiniciar sin cursor.",
+            "schema": {
+              "type": "string",
+              "maxLength": 1600
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "nombre": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "destino": {
+                            "$ref": "#/components/schemas/Ciudad"
+                          },
+                          "origen": {
+                            "$ref": "#/components/schemas/Ciudad"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "nombre",
+                          "destino",
+                          "origen"
+                        ]
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "snapshot": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "total",
+                    "next_cursor",
+                    "snapshot"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Filtro o cursor inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Oferta u opción inexistente/vencida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catálogo actualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de consultas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo interno",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "API deshabilitada o catálogo no disponible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contexto": {
+      "get": {
+        "operationId": "obtener_contexto",
+        "description": "Vocabulario y totales actuales; usa las rutas de contexto paginadas para listar todos los destinos, orígenes y hoteles.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Texto literal para nombre de oferta, destino, origen u hotel. No es un parser de lenguaje natural.",
+            "schema": {
+              "type": "string",
+              "maxLength": 240
+            }
+          },
+          {
+            "name": "origen",
+            "in": "query",
+            "required": false,
+            "description": "Código IATA o nombre completo de ciudad.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "destino",
+            "in": "query",
+            "required": false,
+            "description": "Código IATA o nombre completo de destino.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hotel",
+            "in": "query",
+            "required": false,
+            "description": "Parte del nombre o código del hotel.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fecha_desde",
+            "in": "query",
+            "required": false,
+            "description": "Salida desde esta fecha, inclusiva. Excluye fechas sin año/ISO.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "fecha_hasta",
+            "in": "query",
+            "required": false,
+            "description": "Salida hasta esta fecha, inclusiva.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "adultos",
+            "in": "query",
+            "required": false,
+            "description": "Ocupación base comprobada exacta; no se recalcula la tarifa.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          },
+          {
+            "name": "noches",
+            "in": "query",
+            "required": false,
+            "description": "Noches de alojamiento.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            }
+          },
+          {
+            "name": "fuente",
+            "in": "query",
+            "required": false,
+            "description": "Origen comercial de la oferta.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "producto",
+                "cazador"
+              ]
+            }
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "description": "Tipo de plan.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "vuelo_hotel",
+                "crucero",
+                "circuito",
+                "otro"
+              ]
+            }
+          },
+          {
+            "name": "regimen",
+            "in": "query",
+            "required": false,
+            "description": "Texto del régimen; filtro sin distinción de acentos.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "precio_max",
+            "in": "query",
+            "required": false,
+            "description": "Máximo por la unidad y moneda indicadas. Requiere ambos filtros.",
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "moneda",
+            "in": "query",
+            "required": false,
+            "description": "Moneda, sin conversiones.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "COP",
+                "USD",
+                "MXN"
+              ]
+            }
+          },
+          {
+            "name": "unidad",
+            "in": "query",
+            "required": false,
+            "description": "No comparar por persona con por pareja.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "por_persona",
+                "por_pareja",
+                "por_paquete"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página. Máximo 50.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco. Si el catálogo cambió: 409 y reiniciar sin cursor.",
+            "schema": {
+              "type": "string",
+              "maxLength": 1600
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Filtro o cursor inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Oferta u opción inexistente/vencida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catálogo actualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de consultas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo interno",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "API deshabilitada o catálogo no disponible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "salud_api",
+        "description": "Salud técnica del controlador; no certifica disponibilidad de inventario.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "version",
+                    "mode"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Filtro o cursor inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Oferta u opción inexistente/vencida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catálogo actualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de consultas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo interno",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "API deshabilitada o catálogo no disponible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "operationId": "contrato_api",
+        "description": "Este contrato, protegido por el mismo token de lectura.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Filtro o cursor inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Oferta u opción inexistente/vencida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catálogo actualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de consultas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo interno",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "API deshabilitada o catálogo no disponible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerLectura": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Token opaco exclusivo de solo lectura; no es JWT ni CAZADOR_API_TOKEN."
+      }
+    },
+    "schemas": {
+      "Ciudad": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "codigo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nombre": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "codigo",
+          "nombre"
+        ]
+      },
+      "Precio": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "valor": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "moneda": {
+            "type": "string",
+            "enum": [
+              "COP",
+              "USD",
+              "MXN"
+            ]
+          },
+          "unidad": {
+            "type": "string",
+            "enum": [
+              "por_persona",
+              "por_pareja",
+              "por_paquete"
+            ]
+          },
+          "ocupacion_base": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "es_total_parcial": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "valor",
+          "moneda",
+          "unidad",
+          "ocupacion_base",
+          "es_total_parcial"
+        ]
+      },
+      "Opcion": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "fecha_salida": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "fecha_regreso": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "fecha_parcial": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "salida": {
+                    "type": "string"
+                  },
+                  "regreso": {
+                    "type": "string"
+                  },
+                  "anio": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "anio_regreso": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "salida",
+                  "regreso",
+                  "anio",
+                  "anio_regreso"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "texto_fecha": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "noches": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "dias": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "hotel": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "nombre": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "nombre"
+            ]
+          },
+          "habitacion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "regimen": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "precio": {
+            "$ref": "#/components/schemas/Precio"
+          },
+          "capturado_en": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "actualizado_en": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "vigente_hasta": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "promociones": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "titulo": {
+                  "type": "string"
+                },
+                "detalle": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "titulo",
+                "detalle"
+              ]
+            }
+          },
+          "servicios_incluidos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "servicios_pendientes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cancelacion": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "gratuita": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "hasta": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "politica": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "penalidad": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "gratuita",
+                  "hasta",
+                  "politica",
+                  "penalidad"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "fecha_salida",
+          "fecha_regreso",
+          "fecha_parcial",
+          "texto_fecha",
+          "noches",
+          "dias",
+          "hotel",
+          "habitacion",
+          "regimen",
+          "precio",
+          "capturado_en",
+          "actualizado_en",
+          "vigente_hasta",
+          "promociones",
+          "servicios_incluidos",
+          "servicios_pendientes",
+          "cancelacion"
+        ]
+      },
+      "Oferta": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "vuelo_hotel",
+              "crucero",
+              "circuito",
+              "otro"
+            ]
+          },
+          "fuente": {
+            "type": "string",
+            "enum": [
+              "producto",
+              "cazador"
+            ]
+          },
+          "titulo": {
+            "type": "string"
+          },
+          "origen": {
+            "$ref": "#/components/schemas/Ciudad"
+          },
+          "destino": {
+            "$ref": "#/components/schemas/Ciudad"
+          },
+          "incluye": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "no_incluye": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "condiciones": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "precio_desde": {
+            "$ref": "#/components/schemas/Precio"
+          },
+          "opciones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Opcion"
+            }
+          },
+          "total_opciones": {
+            "type": "integer"
+          },
+          "opciones_truncadas": {
+            "type": "boolean"
+          },
+          "comercial": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "titulo": {
+                "type": "string"
+              },
+              "mensaje_whatsapp": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "titulo",
+              "mensaje_whatsapp"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "tipo",
+          "fuente",
+          "titulo",
+          "origen",
+          "destino",
+          "incluye",
+          "no_incluye",
+          "condiciones",
+          "precio_desde",
+          "opciones",
+          "total_opciones",
+          "opciones_truncadas",
+          "comercial"
+        ]
+      },
+      "Busqueda": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Oferta"
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "snapshot": {
+            "type": "string"
+          },
+          "seleccionada": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mensaje_whatsapp": {
+            "type": "string"
+          },
+          "metadatos": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "revision": {
+                "type": "integer"
+              },
+              "seleccion_tarifa": {
+                "type": "string",
+                "const": "captura_mas_reciente"
+              },
+              "ventana_cazador_horas": {
+                "type": "integer",
+                "const": 72
+              },
+              "consultado_en": {
+                "type": "string"
+              },
+              "ultima_sincronizacion": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "fechas_sin_anio": {
+                "type": "string"
+              },
+              "ocupacion": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "revision",
+              "seleccion_tarifa",
+              "ventana_cazador_horas",
+              "consultado_en",
+              "ultima_sincronizacion",
+              "fechas_sin_anio",
+              "ocupacion"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "next_cursor",
+          "snapshot",
+          "seleccionada",
+          "mensaje_whatsapp",
+          "metadatos"
+        ]
+      },
+      "Detalle": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "vuelo_hotel",
+              "crucero",
+              "circuito",
+              "otro"
+            ]
+          },
+          "fuente": {
+            "type": "string",
+            "enum": [
+              "producto",
+              "cazador"
+            ]
+          },
+          "titulo": {
+            "type": "string"
+          },
+          "origen": {
+            "$ref": "#/components/schemas/Ciudad"
+          },
+          "destino": {
+            "$ref": "#/components/schemas/Ciudad"
+          },
+          "incluye": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "no_incluye": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "condiciones": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "precio_desde": {
+            "$ref": "#/components/schemas/Precio"
+          },
+          "opciones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Opcion"
+            }
+          },
+          "total_opciones": {
+            "type": "integer"
+          },
+          "opciones_truncadas": {
+            "type": "boolean"
+          },
+          "comercial": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "titulo": {
+                "type": "string"
+              },
+              "mensaje_whatsapp": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "titulo",
+              "mensaje_whatsapp"
+            ]
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "snapshot": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tipo",
+          "fuente",
+          "titulo",
+          "origen",
+          "destino",
+          "incluye",
+          "no_incluye",
+          "condiciones",
+          "precio_desde",
+          "opciones",
+          "total_opciones",
+          "opciones_truncadas",
+          "comercial",
+          "next_cursor",
+          "snapshot"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      }
+    }
+  }
+}
