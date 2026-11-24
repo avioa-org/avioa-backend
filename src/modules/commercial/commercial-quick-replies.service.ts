@@ -1,9 +1,10 @@
 import {
   Injectable,
   Logger,
-  ServiceUnavailableException,
+  BadRequestException,
 } from "@nestjs/common";
-import { GoogleSheetClient } from "../flight-blockings/google-sheet.client";
+import { PrismaService } from "src/infrastructure/prisma/prisma.service";
+import * as XLSX from "xlsx";
 
 export interface QuickReplyEntry {
   id: string;
@@ -13,85 +14,88 @@ export interface QuickReplyEntry {
 
 export interface QuickRepliesData {
   entries: QuickReplyEntry[];
-  checkedAt?: string;
-  warning?: string;
+  checkedAt: string;
 }
-
-const GID = "23297697"; // pestaña RESPUESTA RAPIDAS
-const RANGE = "A1:B2000";
-const CACHE_TTL_MS = 5 * 60 * 1000;
 
 @Injectable()
 export class CommercialQuickRepliesService {
   private readonly logger = new Logger(CommercialQuickRepliesService.name);
-  private cache?: { data: QuickRepliesData; checkedAt: Date };
 
-  constructor(private readonly google: GoogleSheetClient) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  async getReplies(force = false): Promise<QuickRepliesData> {
-    const now = Date.now();
-    if (
-      !force &&
-      this.cache &&
-      now - this.cache.checkedAt.getTime() < CACHE_TTL_MS
-    ) {
-      return this.cache.data;
-    }
-
+  async getReplies(): Promise<QuickRepliesData> {
     try {
-      // Usamos el cliente autenticado en lugar del fetch público
-      const rows = await this.google.readAuthenticated(Number(GID), RANGE);
+      const dbEntries = await this.prisma.commercialQuickReply.findMany({
+        orderBy: { rowIndex: "asc" },
+      });
 
-      const entries = this.parseRows(rows);
-      const checkedAt = new Date();
-      const data: QuickRepliesData = {
+      const entries: QuickReplyEntry[] = dbEntries.map((e) => ({
+        id: e.id,
+        title: e.title,
+        text: e.text,
+      }));
+
+      return {
         entries,
-        checkedAt: checkedAt.toISOString(),
+        checkedAt: new Date().toISOString(),
       };
-      this.cache = { data, checkedAt };
-      return data;
-    } catch (e: any) {
-      const msg = (e as Error).message;
-      this.logger.warn(`Quick replies Drive falló: ${msg}`);
-
-      if (this.cache) {
-        const mins = Math.round(
-          (now - this.cache.checkedAt.getTime()) / 60000,
-        );
-        return {
-          ...this.cache.data,
-          warning: `No se pudo consultar Drive. Se muestran datos en caché de hace ${mins} min.`,
-        };
-      }
-
-      throw new ServiceUnavailableException(
-        "Las respuestas rápidas no están disponibles en este momento.",
-      );
+    } catch (error: any) {
+      this.logger.error("Error cargando respuestas rápidas:", error);
+      throw new Error("No se pudieron cargar las respuestas rápidas.");
     }
   }
 
-  /**
-   * Devuelve [{ id, title, text }] ignorando encabezados y filas vacías.
-   * Columna A = título, columna B = respuesta. "id" es el número de fila
-   * real (1-based) para armar el link a Drive con &range=A<id>:B<id>.
-   */
-  private parseRows(rows: string[][]): QuickReplyEntry[] {
-    const entries: QuickReplyEntry[] = [];
+  async importFromExcel(fileBuffer: Buffer) {
+    try {
+      const workbook = XLSX.read(fileBuffer, { type: "buffer" });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, raw: false, defval: "" });
 
-    rows.forEach((cells, idx) => {
-      const title = (cells[0] ?? "").trim();
-      const text = (cells[1] ?? "").trim();
-      
-      if (!title && !text) return;
-      
-      // Ignora encabezados típicos de la hoja
-      if (idx === 0 && /^(t[ií]tulo|title|pregunta)$/i.test(title)) {
-        return;
+      await this.prisma.commercialQuickReply.deleteMany();
+
+      const entriesToInsert: Array<{ title: string; text: string; rowIndex: number }> = [];
+      for (let i = 0; i < rows.length; i++) {
+        const cells = rows[i];
+        const title = (cells[0] ?? "").trim();
+        const text = (cells[1] ?? "").trim();
+
+        if (!title && !text) continue;
+        if (i === 0 && /^(t[ií]tulo|title|pregunta)$/i.test(title)) continue;
+
+        entriesToInsert.push({
+          title,
+          text,
+          rowIndex: i,
+        });
       }
-      
-      entries.push({ id: String(idx + 1), title, text });
-    });
 
-    return entries;
+      if (entriesToInsert.length > 0) {
+        await this.prisma.commercialQuickReply.createMany({ data: entriesToInsert });
+      }
+
+      return { success: true, imported: entriesToInsert.length };
+    } catch (error: any) {
+      this.logger.error("Error importando respuestas:", error);
+      throw new BadRequestException(`Error al importar: ${error.message}`);
+    }
+  }
+
+  async createReply(title: string, text: string) {
+    const count = await this.prisma.commercialQuickReply.count();
+    return this.prisma.commercialQuickReply.create({
+      data: { title, text, rowIndex: count },
+    });
+  }
+
+  async updateReply(id: string, title: string, text: string) {
+    return this.prisma.commercialQuickReply.update({
+      where: { id },
+      data: { title, text },
+    });
+  }
+
+  async deleteReply(id: string) {
+    return this.prisma.commercialQuickReply.delete({ where: { id } });
   }
 }
