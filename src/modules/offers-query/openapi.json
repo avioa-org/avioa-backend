@@ -20,7 +20,7 @@
     "/ofertas": {
       "get": {
         "operationId": "buscar_ofertas",
-        "description": "Producto primero; dentro de grupos comparables orden por precio. Cada variante del cazador usa su captura más reciente. El mensaje principal no depende de la página de la lista.",
+        "description": "Producto primero. Cazador: última captura por hotel, ruta, fechas, régimen y ocupación; con más de 30 días prioriza cancelación gratuita verificable y después precio. Opciones recomendadas primero, seguidas de alternativas de la misma captura. referencia_fuente permite localizar el paquete en el gestor. Capturas anteriores se conservan internamente, fuera de la selección comercial por defecto.",
         "parameters": [
           {
             "name": "q",
@@ -2942,6 +2942,92 @@
                 "type": "null"
               }
             ]
+          },
+          "referencia_fuente": {
+            "type": "object",
+            "properties": {
+              "sistema": {
+                "const": "cazador"
+              },
+              "registro_id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "hotel_id": {
+                "type": "string"
+              },
+              "captura": {
+                "type": "string",
+                "format": "date"
+              }
+            },
+            "required": [
+              "sistema",
+              "registro_id",
+              "hotel_id",
+              "captura"
+            ],
+            "additionalProperties": false
+          },
+          "seleccion": {
+            "type": "object",
+            "properties": {
+              "recomendada": {
+                "type": "boolean"
+              },
+              "criterio": {
+                "enum": [
+                  "prioriza_cancelacion_gratuita",
+                  "fallback_menor_precio",
+                  "menor_precio_hasta_30_dias"
+                ]
+              }
+            },
+            "required": [
+              "recomendada",
+              "criterio"
+            ],
+            "additionalProperties": false
+          },
+          "diferencia_vs_recomendada": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "valor": {
+                    "type": "number"
+                  },
+                  "moneda": {
+                    "const": "COP"
+                  },
+                  "unidad": {
+                    "const": "por_persona"
+                  },
+                  "cancelacion_equivalente": {
+                    "type": "boolean"
+                  },
+                  "registro_recomendado": {
+                    "type": "integer"
+                  },
+                  "es_total_parcial": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "valor",
+                  "moneda",
+                  "unidad",
+                  "cancelacion_equivalente",
+                  "registro_recomendado",
+                  "es_total_parcial"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Diferencia de importes frente a la recomendada del mismo grupo comparable. No atribuye la diferencia exclusivamente a la habitación; informa si las políticas de cancelación son iguales."
           }
         },
         "required": [
@@ -3016,7 +3102,8 @@
             }
           },
           "precio_desde": {
-            "$ref": "#/components/schemas/Precio"
+            "$ref": "#/components/schemas/Precio",
+            "description": "Precio de la primera opción recomendada. Otras habitaciones o condiciones pueden tener precios diferentes."
           },
           "opciones": {
             "type": "array",
@@ -3198,7 +3285,8 @@
             }
           },
           "precio_desde": {
-            "$ref": "#/components/schemas/Precio"
+            "$ref": "#/components/schemas/Precio",
+            "description": "Precio de la primera opción recomendada. Otras habitaciones o condiciones pueden tener precios diferentes."
           },
           "opciones": {
             "type": "array",

@@ -1,6 +1,7 @@
 'use strict';
 // Single commercial read model for the portal simulator and the external API.
 const { createHash, timingSafeEqual } = require('node:crypto');
+const hunterSelection = require('../../infrastructure/hunter-sync/hunter-selection.cjs');
 const hash = x => createHash('sha256').update(typeof x === 'string' ? x : JSON.stringify(x)).digest('hex');
 const norm = x => String(x ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 // Match whole normalized words: "Divi" must not match "Individuals".
@@ -102,6 +103,10 @@ function productOptions(o, today) {
     }
     return result;
 }
+function hunterOptionKey(r) {
+    return JSON.stringify([code(r.origen), code(r.destino_vuelo), code(r.hotel_code), r.ida, r.regreso, Number(r.noches), norm(r.habitacion), norm(r.regimen), distribution(r.deeplink_hotel), r.moneda,
+        r.cancelacion_gratuita ?? null, r.cancelacion_gratis_hasta ?? null, norm(r.politica_cancelacion), norm(r.penalidad_cancelacion), norm(r.proveedor_hotel)]);
+}
 function dedupHunter(rows, now) {
     const latest = new Map();
     for (const r of rows) {
@@ -109,8 +114,7 @@ function dedupHunter(rows, now) {
         if (!(now >= t && now - t < 72 * 3600000))
             continue;
         // Price, source row ID and capture are deliberately absent from the equivalence key.
-        const key = JSON.stringify([code(r.origen), code(r.destino_vuelo), code(r.hotel_code), r.ida, r.regreso, Number(r.noches), norm(r.habitacion), norm(r.regimen), distribution(r.deeplink_hotel), r.moneda,
-            r.cancelacion_gratuita ?? null, r.cancelacion_gratis_hasta ?? null, norm(r.politica_cancelacion), norm(r.penalidad_cancelacion), norm(r.proveedor_hotel)]);
+        const key = hunterOptionKey(r);
         const before = latest.get(key);
         if (!before || t > before.t || t === before.t && Number(r.id) > Number(before.r.id))
             latest.set(key, { r, t, key });
@@ -134,7 +138,8 @@ function build({ payload, rows, config, revision = 0, sync = null, now = Date.no
     }
     const hotels = new Map(config.hotels.map(h => [h.id, h])), transfer = new Map(config.services.transferGroups.flatMap(g => g.hotelIds.map(id => [code(id), Number(g.amount)])));
     const bucket = new Map();
-    for (const { r, t, key } of dedupHunter(rows, now)) {
+    for (const r of hunterSelection.selectRows(rows, { now, includeHistory: false }).current) {
+        const t = captureTime(r.fecha_consulta), key = hunterOptionKey(r);
         const h = hotels.get(code(r.hotel_code));
         if (!h || !day(r.ida) || !day(r.regreso) || r.ida < today || r.moneda !== 'COP' || !Number.isInteger(r.noches) || r.noches < 1)
             continue;
@@ -152,8 +157,11 @@ function build({ payload, rows, config, revision = 0, sync = null, now = Date.no
         const missing = !domestic && transferBase === undefined;
         const option = { id: 'hopt_' + hash(key).slice(0, 28), fecha_salida: r.ida, fecha_regreso: r.regreso, fecha_parcial: null, texto_fecha: null, noches: r.noches, dias: days, hotel: { id: h.id, nombre: h.name }, habitacion: clean(r.habitacion) || null, regimen: clean(r.regimen) || null,
             precio: { valor: round(base + round(flight * .18) + medical + transferTotal), moneda: 'COP', unidad: 'por_persona', ocupacion_base: occupied(r.deeplink_hotel), es_total_parcial: missing }, capturado_en: new Date(t).toISOString(), actualizado_en: new Date(t).toISOString(), vigente_hasta: new Date(t + 72 * 3600000).toISOString(), promociones: [],
-            servicios_incluidos: ['Vuelo ida y regreso', 'Alojamiento', 'Alimentación: ' + clean(r.regimen), 'Asistencia médica: ' + days + ' días', ...(transferTotal ? ['Traslados'] : [])], servicios_pendientes: missing ? ['Traslados'] : [],
-            cancelacion: { gratuita: r.cancelacion_gratuita === null || r.cancelacion_gratuita === undefined ? null : !!r.cancelacion_gratuita, hasta: r.cancelacion_gratis_hasta || null, politica: clean(r.politica_cancelacion) || null, penalidad: clean(r.penalidad_cancelacion) || null } };
+            referencia_fuente: { sistema: 'cazador', registro_id: r.id, hotel_id: h.id, captura: String(r.fecha_consulta).slice(0, 10) },
+            seleccion: { recomendada: r._avioa_selection.recommended, criterio: r._avioa_selection.criterion },
+            diferencia_vs_recomendada: r._avioa_selection.difference ? { ...r._avioa_selection.difference, es_total_parcial: missing } : null,
+            servicios_incluidos: ['Vuelo ida y regreso', 'Alojamiento', ...(norm(r.regimen) && norm(r.regimen) !== 'solo habitacion' ? ['Alimentación: ' + clean(r.regimen)] : []), 'Asistencia médica: ' + days + ' días', ...(transferTotal ? ['Traslados'] : [])], servicios_pendientes: missing ? ['Traslados'] : [],
+            cancelacion: { gratuita: r.cancelacion_gratuita === 1 || r.cancelacion_gratuita === true ? true : r.cancelacion_gratuita === 0 || r.cancelacion_gratuita === false ? false : null, hasta: r.cancelacion_gratis_hasta || null, politica: clean(r.politica_cancelacion) || null, penalidad: clean(r.penalidad_cancelacion) || null } };
         const id = 'h_' + Buffer.from(JSON.stringify([h.id, code(r.origen), code(r.destino_vuelo)])).toString('base64url');
         if (!bucket.has(id))
             bucket.set(id, { id, tipo: 'vuelo_hotel', fuente: 'cazador', titulo: h.name, origen: { codigo: code(r.origen), nombre: cityNames[code(r.origen)] || code(r.origen) }, destino: { codigo: code(r.destino_vuelo), nombre: h.destination }, incluye: [], no_incluye: ['Equipaje adicional, tours y entradas'], condiciones: [], options: [], prioridad: 0 });
@@ -165,9 +173,9 @@ function build({ payload, rows, config, revision = 0, sync = null, now = Date.no
             option.hotel = hotelIdentity(option.hotel, g.destino.codigo, g.destino.nombre);
         g.options.sort(compareOption);
     }
-    return { groups, now, revision, sync, snapshot: hash(['commercial-v1-identity-words', revision, groups.map(g => [g.id, g.options.map(o => [o.id, o.precio, o.actualizado_en])])]).slice(0, 32) };
+    return { groups, now, revision, sync, snapshot: hash(['commercial-v1-shared-selection', revision, groups.map(g => [g.id, g.options.map(o => [o.id, o.precio, o.actualizado_en, o.referencia_fuente, o.seleccion])])]).slice(0, 32) };
 }
-function compareOption(a, b) { return a.precio.moneda.localeCompare(b.precio.moneda) || a.precio.unidad.localeCompare(b.precio.unidad) || a.precio.valor - b.precio.valor || String(a.fecha_salida || '').localeCompare(String(b.fecha_salida || '')) || a.id.localeCompare(b.id); }
+function compareOption(a, b) { return Number(b.seleccion?.recomendada ?? true) - Number(a.seleccion?.recomendada ?? true) || a.precio.moneda.localeCompare(b.precio.moneda) || a.precio.unidad.localeCompare(b.precio.unidad) || a.precio.valor - b.precio.valor || String(a.fecha_salida || '').localeCompare(String(b.fecha_salida || '')) || a.id.localeCompare(b.id); }
 const allowed = ['q', 'origen', 'destino', 'hotel', 'fecha_desde', 'fecha_hasta', 'adultos', 'tipo', 'fuente', 'regimen', 'precio_max', 'moneda', 'unidad', 'noches', 'limit', 'cursor', 'seleccion', 'opcion'];
 function validate(input = {}) {
     if (!input || typeof input !== 'object' || Array.isArray(input))
@@ -266,7 +274,7 @@ function message(g, options = g.options) {
     }
     const pretty = d => new Intl.DateTimeFormat('es-CO', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(d + 'T12:00:00Z'));
     const dateLabel = o => o.fecha_salida ? pretty(o.fecha_salida) + ' al ' + pretty(o.fecha_regreso) : o.texto_fecha || '';
-    const labelMeal = r => ({ ALIMENTACION_COMPLETA_SNACKS_BAR: 'Alimentación completa, snacks y bar abierto', TODO_INCLUIDO: 'Todo incluido', SOLO_HABITACION: 'Solo habitación', DESAYUNO: 'Desayuno', MEDIA_PENSION: 'Media pensión', PENSION_COMPLETA: 'Pensión completa' })[r] || String(r || '').replace(/_/g, ' ');
+    const labelMeal = r => ({ 'alimentacion completa snacks bar': 'Alimentación completa, snacks y bar abierto', 'todo incluido': 'Todo incluido', 'solo habitacion': 'Solo alojamiento (sin alimentación)', 'desayuno': 'Desayuno', 'media pension': 'Media pensión', 'pension completa': 'Pensión completa' })[norm(r)] || String(r || '').replace(/_/g, ' ');
     const unit = p => ({ por_persona: 'por persona', por_pareja: 'por pareja', por_paquete: 'por paquete' })[p.unidad];
     const rateKey = o => JSON.stringify([o.hotel, o.habitacion, o.regimen, o.precio, o.promociones]);
     // First collect all hotel/rate choices for a date, then combine dates with identical choices.
@@ -355,8 +363,9 @@ function query(model, input = {}) {
             throw new QueryError(404, 'opcion_no_encontrada', 'La opción no coincide con los filtros.');
     }
     const other = groups.filter(g => g.id !== chosen?.id).slice(0, 6);
+    const visibleGroups = q.opcion ? groups.map(g => g.id === chosen?.id ? { ...g, options } : g) : groups;
     const msg = chosen ? message(chosen, options) + (other.length ? '\n\n🎁 *Otras ofertas:*\n' + other.map(alternativeLine).join('\n') : '') : 'No hay ofertas para estos criterios.';
-    return { ...page(groups.map(g => publicGroup(g, g.id === chosen?.id ? 50 : 5)), q, model), seleccionada: chosen?.id || null, mensaje_whatsapp: msg, metadatos: { revision: model.revision, seleccion_tarifa: 'captura_mas_reciente', ventana_cazador_horas: 72, consultado_en: new Date(model.now).toISOString(), ultima_sincronizacion: model.sync?.lastSuccessAt || null, fechas_sin_anio: 'conservadas_sin_inferir; excluidas_de_filtros_ISO', ocupacion: 'solo_base_comprobada; no_se_recalcula_precio' } };
+    return { ...page(visibleGroups.map(g => publicGroup(g, g.id === chosen?.id ? 50 : 5)), q, model), seleccionada: chosen?.id || null, mensaje_whatsapp: msg, metadatos: { revision: model.revision, seleccion_tarifa: 'ultima_captura_comparable_y_cancelacion', ventana_cazador_horas: 72, consultado_en: new Date(model.now).toISOString(), ultima_sincronizacion: model.sync?.lastSuccessAt || null, fechas_sin_anio: 'conservadas_sin_inferir; excluidas_de_filtros_ISO', ocupacion: 'solo_base_comprobada; no_se_recalcula_precio' } };
 }
 function detail(model, id, input = {}, section = 'detalle') {
     const q = validate(input), g = filtered(model, q).find(x => x.id === id);
@@ -368,7 +377,7 @@ function detail(model, id, input = {}, section = 'detalle') {
     if (section === 'mensaje')
         return { id: g.id, mensaje_whatsapp: message(g, options), snapshot: model.snapshot };
     const p = page(options, q, model, id);
-    return section === 'fechas' ? p : { ...publicGroup(g, 0), opciones: p.items, opciones_truncadas: !!p.next_cursor, next_cursor: p.next_cursor, snapshot: model.snapshot, comercial: { titulo: g.titulo, mensaje_whatsapp: message(g, p.items) } };
+    return section === 'fechas' ? p : { ...publicGroup({ ...g, options }, 0), opciones: p.items, opciones_truncadas: !!p.next_cursor, next_cursor: p.next_cursor, snapshot: model.snapshot, comercial: { titulo: g.titulo, mensaje_whatsapp: message(g, p.items) } };
 }
 function context(model, input = {}, kind = 'contexto') {
     const q = validate(input), groups = filtered(model, q);

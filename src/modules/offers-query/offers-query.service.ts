@@ -13,7 +13,10 @@ export class OffersQueryService {
   attachSimulator(html: string) {
     const anchor = "state.view='__OFFERS_INITIAL_VIEW__';";
     if (html.split(anchor).length !== 2) throw new ServiceUnavailableException('Versión del simulador incompatible.');
-    return html.replace(anchor, () => readFileSync(join(__dirname, 'simulator.js'), 'utf8') + '\n' + anchor);
+    const selection = readFileSync(join(__dirname, '..', '..', 'infrastructure', 'hunter-sync', 'hunter-selection.cjs'), 'utf8');
+    const catalog = readFileSync(join(__dirname, 'catalog-selection.js'), 'utf8');
+    const epoch = 'globalThis.AvioaHunterSelectionEpoch=' + Date.now() + ';\n';
+    return html.replace(anchor, () => epoch + selection + '\n' + catalog + '\n' + readFileSync(join(__dirname, 'simulator.js'), 'utf8') + '\n' + anchor);
   }
 
   async model() {
