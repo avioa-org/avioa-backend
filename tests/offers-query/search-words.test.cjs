@@ -134,6 +134,6 @@ test('Health and OpenAPI identify the API as 1.0.0 without changing public route
  assert.equal(spec.info.version,'1.0.0');
  assert.match(controller,/version: '1\.0\.0'/);
  assert.equal(spec.servers[0].url,'/api/v1/ofertas-api');
- assert.equal(Object.keys(spec.paths).length,10);
+ assert.equal(Object.keys(spec.paths).length,11);
  assert.ok(spec.security.some(s=>'BearerLectura' in s));
 });

@@ -22,6 +22,8 @@ export class OffersApiController {
   @Header('Cache-Control', 'no-store')
   @Get('hoteles') hotels(@Query() q: Record<string, string>) { return this.offers.context(q, 'hoteles'); }
   @Header('Cache-Control', 'no-store')
+  @Get('hoteles/:id/politicas') hotelPolicies(@Param('id') id: string, @Query() q: Record<string, string>) { return this.offers.hotelPolicies(id, q); }
+  @Header('Cache-Control', 'no-store')
   @Get('contexto') context(@Query() q: Record<string, string>) { return this.offers.context(q); }
   @Header('Cache-Control', 'no-store')
   @Get('ofertas/:id/fechas') dates(@Param('id') id: string, @Query() q: Record<string, string>) { return this.offers.detail(id, q, 'fechas'); }

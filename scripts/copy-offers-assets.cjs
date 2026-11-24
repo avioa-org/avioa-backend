@@ -11,7 +11,7 @@ if(!copied)throw Error('No se encontró la infraestructura compilada de Ofertas.
 for (const folder of candidates) {
  const target=join(folder,'..','modules','offers-query');
  if(!existsSync(target))continue;
- for(const file of ['engine.cjs','simulator.js','openapi.json']) {
+ for(const file of ['engine.cjs','simulator.js','openapi.json','hotel-policies.cjs']) {
   const src=join(root,'src','modules','offers-query',file);
   if(!existsSync(src))throw Error('Falta asset API de Ofertas: '+file);
   copyFileSync(src,join(target,file));
