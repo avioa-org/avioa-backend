@@ -1,13 +1,11 @@
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue =
-  | JsonPrimitive
-  | JsonValue[]
-  | { [key: string]: JsonValue };
+  JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 export type JsonObject = Record<string, JsonValue>;
 
 export interface OffersPayload extends JsonObject {
   offers: OfferRecord[];
-  productoDefaults?: JsonObject;
+  productoDefaults: JsonObject | null;
   [key: string]: JsonValue;
 }
 

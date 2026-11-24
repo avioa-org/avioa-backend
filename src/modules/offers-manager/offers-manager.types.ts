@@ -1,9 +1,6 @@
 export type OfferCurrency = 'COP' | 'USD' | 'MXN' | (string & {});
 export type OfferStatus =
-  | 'BORRADOR'
-  | 'EN_REVISION'
-  | 'PUBLICADA_DEMO'
-  | (string & {});
+  'BORRADOR' | 'EN_REVISION' | 'PUBLICADA_DEMO' | (string & {});
 export type OfferKind = 'VUELO_HOTEL' | 'CIRCUITO' | (string & {});
 export type OfferVariantKind = 'HOTEL' | 'COMBINADO' | (string & {});
 

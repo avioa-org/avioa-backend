@@ -3,12 +3,12 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
+import { type ICurrentUser } from 'src/common/decorator/current-user.decorator';
 import {
   OffersRuntimeResponse,
   OffersRuntimeService,
 } from 'src/infrastructure/offers-runtime/offers-runtime.service';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
-import { PortalUser } from './offers-manager.types';
 
 @Injectable()
 export class OffersManagerService {
@@ -17,11 +17,11 @@ export class OffersManagerService {
     private readonly runtime: OffersRuntimeService,
   ) {}
 
-  private permission(user: PortalUser, key: string) {
+  private permission(user: ICurrentUser, key: string) {
     return user.modulePermissions?.find((p) => p.module === key && p.canAccess);
   }
 
-  private assertRead(user: PortalUser) {
+  private assertRead(user: ICurrentUser) {
     if (
       user.role !== 'ADMIN' &&
       (!this.permission(user, 'OFFERS') ||
@@ -33,7 +33,7 @@ export class OffersManagerService {
     }
   }
 
-  private assertAction(user: PortalUser, action: string) {
+  private assertAction(user: ICurrentUser, action: string) {
     if (
       user.role !== 'ADMIN' &&
       !this.permission(user, 'OFFERS')?.actions?.includes(action)
@@ -47,7 +47,7 @@ export class OffersManagerService {
   }
 
   async dispatch(
-    user: PortalUser,
+    user: ICurrentUser,
     path: string,
     method: string,
     query: string,
@@ -111,7 +111,7 @@ export class OffersManagerService {
   }
 
   private async assertStateActions(
-    user: PortalUser,
+    user: ICurrentUser,
     input: Record<string, any>,
   ) {
     const before = await this.prisma.offersWorkspaceState.findUnique({
