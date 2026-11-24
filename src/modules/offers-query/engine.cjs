@@ -317,6 +317,33 @@ function message(g, options = g.options) {
         l.push('', '📋 *Condiciones importantes:*', ...g.condiciones.map(x => '• ' + x));
     return l.join('\n');
 }
+function alternativeLine(g) {
+    // All comparison fields come from the same option as its advertised price.
+    const o = g.options[0], p = o.precio;
+    const pretty = d => new Intl.DateTimeFormat('es-CO', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(d + 'T12:00:00Z'));
+    let dates = o.fecha_salida && o.fecha_regreso ? pretty(o.fecha_salida) + ' al ' + pretty(o.fecha_regreso) : clean(o.texto_fecha) || 'Fechas no especificadas';
+    if (o.fecha_parcial && !o.fecha_parcial.anio)
+        dates += ' (año no indicado)';
+    const duration = o.dias && o.noches ? o.dias + ' días / ' + o.noches + ' noches' : o.noches ? o.noches + ' noches' : 'Duración no especificada';
+    const meal = ({
+        'todo incluido': 'Todo incluido',
+        'solo habitacion': 'Solo alojamiento (sin alimentación)',
+        'desayuno': 'Desayuno',
+        'media pension': 'Media pensión',
+        'pension completa': 'Pensión completa',
+        'alimentacion completa': 'Alimentación completa',
+        'alimentacion completa snacks bar': 'Alimentación completa, snacks y bar abierto',
+        'segun plan': 'Alimentación según el plan',
+        'por confirmar': 'Alimentación no especificada',
+    })[norm(o.regimen)] || clean(o.regimen) || 'Alimentación no especificada';
+    const unit = ({ por_persona: 'por persona', por_pareja: 'por pareja', por_paquete: 'por paquete' })[p.unidad];
+    return '• ' + [g.titulo,
+        ...(o.hotel.nombre && norm(o.hotel.nombre) !== norm(g.titulo) ? [o.hotel.nombre] : []),
+        ...(g.origen.nombre ? ['Desde ' + g.origen.nombre] : []),
+        dates, duration, meal,
+        money(p) + ' ' + unit + (p.es_total_parcial ? ' (total parcial)' : ''),
+    ].join(' · ');
+}
 function query(model, input = {}) {
     const q = validate(input), groups = filtered(model, q);
     if (q.seleccion && !groups.some(g => g.id === q.seleccion))
@@ -328,7 +355,7 @@ function query(model, input = {}) {
             throw new QueryError(404, 'opcion_no_encontrada', 'La opción no coincide con los filtros.');
     }
     const other = groups.filter(g => g.id !== chosen?.id).slice(0, 6);
-    const msg = chosen ? message(chosen, options) + (other.length ? '\n\n🎁 *Otras ofertas:*\n' + other.map(g => '• ' + g.titulo + ' · ' + money(g.options[0].precio) + ' ' + ({ por_persona: 'por persona', por_pareja: 'por pareja', por_paquete: 'por paquete' })[g.options[0].precio.unidad]).join('\n') : '') : 'No hay ofertas para estos criterios.';
+    const msg = chosen ? message(chosen, options) + (other.length ? '\n\n🎁 *Otras ofertas:*\n' + other.map(alternativeLine).join('\n') : '') : 'No hay ofertas para estos criterios.';
     return { ...page(groups.map(g => publicGroup(g, g.id === chosen?.id ? 50 : 5)), q, model), seleccionada: chosen?.id || null, mensaje_whatsapp: msg, metadatos: { revision: model.revision, seleccion_tarifa: 'captura_mas_reciente', ventana_cazador_horas: 72, consultado_en: new Date(model.now).toISOString(), ultima_sincronizacion: model.sync?.lastSuccessAt || null, fechas_sin_anio: 'conservadas_sin_inferir; excluidas_de_filtros_ISO', ocupacion: 'solo_base_comprobada; no_se_recalcula_precio' } };
 }
 function detail(model, id, input = {}, section = 'detalle') {
