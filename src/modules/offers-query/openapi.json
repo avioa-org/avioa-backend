@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "aVioa · API comercial de ofertas",
-    "version": "41.0.0",
+    "version": "1.0.0",
     "description": "REST de lectura para el bot externo. No captura tarifas ni reserva. Nunca comparte notas internas, costos de armado ni credenciales del cazador. Los endpoints plan separa/armado no son parte de esta API externa."
   },
   "servers": [

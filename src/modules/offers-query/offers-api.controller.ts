@@ -10,7 +10,7 @@ const openapi = require('./openapi.json');
 export class OffersApiController {
   constructor(private readonly offers: OffersQueryService) {}
   @Header('Cache-Control', 'no-store')
-  @Get('health') health() { return { ok: true, version: '41.0', mode: 'read_only' }; }
+  @Get('health') health() { return { ok: true, version: '1.0.0', mode: 'read_only' }; }
   @Header('Cache-Control', 'no-store')
   @Get('openapi.json') contract() { return openapi; }
   @Header('Cache-Control', 'no-store')
