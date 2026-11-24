@@ -3,7 +3,23 @@
 const { createHash, timingSafeEqual } = require('node:crypto');
 const hash = x => createHash('sha256').update(typeof x === 'string' ? x : JSON.stringify(x)).digest('hex');
 const norm = x => String(x ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+// Match whole normalized words: "Divi" must not match "Individuals".
+function matchesWords(text, query) {
+    const terms = norm(query).split(' ').filter(Boolean);
+    if (!terms.length)
+        return false;
+    const words = new Set(norm(text).split(' ').filter(Boolean));
+    return terms.every(term => words.has(term));
+}
 const code = x => String(x ?? '').trim().toUpperCase();
+// Explicitly confirmed identity; never infer hotel equivalence from similar names.
+function hotelIdentity(hotel, destination, destinationName) {
+    const diviNames = ['divi dutch village', 'divi dutch village beach resort'];
+    const aruba = code(destination) === 'AUA' || norm(destinationName) === 'aruba';
+    if (aruba && diviNames.includes(norm(hotel.nombre)) && (!hotel.id || String(hotel.id) === '73440'))
+        return { id: '73440', nombre: 'Divi Dutch Village Beach Resort' };
+    return hotel;
+}
 const day = x => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x) && Number.isFinite(Date.parse(x)) && new Date(x).toISOString().slice(0, 10) === x;
 const clean = x => String(x ?? '').replace(/\s*\(Respuesta principal para este destino\)/gi, '').trim();
 const strings = a => (Array.isArray(a) ? a : []).map(x => clean(typeof x === 'string' ? x : x?.text)).filter(Boolean);
@@ -110,6 +126,8 @@ function build({ payload, rows, config, revision = 0, sync = null, now = Date.no
         if (/agotad|expirad/.test(norm(o.status)))
             continue;
         const options = productOptions(o, today);
+        for (const option of options)
+            option.hotel = hotelIdentity(option.hotel, o.dest, o.destName);
         if (!options.length)
             continue;
         groups.push({ id: 'p_' + Buffer.from(String(o.id)).toString('base64url'), tipo: ({ VUELO_HOTEL: 'vuelo_hotel', CRUCERO: 'crucero', CIRCUITO: 'circuito' })[o.kind] || 'otro', fuente: 'producto', titulo: clean(o.title), origen: { codigo: code(o.origin) || null, nombre: cityNames[code(o.origin)] || code(o.origin) || null }, destino: { codigo: code(o.dest) || null, nombre: clean(o.destName || cityNames[code(o.dest)] || o.dest) }, incluye: strings(o.includes), no_incluye: strings(o.excludes), condiciones: strings(o.conditions), options, prioridad: Number(payload.productoDefaults?.[code(o.origin) + '|' + norm(o.destName || o.dest)]) > 0 && Number(payload.productoDefaults[code(o.origin) + '|' + norm(o.destName || o.dest)]) === Number(o.sourceCampaignRow || String(o.workbookKey || '').replace('BOT-C', '')) ? 2 : o.defaultForDestination === true ? 1 : 0 });
@@ -142,9 +160,12 @@ function build({ payload, rows, config, revision = 0, sync = null, now = Date.no
         bucket.get(id).options.push(option);
     }
     groups.push(...bucket.values());
-    for (const g of groups)
+    for (const g of groups) {
+        for (const option of g.options)
+            option.hotel = hotelIdentity(option.hotel, g.destino.codigo, g.destino.nombre);
         g.options.sort(compareOption);
-    return { groups, now, revision, sync, snapshot: hash([revision, groups.map(g => [g.id, g.options.map(o => [o.id, o.precio, o.actualizado_en])])]).slice(0, 32) };
+    }
+    return { groups, now, revision, sync, snapshot: hash(['commercial-v1-identity-words', revision, groups.map(g => [g.id, g.options.map(o => [o.id, o.precio, o.actualizado_en])])]).slice(0, 32) };
 }
 function compareOption(a, b) { return a.precio.moneda.localeCompare(b.precio.moneda) || a.precio.unidad.localeCompare(b.precio.unidad) || a.precio.valor - b.precio.valor || String(a.fecha_salida || '').localeCompare(String(b.fecha_salida || '')) || a.id.localeCompare(b.id); }
 const allowed = ['q', 'origen', 'destino', 'hotel', 'fecha_desde', 'fecha_hasta', 'adultos', 'tipo', 'fuente', 'regimen', 'precio_max', 'moneda', 'unidad', 'noches', 'limit', 'cursor', 'seleccion', 'opcion'];
@@ -191,7 +212,7 @@ function filtered(model, q) {
         if (!matchesCity(g.origen, q.origen) || !matchesCity(g.destino, q.destino) || q.fuente && q.fuente !== g.fuente || q.tipo && q.tipo !== g.tipo)
             continue;
         const options = g.options.filter(o => {
-            if (q.hotel && !norm(o.hotel.nombre + ' ' + o.hotel.id).includes(norm(q.hotel)))
+            if (q.hotel && code(q.hotel) !== code(o.hotel.id) && !matchesWords(o.hotel.nombre, q.hotel))
                 return false;
             if (q.regimen && !norm(o.regimen).includes(norm(q.regimen)))
                 return false;
@@ -203,7 +224,7 @@ function filtered(model, q) {
                 return false;
             if (q.q) {
                 const hay = norm([g.titulo, g.origen.codigo, g.origen.nombre, g.destino.codigo, g.destino.nombre, o.hotel.nombre].join(' '));
-                if (!norm(q.q).split(' ').every(t => hay.includes(t)))
+                if (!matchesWords(hay, q.q))
                     return false;
             }
             return true;
