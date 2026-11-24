@@ -3,6 +3,7 @@ import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 import { join } from 'node:path';
 import { readFileSync } from 'node:fs';
 const core = require('./engine.cjs');
+const { readHotelPolicies } = require('./hotel-policies.cjs');
 
 @Injectable()
 export class OffersQueryService {
@@ -31,6 +32,13 @@ export class OffersQueryService {
     }, { isolationLevel: 'RepeatableRead', maxWait: 5000, timeout: 15000 });
     if (!data.workspace) throw new ServiceUnavailableException('Importa primero las ofertas del portal.');
     return core.build({ payload: JSON.parse(data.workspace.payload), rows: data.captures.flatMap(c => JSON.parse(c.payload)), config: this.config, revision: data.workspace.revision, sync: data.sync, now: Date.now() });
+  }
+  async hotelPolicies(id: string, query: Record<string, unknown>) {
+    if (!this.config) {
+      const runtime = require(join(__dirname, '..', '..', 'infrastructure', 'offers-runtime', 'runtime.cjs'));
+      this.config = core.settings(runtime.HTML);
+    }
+    return readHotelPolicies({ id, query, hotels: this.config.hotels });
   }
   async search(query: Record<string, unknown>) { core.validate(query); return core.query(await this.model(), query); }
   async detail(id: string, query: Record<string, unknown>, section = 'detalle') { core.validate(query); return core.detail(await this.model(), id, query, section); }

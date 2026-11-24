@@ -2560,6 +2560,106 @@
           }
         }
       }
+    },
+    "/hoteles/{id}/politicas": {
+      "get": {
+        "operationId": "obtener_politicas_hotel",
+        "description": "Consulta separada para Quantum. Solo expone políticas de niños reconocidas y sus condiciones de alojamiento, sin modificar el mensaje de WhatsApp ni cotizar menores. Los horarios, cargos, IVA, cunas, camas extra, traslado y restricciones se almacenan internamente y no se exponen aquí. No consulta TravelC en vivo.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID completo del catálogo, por ejemplo MASTER-5084431.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9-]{1,80}$"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Filtro o cursor inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Oferta u opción inexistente/vencida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catálogo actualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de consultas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo interno",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "API deshabilitada o catálogo no disponible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Política de niños almacenada; null si no se reconoció información. No contiene las demás políticas internas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoliticasHotel"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3181,6 +3281,143 @@
         "required": [
           "error"
         ]
+      },
+      "PoliticasHotel": {
+        "type": "object",
+        "properties": {
+          "hotel": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "nombre": {
+                "type": "string"
+              },
+              "destino": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "nombre",
+              "destino"
+            ],
+            "additionalProperties": false
+          },
+          "politicas": {
+            "type": "object",
+            "properties": {
+              "ninos": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "admite_todas_las_edades": {
+                        "type": [
+                          "boolean",
+                          "null"
+                        ]
+                      },
+                      "alojamiento_gratuito": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "maximo_menores": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 10
+                              },
+                              "edad_maxima_anios": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 17
+                              },
+                              "comparte_habitacion_con_padres_o_tutores": {
+                                "const": true
+                              },
+                              "usa_camas_existentes": {
+                                "const": true
+                              },
+                              "alcance": {
+                                "const": "solo_alojamiento"
+                              },
+                              "aplica_a_tarifa_consultada": {
+                                "type": "null",
+                                "description": "La política general no confirma gratuidad en una tarifa ni en el paquete completo."
+                              }
+                            },
+                            "required": [
+                              "maximo_menores",
+                              "edad_maxima_anios",
+                              "comparte_habitacion_con_padres_o_tutores",
+                              "usa_camas_existentes",
+                              "alcance",
+                              "aplica_a_tarifa_consultada"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "textos_fuente": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "maxItems": 4
+                      },
+                      "informacion_contradictoria": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "admite_todas_las_edades",
+                      "alojamiento_gratuito",
+                      "textos_fuente",
+                      "informacion_contradictoria"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "ninos"
+            ],
+            "additionalProperties": false
+          },
+          "actualizado_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Última actualización de la ficha almacenada."
+          },
+          "fuente": {
+            "const": "ficha_alojamiento"
+          },
+          "estado": {
+            "enum": [
+              "informacion_disponible",
+              "sin_informacion_ninos"
+            ]
+          }
+        },
+        "required": [
+          "hotel",
+          "politicas",
+          "actualizado_en",
+          "fuente",
+          "estado"
+        ],
+        "additionalProperties": false
       }
     }
   }
