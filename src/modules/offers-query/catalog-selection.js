@@ -15,6 +15,42 @@
  v2CatalogoOpciones=function(h,includeHistory=false){const data=ranked(h);return (includeHistory?data.all:data.current).filter(r=>r._avioa_selection.recommended).map(r=>hunterServiceRate(h,r));};
  hunterCatalogRows=function(h){return scoped(h).filter(r=>r._avioa_selection.recommended);};
  v2CatalogoSeleccion=function(h){const rows=scoped(h);return rows.find(r=>String(r.id)===String(state.catalogo.v2Paquete))||rows.find(r=>r._avioa_selection.recommended)||rows[0]||null;};
+ // Sort catalog display only; the shared tariff recommendation remains unchanged.
+ const dateOrder=()=>['salida','salida_desc'].includes(state.catalogo.orden);
+ const travelDay=r=>/^\d{4}-\d{2}-\d{2}$/.test(String(r.ida||''))&&Number.isFinite(Date.parse(r.ida))&&new Date(r.ida).toISOString().slice(0,10)===r.ida?r.ida:null;
+ const previousCompare=hunterCompareTariffs;
+ hunterCompareTariffs=function(a,b,order=state.catalogo.orden){
+  if(order!=='salida'&&order!=='salida_desc')return previousCompare(a,b,order);
+  const da=travelDay(a),db=travelDay(b);
+  if(!da||!db)return Number(!da)-Number(!db)||String(a.id??'').localeCompare(String(b.id??''));
+  return (order==='salida'?da.localeCompare(db):db.localeCompare(da))
+   ||String(b.fecha_consulta||'').localeCompare(String(a.fecha_consulta||''))
+   ||Number(a.precio_paquete_persona)-Number(b.precio_paquete_persona)
+   ||String(a.id??'').localeCompare(String(b.id??''));
+ };
+ if(typeof opts==='function'){
+  const previousOptions=opts;
+  opts=function(values,selected,labels={}){
+   if(Array.isArray(values)&&values.includes('actualizacion')&&values.includes('cantidad')&&values.includes('precio')){
+    return previousOptions([...new Set([...values,'salida','salida_desc'])],selected,{...labels,salida:'Fecha de viaje: más próxima',salida_desc:'Fecha de viaje: más lejana'});
+   }
+   return previousOptions(values,selected,labels);
+  };
+ }
+ if(typeof ecFilterHotels==='function'){
+  const previousHotels=ecFilterHotels;
+  ecFilterHotels=function(){
+   const hotels=previousHotels();
+   if(!dateOrder())return hotels;
+   const dates=new Map(hotels.map(h=>[h,hunterCatalogRows(h).map(travelDay).filter(Boolean).sort()]));
+   const chosen=h=>state.catalogo.orden==='salida'?dates.get(h)[0]:dates.get(h).at(-1);
+   return hotels.slice().sort((a,b)=>{
+    const da=chosen(a),db=chosen(b);
+    return (!da||!db?Number(!da)-Number(!db):(state.catalogo.orden==='salida'?da.localeCompare(db):db.localeCompare(da)))
+     ||String(a.nombre||'').localeCompare(String(b.nombre||''),'es')||String(a.hotel_id).localeCompare(String(b.hotel_id));
+   });
+  };
+ }
  function card(h,r){
   const m=r._avioa_selection,selected=String(v2CatalogoSeleccion(h)?.id)===String(r.id);
   const flight=ecSafeLink(r.link_vuelo),hotel=ecSafeLink(r.deeplink_hotel);
@@ -30,7 +66,7 @@
  }
  v2CatalogoPrecios=function(h){
   const s=state.catalogo,rows=scoped(h),main=rows.filter(r=>r._avioa_selection.recommended),alternatives=rows.filter(r=>!r._avioa_selection.recommended),selected=v2CatalogoSeleccion(h),limit=s.v2Limite||4;
-  const history=ranked(h).history.filter(r=>(!s.origen||s.origen==='TODOS'||r.origen===s.origen)&&(!s.regimen||s.regimen==='TODOS'||S.norm(r.regimen)===S.norm(s.regimen))).map(r=>hunterServiceRate(h,r));
+  const history=ranked(h).history.filter(r=>(!s.origen||s.origen==='TODOS'||r.origen===s.origen)&&(!s.regimen||s.regimen==='TODOS'||S.norm(r.regimen)===S.norm(s.regimen))).map(r=>hunterServiceRate(h,r)).sort(hunterCompareTariffs);
   const extras=selected&&!main.some(r=>r.id===selected.id)?card(h,selected):'';
   const limits=s.selectionLimits||{},altLimit=limits[h.hotel_id+'-alternatives']||20,historyLimit=limits[h.hotel_id+'-history']||20;
   const expand=(kind)=>`<button type="button" class="tiny-action" data-hunter-selection-expand="${kind}" data-hunter-source-hotel="${esc(h.hotel_id)}">Ver más</button>`;
