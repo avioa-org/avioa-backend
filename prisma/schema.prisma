@@ -1985,3 +1985,40 @@ model CommercialOperator {
 
   @@map("commercial_operators")
 }
+
+model CommercialProtocolSection {
+  id        String   @id @default(uuid())
+  title     String   // "Escenario 1: Cliente interesado"
+  rowIndex  Int      @map("row_index") // Para mantener el orden
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  steps     CommercialProtocolStep[]
+
+  @@map("commercial_protocol_sections")
+}
+
+model CommercialProtocolStep {
+  id        String   @id @default(uuid())
+  sectionId String   @map("section_id")
+  label     String   
+  text      String   @db.Text 
+  rowIndex  Int      @map("row_index") 
+  
+  section   CommercialProtocolSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId, rowIndex])
+  @@map("commercial_protocol_steps")
+}
+
+
+model CommercialQuickReply {
+  id        String   @id @default(uuid())
+  title     String
+  text      String   @db.Text
+  rowIndex  Int      @map("row_index")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("commercial_quick_replies")
+}
