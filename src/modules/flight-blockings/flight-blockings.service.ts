@@ -6,6 +6,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import * as XLSX from 'xlsx';
 import { isDeepStrictEqual } from 'node:util';
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
@@ -330,28 +331,28 @@ export class FlightBlockingsService {
     return board;
   }
 
-    async getBoard(actor: Actor) {
-      try {
-        const board = await this.prisma.$transaction(async (tx) => {
-          return this.snapshot(tx);
-        });
+  async getBoard(actor: Actor) {
+    try {
+      const board = await this.prisma.$transaction(async (tx) => {
+        return this.snapshot(tx);
+      });
 
-      
-        console.log(`[DIAGNÓSTICO] Servicios (reservas) en BD: ${board.services.length}`);
-        console.log(`[DIAGNÓSTICO] Bloqueos en BD: ${board.blocks.length}`);
-        console.log(`[DIAGNÓSTICO] Alertas generadas: ${board.alerts.length}`);
-    
+      console.log(
+        `[DIAGNÓSTICO] Servicios (reservas) en BD: ${board.services.length}`,
+      );
+      console.log(`[DIAGNÓSTICO] Bloqueos en BD: ${board.blocks.length}`);
+      console.log(`[DIAGNÓSTICO] Alertas generadas: ${board.alerts.length}`);
 
-        return actor.permissions.includes('flight-blockings:admin')
-          ? board
-          : this.publicBoard(board);
-      } catch (error: any) {
-        console.error('Error obteniendo el tablero:', error);
-        throw new ServiceUnavailableException(
-          'Error al cargar los datos del tablero.',
-        );
-      }
+      return actor.permissions.includes('flight-blockings:admin')
+        ? board
+        : this.publicBoard(board);
+    } catch (error: any) {
+      console.error('Error obteniendo el tablero:', error);
+      throw new ServiceUnavailableException(
+        'Error al cargar los datos del tablero.',
+      );
     }
+  }
   private publicBoard(
     board: Awaited<ReturnType<FlightBlockingsService['snapshot']>>,
   ) {
@@ -898,6 +899,81 @@ export class FlightBlockingsService {
     });
     if (!file) throw new NotFoundException('Archivo no encontrado.');
     return file;
+  }
+
+  async importFromExcel(fileBuffer: Buffer, userId: string) {
+    try {
+      const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+
+      // Convertimos el Excel a una matriz de texto (igual que el CSV)
+      const rows = XLSX.utils.sheet_to_json<string[]>(sheet, {
+        header: 1,
+        raw: false,
+        defval: '',
+      });
+
+      // ¡AQUÍ ESTÁ LA MAGIA! Usamos el parser original de Drive
+      let parsedBlocks;
+      try {
+        parsedBlocks = parseDriveBlocks(rows, new Date().toISOString());
+      } catch (parseError: any) {
+        throw new Error(`Error de estructura: ${parseError.message}`);
+      }
+
+      if (!parsedBlocks || parsedBlocks.length === 0) {
+        throw new Error(
+          'El parser no encontró bloqueos válidos en el archivo.',
+        );
+      }
+
+      // Insertamos en la base de datos
+      let imported = 0;
+      for (const b of parsedBlocks) {
+        // Verificamos si ya existe para no duplicar
+        const exists = await this.prisma.flightBlocking.findUnique({
+          where: {
+            code_departDate: { code: b.code, departDate: b.departDate },
+          },
+        });
+
+        if (!exists) {
+          await this.prisma.flightBlocking.create({
+            data: {
+              code: b.code,
+              title: b.title,
+              departDate: b.departDate,
+              returnDate: b.returnDate,
+              departTime: b.departTime,
+              returnTime: b.returnTime,
+              origin: b.origin || '',
+              destination: b.destination || '',
+              flight: b.flight || '',
+              capacity: b.capacity || null,
+              notes: b.notes || '',
+              aliases: b.aliases || [],
+              source: 'Import',
+              updatedBy: userId,
+              drive: b.drive ? JSON.parse(JSON.stringify(b.drive)) : null,
+            },
+          });
+          imported++;
+        }
+      }
+
+  
+      await this.prisma.flightBlockingEvent.create({
+        data: { action: 'import_excel', data: { imported }, by: userId },
+      });
+
+      return { success: true, imported };
+    } catch (error: any) {
+      console.error('Error importando bloqueos:', error);
+      throw new BadRequestException(
+        `Error al importar bloqueos: ${error.message}`,
+      );
+    }
   }
 
   // Dentro de FlightBlockingsService
