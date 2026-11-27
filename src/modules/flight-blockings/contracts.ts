@@ -32,6 +32,7 @@ export const blockInput = z
     capacity: z.number().int().min(1).max(10000),
     notes: text(2000),
     aliases: z.array(text(100).trim().min(1)).max(20),
+    drive: z.any().optional(), 
   })
   .refine(
     (v) => !v.returnDate || v.returnDate >= v.departDate,
