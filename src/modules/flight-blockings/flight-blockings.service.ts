@@ -901,39 +901,37 @@ export class FlightBlockingsService {
     return file;
   }
 
-   async importFromExcel(fileBuffer: Buffer, userId: string) {
+  async importFromExcel(fileBuffer: Buffer, userId: string) {
     try {
-      const workbook = XLSX.read(fileBuffer, { type: "buffer" });
+      const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
-      
-      // Leemos todo como matriz de texto
-      const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { 
-        header: 1, 
-        raw: false, 
-        defval: "" 
+
+      const rows = XLSX.utils.sheet_to_json<string[]>(sheet, {
+        header: 1,
+        raw: false,
+        defval: '',
       });
 
-      if (rows.length === 0) throw new Error("El archivo está vacío.");
+      if (rows.length === 0) throw new Error('El archivo está vacío.');
 
-      // 1. Buscamos en todo el Excel la fila que tenga la palabra "CODIGO"
-      const headerRowIdx = rows.findIndex((r) => 
-        r.some(c => String(c).toUpperCase().trim() === "CODIGO")
+      const headerRowIdx = rows.findIndex((r) =>
+        r.some((c) => String(c).toUpperCase().trim() === 'CODIGO'),
       );
 
       if (headerRowIdx === -1) {
-        throw new Error("No se encontró la palabra 'CODIGO' en ninguna celda del Excel. Revisa que la tabla tenga los encabezados.");
+        throw new Error(
+          "No se encontró la palabra 'CODIGO' en ninguna celda del Excel. Revisa que la tabla tenga los encabezados.",
+        );
       }
 
-      // 2. Encontramos en qué columna está "CODIGO" (usualmente la 0 o la 1)
       const codeColIdx = rows[headerRowIdx].findIndex(
-        c => String(c).toUpperCase().trim() === "CODIGO"
+        (c) => String(c).toUpperCase().trim() === 'CODIGO',
       );
 
-      // 3. Detectamos el año (buscando en las filas de arriba, ej: "2026" o "2027")
       let year = new Date().getFullYear();
       for (let i = 0; i < headerRowIdx; i++) {
-        const text = rows[i].join(" ");
+        const text = rows[i].join(' ');
         const yearMatch = text.match(/\b(20\d{2})\b/);
         if (yearMatch) {
           year = parseInt(yearMatch[1]);
@@ -941,108 +939,114 @@ export class FlightBlockingsService {
         }
       }
 
-      // 4. Buscamos el título del destino (la fila justo antes del encabezado)
-      const title = String(rows[headerRowIdx - 1]?.find(c => String(c).trim().length > 3) || "Sin título").trim();
+      const title = String(
+        rows[headerRowIdx - 1]?.find((c) => String(c).trim().length > 3) ||
+          'Sin título',
+      ).trim();
 
       const dataStart = headerRowIdx + 1;
       const blocksToInsert: any[] = [];
 
-      // 5. Función para parsear fechas "22/2/2026", "22-feb" o "22/02"
       const parseDate = (str: string) => {
-        if (!str) return "";
-        const clean = str.trim().toLowerCase();
-        
-        // Formato "2026-12-31"
-        if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
-        
-        // Formato "22/2/2026" o "22/02"
-        const slashMatch = clean.match(/^(\d{1,2})[-/](\d{1,2})(?:[-/](\d{4}))?$/);
-        if (slashMatch) {
-          const day = slashMatch[1].padStart(2, "0");
-          const month = slashMatch[2].padStart(2, "0");
-          return `${slashMatch[3] || year}-${month}-${day}`;
-        }
+        if (!str) return '';
+        const clean = str.trim();
 
-        // Formato "22-feb" (con letras)
-        const months: Record<string, string> = {
-          ene: "01", feb: "02", mar: "03", abr: "04", may: "05", jun: "06",
-          jul: "07", ago: "08", sep: "09", oct: "10", nov: "11", dic: "12",
-          jan: "01", apr: "04", aug: "08", dec: "12"
-        };
-        const textMatch = clean.match(/^(\d{1,2})[-/]([a-z]{3})$/);
-        if (textMatch) {
-          const day = textMatch[1].padStart(2, "0");
-          const month = months[textMatch[2]] || "01";
+        const slashMatch = clean.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (slashMatch) {
+          const month = slashMatch[1].padStart(2, '0');
+          const day = slashMatch[2].padStart(2, '0');
+          const year = slashMatch[3];
           return `${year}-${month}-${day}`;
         }
-        
-        return "";
+
+        const dashMatch = clean.match(/(\d{1,2})-(\d{1,2})-(\d{4})/);
+        if (dashMatch) {
+          const month = dashMatch[1].padStart(2, '0');
+          const day = dashMatch[2].padStart(2, '0');
+          const year = dashMatch[3];
+          return `${year}-${month}-${day}`;
+        }
+
+        const parsed = Date.parse(clean);
+        if (!isNaN(parsed)) {
+          return new Date(parsed).toISOString().slice(0, 10);
+        }
+
+        return '';
       };
 
-      // 6. Función para parsear horas "09 08 AM"
       const parseTime = (str: string) => {
-        if (!str) return "";
-        const match = str.trim().match(/^(\d{1,2})\s*[: ]\s*(\d{2})\s*(AM|PM)?$/i);
+        if (!str) return '';
+        const clean = str.trim().replace(/\s+/, ':'); // "07 59" -> "07:59"
+        const match = clean.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
         if (match) {
           let hour = parseInt(match[1]);
           const min = match[2];
           const ampm = match[3]?.toUpperCase();
-          if (ampm === "PM" && hour < 12) hour += 12;
-          if (ampm === "AM" && hour === 12) hour = 0;
-          return `${String(hour).padStart(2, "0")}:${min}`;
+          if (ampm === 'PM' && hour < 12) hour += 12;
+          if (ampm === 'AM' && hour === 12) hour = 0;
+          return `${String(hour).padStart(2, '0')}:${min}`;
         }
-        return "";
+        return '';
       };
 
-      // 7. Iteramos sobre las filas de datos
       for (let i = dataStart; i < rows.length; i++) {
         const r = rows[i];
-        if (!r || !r.some(c => c && String(c).trim())) continue;
+        if (!r || !r.some((c) => c && String(c).trim())) continue;
 
-        // Leemos los datos desde la columna donde encontramos "CODIGO"
-        const code = String(r[codeColIdx] || "").trim().toUpperCase();
-        
-        // Si está vacío, si es un título o si es muy corto, lo saltamos
-        if (!code || code.length < 3 || code.includes("CODIGO")) continue;
+        const code = String(r[codeColIdx] || '')
+          .trim()
+          .toUpperCase();
 
-        const departDateRaw = String(r[codeColIdx + 1] || "").trim();
-        const departTimeRaw = String(r[codeColIdx + 2] || "").trim();
-        const returnDateRaw = String(r[codeColIdx + 3] || "").trim();
-        const returnTimeRaw = String(r[codeColIdx + 4] || "").trim();
-        const capacityRaw = String(r[codeColIdx + 5] || "").trim();
-        const priceRaw = String(r[codeColIdx + 6] || "").trim();
+        if (!code || code.length < 3 || code.includes('CODIGO')) continue;
 
-        const capacity = parseInt(capacityRaw.replace(/[^\d]/g, "")) || null;
-        const price = Number(priceRaw.replace(/[^\d]/g, "")) || 0;
+        const departDateRaw = String(r[codeColIdx + 1] || '').trim();
+        const departTimeRaw = String(r[codeColIdx + 2] || '').trim();
+        const returnDateRaw = String(r[codeColIdx + 3] || '').trim();
+        const returnTimeRaw = String(r[codeColIdx + 4] || '').trim();
+        const capacityRaw = String(r[codeColIdx + 5] || '').trim();
+        const priceRaw = String(r[codeColIdx + 6] || '').trim();
+
+        const capacity = parseInt(capacityRaw.replace(/[^\d]/g, '')) || null;
+        const price = Number(priceRaw.replace(/[^\d]/g, '')) || 0;
 
         blocksToInsert.push({
           code,
-          title: title || "Sin título",
+          title: title || 'Sin título',
           departDate: parseDate(departDateRaw),
           departTime: parseTime(departTimeRaw),
           returnDate: parseDate(returnDateRaw),
           returnTime: parseTime(returnTimeRaw),
           capacity,
-          origin: "",
-          destination: "",
-          flight: "",
-          notes: "",
+          origin: '',
+          destination: '',
+          flight: '',
+          notes: '',
           aliases: [],
-          source: "excel",
+          source: 'excel',
           updatedBy: userId,
-          drive: { price, available: capacity || 0, prior: {}, at: new Date().toISOString() },
+          drive: {
+            price,
+            available: capacity || 0,
+            prior: {},
+            at: new Date().toISOString(),
+          },
         });
       }
 
       if (blocksToInsert.length === 0) {
-        throw new Error("No se encontraron filas válidas debajo del encabezado 'CODIGO'.");
+        throw new Error(
+          "No se encontraron filas válidas debajo del encabezado 'CODIGO'.",
+        );
       }
 
       // 8. Guardamos en Prisma
       let imported = 0;
       for (const block of blocksToInsert) {
         const exists = await this.prisma.flightBlocking.findUnique({
-          where: { code_departDate: { code: block.code, departDate: block.departDate } }
+          where: {
+            code_departDate: { code: block.code, departDate: block.departDate },
+          },
         });
         if (exists) continue;
 
@@ -1051,22 +1055,21 @@ export class FlightBlockingsService {
       }
 
       await this.prisma.flightBlockingEvent.create({
-        data: { action: "import_excel", data: { imported }, by: userId }
+        data: { action: 'import_excel', data: { imported }, by: userId },
       });
 
       return { success: true, imported };
     } catch (error: any) {
-      console.error("Error importando bloqueos:", error);
-      throw new BadRequestException(`Error al importar bloqueos: ${error.message}`);
+      console.error('Error importando bloqueos:', error);
+      throw new BadRequestException(
+        `Error al importar bloqueos: ${error.message}`,
+      );
     }
   }
-
-  // Dentro de FlightBlockingsService
 
   async syncFromWebhook(trips: any[]) {
     console.log(`Recibidas ${trips.length} reservas desde Webhook de TC`);
 
-    // 1. Extraer la información usando la misma función que usábamos en el fetch masivo
     const sources = extractFlights(trips);
 
     if (sources.length === 0) {
@@ -1074,7 +1077,6 @@ export class FlightBlockingsService {
       return;
     }
 
-    // 2. Guardar en la base de datos
     await this.transaction(async (tx) => {
       for (const source of sources) {
         if (source.status === 'OUT_OF_SCOPE') continue;
