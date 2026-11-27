@@ -23,6 +23,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     let message: string | object = 'Internal server error';
     let error = 'Internal Server Error';
     let stack: string | undefined = undefined;
+    let prismaDiagnostics: string | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -54,6 +55,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           status = HttpStatus.BAD_REQUEST;
           error = 'Database Operation Error';
           message = 'Error al ejecutar la operación en la base de datos';
+          prismaDiagnostics = JSON.stringify({
+            code: prismaErr.code,
+            meta: sanitizeMetadata(prismaErr.meta),
+            clientVersion: prismaErr.clientVersion,
+          }).slice(0, 2000);
         }
       } else {
         message = exception.message || 'Error interno inesperado';
@@ -82,7 +88,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       );
     } else {
       this.logger.warn(
-        `[4xx Client Exception] ${request.method} ${request.url} [Status ${status}] - ${typeof message === 'object' ? JSON.stringify(message) : message}`,
+        `[4xx Client Exception] ${request.method} ${request.url} [Status ${status}] - ${typeof message === 'object' ? JSON.stringify(message) : message}${prismaDiagnostics ? ` [Prisma details: ${prismaDiagnostics}]` : ''}`,
       );
     }
 
