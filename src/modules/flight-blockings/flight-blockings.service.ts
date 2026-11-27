@@ -907,62 +907,165 @@ export class FlightBlockingsService {
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
 
-      // Convertimos el Excel a una matriz de texto (igual que el CSV)
       const rows = XLSX.utils.sheet_to_json<string[]>(sheet, {
         header: 1,
         raw: false,
         defval: '',
       });
 
-      // ¡AQUÍ ESTÁ LA MAGIA! Usamos el parser original de Drive
-      let parsedBlocks;
-      try {
-        parsedBlocks = parseDriveBlocks(rows, new Date().toISOString());
-      } catch (parseError: any) {
-        throw new Error(`Error de estructura: ${parseError.message}`);
-      }
+      if (rows.length === 0) throw new Error('El archivo está vacío.');
 
-      if (!parsedBlocks || parsedBlocks.length === 0) {
+      const headerRowIdx = rows.findIndex((r) =>
+        r.some((c) => String(c).toUpperCase().trim() === 'CODIGO'),
+      );
+
+      if (headerRowIdx === -1) {
         throw new Error(
-          'El parser no encontró bloqueos válidos en el archivo.',
+          "No se encontró la palabra 'CODIGO' en ninguna celda del Excel. Revisa que la tabla tenga los encabezados.",
         );
       }
 
-      // Insertamos en la base de datos
-      let imported = 0;
-      for (const b of parsedBlocks) {
-        // Verificamos si ya existe para no duplicar
-        const exists = await this.prisma.flightBlocking.findUnique({
-          where: {
-            code_departDate: { code: b.code, departDate: b.departDate },
-          },
-        });
+      const codeColIdx = rows[headerRowIdx].findIndex(
+        (c) => String(c).toUpperCase().trim() === 'CODIGO',
+      );
 
-        if (!exists) {
-          await this.prisma.flightBlocking.create({
-            data: {
-              code: b.code,
-              title: b.title,
-              departDate: b.departDate,
-              returnDate: b.returnDate,
-              departTime: b.departTime,
-              returnTime: b.returnTime,
-              origin: b.origin || '',
-              destination: b.destination || '',
-              flight: b.flight || '',
-              capacity: b.capacity || null,
-              notes: b.notes || '',
-              aliases: b.aliases || [],
-              source: 'Import',
-              updatedBy: userId,
-              drive: b.drive ? JSON.parse(JSON.stringify(b.drive)) : null,
-            },
-          });
-          imported++;
+      let year = new Date().getFullYear();
+      for (let i = 0; i < headerRowIdx; i++) {
+        const text = rows[i].join(' ');
+        const yearMatch = text.match(/\b(20\d{2})\b/);
+        if (yearMatch) {
+          year = parseInt(yearMatch[1]);
+          break;
         }
       }
 
-  
+      const title = String(
+        rows[headerRowIdx - 1]?.find((c) => String(c).trim().length > 3) ||
+          'Sin título',
+      ).trim();
+
+      const dataStart = headerRowIdx + 1;
+      const blocksToInsert: any[] = [];
+
+      const parseDate = (str: string) => {
+        if (!str) return '';
+        const clean = str.trim();
+
+        const slashMatch = clean.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (slashMatch) {
+          const month = slashMatch[1].padStart(2, '0');
+          const day = slashMatch[2].padStart(2, '0');
+          const year = slashMatch[3];
+          return `${year}-${month}-${day}`;
+        }
+
+        const dashMatch = clean.match(/(\d{1,2})-(\d{1,2})-(\d{4})/);
+        if (dashMatch) {
+          const month = dashMatch[1].padStart(2, '0');
+          const day = dashMatch[2].padStart(2, '0');
+          const year = dashMatch[3];
+          return `${year}-${month}-${day}`;
+        }
+
+        const parsed = Date.parse(clean);
+        if (!isNaN(parsed)) {
+          return new Date(parsed).toISOString().slice(0, 10);
+        }
+
+        return '';
+      };
+
+      const parseTime = (str: string) => {
+        if (!str) return '';
+        const clean = str.trim().replace(/\s+/, ':'); // "07 59" -> "07:59"
+        const match = clean.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+        if (match) {
+          let hour = parseInt(match[1]);
+          const min = match[2];
+          const ampm = match[3]?.toUpperCase();
+          if (ampm === 'PM' && hour < 12) hour += 12;
+          if (ampm === 'AM' && hour === 12) hour = 0;
+          return `${String(hour).padStart(2, '0')}:${min}`;
+        }
+        return '';
+      };
+
+      for (let i = dataStart; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || !r.some((c) => c && String(c).trim())) continue;
+
+        const code = String(r[codeColIdx] || '')
+          .trim()
+          .toUpperCase();
+
+        if (!code || code.length < 3 || code.includes('CODIGO')) continue;
+
+        const departDateRaw = String(r[codeColIdx + 1] || '').trim();
+        const departTimeRaw = String(r[codeColIdx + 2] || '').trim();
+        const returnDateRaw = String(r[codeColIdx + 3] || '').trim();
+        const returnTimeRaw = String(r[codeColIdx + 4] || '').trim();
+        const capacityRaw = String(r[codeColIdx + 5] || '').trim();
+        const priceRaw = String(r[codeColIdx + 6] || '').trim();
+
+        const capacity = parseInt(capacityRaw.replace(/[^\d]/g, '')) || null;
+        const price = Number(priceRaw.replace(/[^\d]/g, '')) || 0;
+
+        blocksToInsert.push({
+          code,
+          title: title || 'Sin título',
+          departDate: parseDate(departDateRaw),
+          departTime: parseTime(departTimeRaw),
+          returnDate: parseDate(returnDateRaw),
+          returnTime: parseTime(returnTimeRaw),
+          capacity,
+          origin: '',
+          destination: '',
+          flight: '',
+          notes: '',
+          aliases: [],
+          source: 'excel',
+          updatedBy: userId,
+          drive: {
+            price,
+            available: capacity || 0,
+            prior: {},
+            at: new Date().toISOString(),
+          },
+        });
+      }
+
+      if (blocksToInsert.length === 0) {
+        throw new Error(
+          "No se encontraron filas válidas debajo del encabezado 'CODIGO'.",
+        );
+      }
+
+      let imported = 0;
+      for (const block of blocksToInsert) {
+        const exists = await this.prisma.flightBlocking.findUnique({
+          where: { code_departDate: { code: block.code, departDate: block.departDate } }
+        });
+        
+        if (exists) {
+         
+          if (exists.deletedAt) {
+            await this.prisma.flightBlocking.update({
+              where: { id: exists.id },
+              data: {
+                deletedAt: null, 
+                title: block.title,
+                
+              }
+            });
+            imported++;
+          }
+          continue; 
+        }
+
+        await this.prisma.flightBlocking.create({ data: block });
+        imported++;
+      }
+
       await this.prisma.flightBlockingEvent.create({
         data: { action: 'import_excel', data: { imported }, by: userId },
       });
@@ -976,12 +1079,9 @@ export class FlightBlockingsService {
     }
   }
 
-  // Dentro de FlightBlockingsService
-
   async syncFromWebhook(trips: any[]) {
     console.log(`Recibidas ${trips.length} reservas desde Webhook de TC`);
 
-    // 1. Extraer la información usando la misma función que usábamos en el fetch masivo
     const sources = extractFlights(trips);
 
     if (sources.length === 0) {
@@ -989,7 +1089,6 @@ export class FlightBlockingsService {
       return;
     }
 
-    // 2. Guardar en la base de datos
     await this.transaction(async (tx) => {
       for (const source of sources) {
         if (source.status === 'OUT_OF_SCOPE') continue;

@@ -7,6 +7,27 @@
     "assets": [
       {
         "include": "infrastructure/offers-runtime/*.cjs",
+        "outDir": "dist/src",
+        "watchAssets": true
+      },
+      {
+        "include": "modules/offers-query/*.cjs",
+        "outDir": "dist/src",
+        "watchAssets": true
+      },
+      {
+        "include": "modules/offers-query/*.js",
+        "outDir": "dist/src",
+        "watchAssets": true
+      },
+      {
+        "include": "modules/offers-query/*.json",
+        "outDir": "dist/src",
+        "watchAssets": true
+      },
+      {
+        "include": "infrastructure/hunter-sync/*.cjs",
+        "outDir": "dist/src",
         "watchAssets": true
       }
     ]

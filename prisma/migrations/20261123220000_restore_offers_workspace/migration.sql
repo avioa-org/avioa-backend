@@ -1,5 +1,8 @@
+-- Conserva las tablas recuperadas si ya existen.
+-- No importa, reemplaza ni elimina datos.
+
 -- CreateTable
-CREATE TABLE "offers_workspace_state" (
+CREATE TABLE IF NOT EXISTS "offers_workspace_state" (
     "id" INTEGER NOT NULL,
     "revision" INTEGER NOT NULL,
     "payload" TEXT NOT NULL,
@@ -9,7 +12,7 @@ CREATE TABLE "offers_workspace_state" (
 );
 
 -- CreateTable
-CREATE TABLE "offers_audit_history" (
+CREATE TABLE IF NOT EXISTS "offers_audit_history" (
     "revision" INTEGER NOT NULL,
     "actor" TEXT NOT NULL,
     "actor_id" TEXT NOT NULL,
@@ -22,7 +25,7 @@ CREATE TABLE "offers_audit_history" (
 );
 
 -- CreateTable
-CREATE TABLE "offers_workspace_roles" (
+CREATE TABLE IF NOT EXISTS "offers_workspace_roles" (
     "user_id" TEXT NOT NULL,
     "role" TEXT NOT NULL,
 

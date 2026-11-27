@@ -88,15 +88,17 @@ export function flightSignature(s: FlightSource) {
 }
 
 export function paymentDue(day: string) {
-  return new Date(Date.parse(day + "T12:00:00Z") - 30 * 86400000)
-    .toISOString()
-    .slice(0, 10);
+  if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return day;
+  const time = Date.parse(day + "T12:00:00Z");
+  if (isNaN(time)) return day;
+  return new Date(time - 30 * 86400000).toISOString().slice(0, 10);
 }
 
 export function namesDue(day: string) {
-  return new Date(Date.parse(day + "T12:00:00Z") - 15 * 86400000)
-    .toISOString()
-    .slice(0, 10);
+  if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return day;
+  const time = Date.parse(day + "T12:00:00Z");
+  if (isNaN(time)) return day;
+  return new Date(time - 15 * 86400000).toISOString().slice(0, 10);
 }
 
 export function summarizeBlocks(
