@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsInt,
   IsOptional,
+  IsDateString,
   IsString,
   Max,
   Min,
@@ -30,8 +31,8 @@ export class FiltroVuelosDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(100)
-  limit?: number = 20;
+  @Max(500)
+  limit?: number = 100;
 
   @IsOptional()
   @Type(() => Number)
@@ -59,10 +60,10 @@ export class FiltroVuelosDto {
   max_escalas?: number; // 0 = directo, 1, 2
 
   @IsOptional()
-  @IsString()
+  @IsDateString()
   fecha_ida_desde?: string;
 
   @IsOptional()
-  @IsString()
+  @IsDateString()
   fecha_ida_hasta?: string;
 }
