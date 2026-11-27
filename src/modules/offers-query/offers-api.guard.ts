@@ -7,7 +7,11 @@ export class OffersApiGuard implements CanActivate {
   canActivate(context: ExecutionContext) {
     const req = context.switchToHttp().getRequest();
     if (process.env.OFFERS_BOT_API_ENABLED !== 'true') throw new core.QueryError(503, 'api_desactivada', 'La API comercial está deshabilitada.');
-    core.authenticate(req.headers.authorization, process.env.OFFERS_BOT_TOKEN_SHA256);
+    core.authenticate(
+      req.headers.authorization,
+      process.env.OFFERS_BOT_TOKEN_SHA256,
+      process.env.OFFERS_BOT_SECONDARY_TOKEN_SHA256,
+    );
     const minute = Math.floor(Date.now() / 60000);
     if (minute !== this.bucket.minute) this.bucket = { minute, count: 0 };
     if (++this.bucket.count > 120) throw new core.QueryError(429, 'limite_consultas', 'Espera un minuto antes de repetir la consulta.');

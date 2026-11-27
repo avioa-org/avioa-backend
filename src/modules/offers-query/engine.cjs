@@ -398,7 +398,19 @@ function context(model, input = {}, kind = 'contexto') {
         return page(all[kind], q, model, kind);
     return { snapshot: model.snapshot, totales: { ofertas: groups.length, destinos: dest.size, origenes: orig.size, hoteles: hot.size }, fuentes: ['producto', 'cazador'], monedas: [...new Set(groups.flatMap(g => g.options.map(o => o.precio.moneda)))], regimenes: [...new Set(groups.flatMap(g => g.options.map(o => o.regimen)).filter(Boolean))].sort(), unidades: ['por_persona', 'por_pareja', 'por_paquete'], rutas: { destinos: 'destinos', origenes: 'origenes', hoteles: 'hoteles' }, reglas: { vigencia_cazador_horas: 72, seleccion: 'ultima_captura_por_tarifa_equivalente', reservas: false, cotizacion_en_vivo: false } };
 }
-function authenticate(header, expected) { if (!/^[a-f0-9]{64}$/.test(expected || ''))
-    throw new QueryError(503, 'api_no_configurada', 'La API comercial está deshabilitada.'); const m = /^Bearer ([A-Za-z0-9_-]{43,128})$/.exec(header || ''); const actual = hash(m ? m[1] : ''); if (!m || !timingSafeEqual(Buffer.from(actual), Buffer.from(expected)))
-    throw new QueryError(401, 'no_autorizado', 'Token de lectura inválido.'); }
+function authenticate(header, expected, secondary) {
+    const validHash = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+    const hasSecondary = secondary !== undefined && secondary !== '';
+    if (!validHash(expected) || (hasSecondary && !validHash(secondary)))
+        throw new QueryError(503, 'api_no_configurada', 'La API comercial está deshabilitada.');
+    const match = /^Bearer ([A-Za-z0-9_-]{43,128})$/.exec(header || '');
+    const actual = Buffer.from(hash(match ? match[1] : ''));
+    const hashes = hasSecondary ? [expected, secondary] : [expected];
+    let accepted = 0;
+    for (const digest of hashes)
+        accepted |= Number(timingSafeEqual(actual, Buffer.from(digest)));
+    if (!match || !accepted)
+        throw new QueryError(401, 'no_autorizado', 'Token de lectura inválido.');
+}
+
 module.exports = { build, settings, query, detail, context, validate, QueryError, authenticate, dedupHunter, captureTime, hash };
