@@ -1040,15 +1040,27 @@ export class FlightBlockingsService {
         );
       }
 
-      // 8. Guardamos en Prisma
       let imported = 0;
       for (const block of blocksToInsert) {
         const exists = await this.prisma.flightBlocking.findUnique({
-          where: {
-            code_departDate: { code: block.code, departDate: block.departDate },
-          },
+          where: { code_departDate: { code: block.code, departDate: block.departDate } }
         });
-        if (exists) continue;
+        
+        if (exists) {
+         
+          if (exists.deletedAt) {
+            await this.prisma.flightBlocking.update({
+              where: { id: exists.id },
+              data: {
+                deletedAt: null, 
+                title: block.title,
+                
+              }
+            });
+            imported++;
+          }
+          continue; 
+        }
 
         await this.prisma.flightBlocking.create({ data: block });
         imported++;
