@@ -4,10 +4,12 @@ import { OffersManagerService } from './offers-manager.service';
 import { OffersManagerController } from './offers-manager.controller';
 import { PrismaModule } from 'src/infrastructure/prisma/prisma.module';
 import { OffersRuntimeModule } from 'src/infrastructure/offers-runtime/offers-runtime.module';
+import { OffersManagerNativeController } from './offers-manager.native.controller';
+import { OffersManagerNativeService } from './offers-manager.native.service';
 
 @Module({
-  controllers: [OffersManagerController],
-  providers: [OffersManagerService],
+  controllers: [OffersManagerController, OffersManagerNativeController],
+  providers: [OffersManagerService, OffersManagerNativeService],
   imports: [PrismaModule, OffersRuntimeModule, OffersQueryModule],
 })
 export class OffersManagerModule {}

@@ -57,13 +57,7 @@ export class OffersRuntimeService implements OnModuleInit {
         'offers-runtime',
         filename,
       ),
-      join(
-        process.cwd(),
-        'dist',
-        'infrastructure',
-        'offers-runtime',
-        filename,
-      ),
+      join(process.cwd(), 'dist', 'infrastructure', 'offers-runtime', filename),
       join(
         __dirname,
         '..',

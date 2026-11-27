@@ -1,20 +1,3 @@
-/*
-  Warnings:
-
-  - You are about to drop the `offers_audit_history` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `offers_workspace_roles` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `offers_workspace_state` table. If the table is not empty, all the data it contains will be lost.
-
-*/
--- DropTable
-DROP TABLE "offers_audit_history";
-
--- DropTable
-DROP TABLE "offers_workspace_roles";
-
--- DropTable
-DROP TABLE "offers_workspace_state";
-
 -- CreateTable
 CREATE TABLE "commercial_protocol_sections" (
     "id" TEXT NOT NULL,

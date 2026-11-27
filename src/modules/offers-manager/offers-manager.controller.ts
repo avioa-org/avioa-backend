@@ -20,7 +20,6 @@ import {
   CurrentUser,
   type ICurrentUser,
 } from 'src/common/decorator/current-user.decorator';
-import { PortalUser } from './offers-manager.types';
 
 @Controller('offers-manager')
 @UseGuards(JwtAuthGuard)
@@ -144,7 +143,7 @@ export class OffersManagerController {
   }
 
   private async respond(
-    user: PortalUser,
+    user: ICurrentUser,
     path: string,
     method: string,
     query: string,

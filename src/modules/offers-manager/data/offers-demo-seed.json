@@ -1,0 +1,820 @@
+[
+  {
+    "id": "BOT-MDE-005",
+    "title": "Grand Sirenis San Andrés + niño gratis",
+    "origin": "MDE",
+    "dest": "ADZ",
+    "destName": "San Andrés",
+    "kind": "VUELO_HOTEL",
+    "status": "BORRADOR",
+    "source": "BOT_MDE",
+    "sourceRow": 5,
+    "sourceFile": "TABLAS LANDIGNS MDE.xlsx",
+    "periods": [
+      {
+        "id": "sir-3",
+        "label": "4 días / 3 noches",
+        "nights": 3,
+        "start": "2026-11-18",
+        "end": "2026-11-21",
+        "flexible": false,
+        "recommended": false
+      }
+    ],
+    "variants": [
+      {
+        "id": "sir-v1",
+        "periodId": "sir-3",
+        "name": "Grand Sirenis",
+        "hotel": "Grand Sirenis",
+        "price": 1999000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "ALIMENTACION_COMPLETA_SNACKS_BAR",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      }
+    ],
+    "includes": [
+      "Vuelos ida y regreso desde Medellín",
+      "Alojamiento en Grand Sirenis",
+      "Alimentación completa, snacks y bar abierto",
+      "Asistencia médica",
+      "Impuestos anunciados",
+      "Tarifa administrativa"
+    ],
+    "excludes": [
+      "Tours",
+      "Traslados",
+      "Entrada a la isla"
+    ],
+    "conditions": [
+      {
+        "type": "OCUPACION",
+        "text": "Tarifa por persona en acomodación doble: se calcula con 2 adultos."
+      },
+      {
+        "type": "MENOR",
+        "text": "Con 1 adulto y 1 niño aplica cotización individual del adulto; el precio doble anunciado NO aplica."
+      }
+    ],
+    "charges": [
+      {
+        "id": "sir-charge1",
+        "name": "Entrada a la isla",
+        "amount": null,
+        "currency": "COP",
+        "unit": "POR_PERSONA",
+        "mandatory": true,
+        "included": false,
+        "note": "Valor no informado; verificar aplicabilidad y monto."
+      }
+    ],
+    "promos": [
+      {
+        "id": "sir-pro1",
+        "title": "Alojamiento gratis para 1 niño hasta los 11 años",
+        "variantIds": [
+          "sir-v1"
+        ],
+        "kind": "ALOJAMIENTO_GRATIS",
+        "maxChildren": 1,
+        "maxAge": 11,
+        "minAdults": 1,
+        "childFlightFrom": 480000,
+        "notes": "Con 2 adultos se usa tarifa doble; con 1 adulto se debe cotizar habitación individual. El niño paga tiquetes desde COP 480.000; reconfirmar."
+      }
+    ],
+    "itinerary": [],
+    "description": "",
+    "commercialMessage": "",
+    "sourceText": "Grand Sirenis San Andrés 4 días ☀️ 3 noches 🌙 desde $1'999.000 \n👦🏻 Alojamiento GRATIS para 1 niño hasta los 11 años (Solo pagan  tiquetes desde $480.000c/u)\n\nFecha de viaje: Del 18 al 21 de noviembre \n\nSumérgete en el lujo con gastronomía exquisita 🍝  confort 💆🏻 y cercanía a la playa. ⛱️    \n\nEl plan incluye: ✈️ Tiquetes ida y regreso desde Medellín  🏨 Alojamiento en el hotel Grand Sirenis 🍽️ Alimentación completa 🌭Snacks 🍻Bar abierto 🩺Asistencia médica ✅Impuestos ✅Tarifa administrativa.  \n\nNo incluye:  Tours • Traslados • Entrada a la isla\n\n*Valor por persona en acomodación doble. Sujetos a cambios por disponibilidad.   \n\nVive tus vacaciones en este resort 5 estrellas 🌟 y reserva una experiencia premium",
+    "notes": "Año 2026, tarifa adulta vigente y reglas de ocupación aclaradas por Producto. Cupos y tarifa infantil aún pendientes de reconfirmación.",
+    "priceConfirmed": true,
+    "availabilityConfirmed": false,
+    "updatedAt": "2026-11-05",
+    "publicNote": "Precios sujetos a cambios por disponibilidad. Confirmar antes de reservar."
+  },
+  {
+    "id": "BOT-MDE-006",
+    "title": "Punta Cana · Planes y hoteles",
+    "origin": "MDE",
+    "dest": "PUJ",
+    "destName": "Punta Cana",
+    "kind": "VUELO_HOTEL",
+    "status": "BORRADOR",
+    "source": "BOT_MDE",
+    "sourceRow": 6,
+    "sourceFile": "TABLAS LANDIGNS MDE.xlsx",
+    "periods": [
+      {
+        "id": "pun-3",
+        "label": "4 días / 3 noches",
+        "nights": 3,
+        "start": "",
+        "end": "",
+        "flexible": true,
+        "recommended": false
+      },
+      {
+        "id": "pun-4",
+        "label": "5 días / 4 noches · recomendado",
+        "nights": 4,
+        "start": "",
+        "end": "",
+        "flexible": true,
+        "recommended": true
+      },
+      {
+        "id": "pun-5",
+        "label": "6 días / 5 noches",
+        "nights": 5,
+        "start": "",
+        "end": "",
+        "flexible": true,
+        "recommended": false
+      },
+      {
+        "id": "pun-combo",
+        "label": "Combinado · 5 días / 4 noches",
+        "nights": 4,
+        "start": "",
+        "end": "",
+        "flexible": true,
+        "recommended": false
+      }
+    ],
+    "variants": [
+      {
+        "id": "pun-3-h1",
+        "periodId": "pun-3",
+        "name": "Whala Bávaro",
+        "hotel": "Whala Bávaro",
+        "price": 1999000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "SEGUN_PLAN",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      },
+      {
+        "id": "pun-3-h2",
+        "periodId": "pun-3",
+        "name": "Catalonia Punta Cana o Grand Sirenis Punta Cana",
+        "hotel": "Catalonia Punta Cana o Grand Sirenis Punta Cana",
+        "price": 2599000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "SEGUN_PLAN",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "Alternativa entre dos hoteles: Producto debe aclarar la asignación.",
+        "availability": "POR_CONFIRMAR"
+      },
+      {
+        "id": "pun-3-h3",
+        "periodId": "pun-3",
+        "name": "Grand Palladium Punta Cana",
+        "hotel": "Grand Palladium Punta Cana",
+        "price": 2799000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "SEGUN_PLAN",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      },
+      {
+        "id": "pun-3-h4",
+        "periodId": "pun-3",
+        "name": "Nickelodeon Punta Cana",
+        "hotel": "Nickelodeon Punta Cana",
+        "price": 3099000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "SEGUN_PLAN",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      },
+      {
+        "id": "pun-3-h5",
+        "periodId": "pun-3",
+        "name": "Hard Rock Punta Cana",
+        "hotel": "Hard Rock Punta Cana",
+        "price": 3799000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "SEGUN_PLAN",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      },
+      {
+        "id": "pun-4-h1",
+        "periodId": "pun-4",
+        "name": "Whala Bávaro",
+        "hotel": "Whala Bávaro",
+        "price": 2199000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "SEGUN_PLAN",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      },
+      {
+        "id": "pun-4-h2",
+        "periodId": "pun-4",
+        "name": "Catalonia Punta Cana",
+        "hotel": "Catalonia Punta Cana",
+        "price": 2699000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "SEGUN_PLAN",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      },
+      {
+        "id": "pun-4-h3",
+        "periodId": "pun-4",
+        "name": "Grand Palladium Punta Cana",
+        "hotel": "Grand Palladium Punta Cana",
+        "price": 3199000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "SEGUN_PLAN",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      },
+      {
+        "id": "pun-4-h4",
+        "periodId": "pun-4",
+        "name": "Nickelodeon Punta Cana",
+        "hotel": "Nickelodeon Punta Cana",
+        "price": 3499000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "SEGUN_PLAN",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      },
+      {
+        "id": "pun-4-h5",
+        "periodId": "pun-4",
+        "name": "Hard Rock Punta Cana",
+        "hotel": "Hard Rock Punta Cana",
+        "price": 4599000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "SEGUN_PLAN",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      },
+      {
+        "id": "pun-5-h1",
+        "periodId": "pun-5",
+        "name": "Whala Bávaro",
+        "hotel": "Whala Bávaro",
+        "price": 2599000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "SEGUN_PLAN",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      },
+      {
+        "id": "pun-5-h2",
+        "periodId": "pun-5",
+        "name": "Catalonia Punta Cana",
+        "hotel": "Catalonia Punta Cana",
+        "price": 3099000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "SEGUN_PLAN",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      },
+      {
+        "id": "pun-5-h3",
+        "periodId": "pun-5",
+        "name": "Grand Palladium Punta Cana",
+        "hotel": "Grand Palladium Punta Cana",
+        "price": 3799000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "SEGUN_PLAN",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      },
+      {
+        "id": "pun-5-h4",
+        "periodId": "pun-5",
+        "name": "Nickelodeon Punta Cana",
+        "hotel": "Nickelodeon Punta Cana",
+        "price": 4399000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "SEGUN_PLAN",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      },
+      {
+        "id": "pun-5-h5",
+        "periodId": "pun-5",
+        "name": "Hard Rock Punta Cana",
+        "hotel": "Hard Rock Punta Cana",
+        "price": 5299000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "SEGUN_PLAN",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      },
+      {
+        "id": "pun-combo-1",
+        "periodId": "pun-combo",
+        "name": "Combinado pendiente de definir",
+        "hotel": "",
+        "price": 2899000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "POR_CONFIRMAR",
+        "room": "",
+        "kind": "COMBINADO",
+        "notes": "Falta especificar hoteles/destinos y servicios del combinado.",
+        "availability": "POR_CONFIRMAR"
+      }
+    ],
+    "includes": [
+      "Vuelos ida y regreso desde Medellín",
+      "Alojamiento",
+      "Alimentación según hotel y plan",
+      "Snacks y bar abierto según plan",
+      "Traslados",
+      "Asistencia médica",
+      "Impuestos anunciados",
+      "Tarifa administrativa"
+    ],
+    "excludes": [
+      "Tours"
+    ],
+    "conditions": [
+      {
+        "type": "EQUIPAJE",
+        "text": "Aerolínea de bajo costo: incluye bolso pequeño. Equipaje adicional, selección de asiento y alimentos a bordo tienen costo extra."
+      },
+      {
+        "type": "ALIMENTACION",
+        "text": "La alimentación varía según el plan; se debe definir el régimen de cada hotel."
+      },
+      {
+        "type": "POLITICAS",
+        "text": "Cambios y cancelaciones sujetos a reglas de la aerolínea y obligaciones aplicables de Avioa."
+      }
+    ],
+    "charges": [],
+    "promos": [
+      {
+        "id": "pun-pro1",
+        "title": "Hard Rock: alojamiento gratis para hasta 2 niños de hasta 12 años",
+        "variantIds": [
+          "pun-3-h5",
+          "pun-4-h5",
+          "pun-5-h5"
+        ],
+        "kind": "ALOJAMIENTO_GRATIS",
+        "maxChildren": 2,
+        "maxAge": 12,
+        "minAdults": null,
+        "childFlightFrom": null,
+        "notes": "Pendiente condición de adultos, disponibilidad y costos infantiles distintos al alojamiento."
+      }
+    ],
+    "itinerary": [],
+    "description": "",
+    "commercialMessage": "",
+    "sourceText": "Punta Cana 🏝️\n\nEl plan incluye:\n✈️ Tiquetes aéreos ida y regreso desde Medellín 🏨 Alojamiento 🍽️ Alimentación completa (varia segun el plan) 🌭 Snacks 🍻 Bar abierto 🚐 Traslados 🩺 Asistencia médica ✅ Impuestos ✅ Tarifa administrativa\n\nNo incluye:\nTours\n\n*🌴 4 días ☀️ 3 noches 🌙*\n🏨 Hotel Whala Bávaro desde $1'999.000\n🏨 Hotel Catalonia Punta Cana o Grand Sirenis Punta Cana desde $2’599.000\n⭐ Hotel Grand Palladium Punta Cana desde $2'799.000\n⭐ Hotel Nickelodeon Punta Cana desde $3’099.000\n⭐ Hotel Hard Rock Punta Cana desde $3’799.000 + alojamiento gratis para 2 niños hasta los 12 años\n\n*🌴 5 días ☀️ 4 noches 🌙 (Experiencia recomendada ⚡)*\n🏨 Hotel Whala Bávaro desde $2'199.000\n🏨 Hotel Catalonia Punta Cana desde $2’699.000\n⭐ Hotel Grand Palladium Punta Cana desde $3'199.000\n⭐ Hotel Nickelodeon Punta Cana desde $3’499.000\n⭐ Hotel Hard Rock Punta Cana desde $4’599.000 + alojamiento gratis para 2 niños hasta los 12 años\n\n*🌴 6 días ☀️ 5 noches 🌙*\n🏨 Hotel Whala Bávaro desde $2'599.000\n🏨 Hotel Catalonia Punta Cana desde $3’099.000\n⭐ Hotel Grand Palladium Punta Cana desde $3'799.000\n⭐ Hotel Nickelodeon Punta Cana desde $4’399.000\n⭐ Hotel Hard Rock Punta Cana desde $5’299.000 + alojamiento gratis para 2 niños hasta los 12 años\n\n*🌴 Combinado 5 días 4 noches* desde $2'899.000\n\n*Valores por persona en acomodación doble, sujetos a cambios por disponibilidad.\n\nImportante: Este vuelo es operado por una aerolínea de bajo costo, ideal si buscas ahorrar. Solo incluye un bolso pequeño; servicios adicionales como selección de asiento, equipaje o alimentos tienen costo extra.\n\nTen en cuenta que cualquier cambio, cancelación o ajuste en el vuelo es manejado únicamente por la aerolínea, no por la agencia. Sin embargo, estaremos atentos para brindarte orientación y apoyo en el proceso si lo necesitas.\n\n💡 Si prefieres vuelos con más servicios incluidos, también podemos cotizarte otras alternativas. ¡Tú decides cómo quieres viajar!",
+    "notes": "No hay fechas concretas. Catalonia o Grand Sirenis (3 noches) y combinado de 4 noches requieren desglose.",
+    "priceConfirmed": false,
+    "availabilityConfirmed": false,
+    "updatedAt": "2026-11-05",
+    "publicNote": "Precios sujetos a cambios por disponibilidad. Confirmar antes de reservar."
+  },
+  {
+    "id": "BOT-MDE-023",
+    "title": "Los Cabos · cuatro opciones hoteleras",
+    "origin": "MDE",
+    "dest": "SJD",
+    "destName": "Los Cabos",
+    "kind": "VUELO_HOTEL",
+    "status": "BORRADOR",
+    "source": "BOT_MDE",
+    "sourceRow": 23,
+    "sourceFile": "TABLAS LANDIGNS MDE.xlsx",
+    "periods": [
+      {
+        "id": "cab-4",
+        "label": "5 días / 4 noches",
+        "nights": 4,
+        "start": "2027-02-25",
+        "end": "2027-03-01",
+        "flexible": false,
+        "recommended": false
+      }
+    ],
+    "variants": [
+      {
+        "id": "cab-1",
+        "periodId": "cab-4",
+        "name": "Krystal Grand Los Cabos",
+        "hotel": "Krystal Grand Los Cabos",
+        "price": 4099000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "ALIMENTACION_COMPLETA",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      },
+      {
+        "id": "cab-2",
+        "periodId": "cab-4",
+        "name": "RIU Santa Fe",
+        "hotel": "RIU Santa Fe",
+        "price": 4899000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "ALIMENTACION_COMPLETA",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      },
+      {
+        "id": "cab-3",
+        "periodId": "cab-4",
+        "name": "Dreams Los Cabos",
+        "hotel": "Dreams Los Cabos",
+        "price": 6399000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "ALIMENTACION_COMPLETA",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      },
+      {
+        "id": "cab-4v",
+        "periodId": "cab-4",
+        "name": "Breathless Cabo San Lucas",
+        "hotel": "Breathless Cabo San Lucas",
+        "price": 7399000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "ALIMENTACION_COMPLETA",
+        "room": "",
+        "kind": "HOTEL",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      }
+    ],
+    "includes": [
+      "Vuelos ida y regreso desde Medellín",
+      "Traslados",
+      "Alojamiento",
+      "Alimentación completa, snacks y bar abierto anunciados",
+      "Asistencia médica",
+      "Impuestos anunciados",
+      "Tarifa administrativa"
+    ],
+    "excludes": [
+      "Tours",
+      "Impuesto ambiental",
+      "Impuesto Embrace It (según anuncio original)"
+    ],
+    "conditions": [],
+    "charges": [
+      {
+        "id": "cab-c1",
+        "name": "Impuesto ambiental",
+        "amount": 82,
+        "currency": "MXN",
+        "unit": "PERSONA_NOCHE",
+        "mandatory": true,
+        "included": false,
+        "note": "Confirmar obligatoriedad y valor vigente."
+      },
+      {
+        "id": "cab-c2",
+        "name": "Impuesto Embrace It (nombre por verificar)",
+        "amount": 470,
+        "currency": "MXN",
+        "unit": "NO_ESPECIFICADA",
+        "mandatory": true,
+        "included": false,
+        "note": "El texto menciona MXN 470; confirmar concepto, unidad y vigencia."
+      }
+    ],
+    "promos": [],
+    "itinerary": [],
+    "description": "",
+    "commercialMessage": "",
+    "sourceText": "Los Cabos 5 días ☀️ 4 noches 🌙 desde $4'099.000\n\nFecha de viaje: Del 25 feb al 1 mar 2027\n\n\nCombina playas espectaculares, lujo y aventura en un solo viaje. 🔝🌅\n\nEl plan incluye:\n✈️Tiquetes aéreos ida y regreso desde Medellín 🚐Traslados 🏨Alojamiento 🍽️Alimentación completa 🌭Snacks 🍻Bar abierto 🩺Asistencia médica ✅Impuestos ✅Tarifa administrativa.\n\n🏨 Hotel Krystal Grand Los Cabos desde $4'099.000\n🏨 Hotel RIU Santa Fe desde $4'899.000\n🏨 Hotel Dreams Los Cabos desde $6'399.000 \n⭐ Hotel Breathless Cabo San Lucas desde $7'399.000 \n\nNo incluye: \nTours • Impuesto ambiental ($82 pesos mexicanos por persona por noche) • Impuesto Embrece It ($470 pesos mexicanos)\n\n*Valores por persona en acomodación doble, sujetos a cambios por disponibilidad.",
+    "notes": "",
+    "priceConfirmed": false,
+    "availabilityConfirmed": false,
+    "updatedAt": "2026-11-05",
+    "publicNote": "Precios sujetos a cambios por disponibilidad. Confirmar antes de reservar."
+  },
+  {
+    "id": "BOT-MDE-025",
+    "title": "Orlando · Disney con o sin parques",
+    "origin": "MDE",
+    "dest": "MCO",
+    "destName": "Orlando",
+    "kind": "VUELO_HOTEL",
+    "status": "BORRADOR",
+    "source": "BOT_MDE",
+    "sourceRow": 25,
+    "sourceFile": "TABLAS LANDIGNS MDE.xlsx",
+    "periods": [
+      {
+        "id": "orl-5",
+        "label": "6 días / 5 noches",
+        "nights": 5,
+        "start": "2027-03-09",
+        "end": "2027-03-14",
+        "flexible": false,
+        "recommended": false
+      }
+    ],
+    "variants": [
+      {
+        "id": "orl-1",
+        "periodId": "orl-5",
+        "name": "Sin entradas a parques",
+        "hotel": "",
+        "price": 2899000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "DESAYUNO",
+        "room": "",
+        "kind": "PAQUETE",
+        "notes": "Hotel no especificado en este mensaje.",
+        "availability": "POR_CONFIRMAR"
+      },
+      {
+        "id": "orl-2",
+        "periodId": "orl-5",
+        "name": "Con entradas Disney 3 días",
+        "hotel": "",
+        "price": 5399000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "DESAYUNO",
+        "room": "",
+        "kind": "PAQUETE",
+        "notes": "Incluye 3 días de entradas a parques Disney. Hotel no especificado.",
+        "availability": "POR_CONFIRMAR"
+      }
+    ],
+    "includes": [
+      "Vuelos ida y regreso desde Medellín",
+      "Equipaje de cabina anunciado",
+      "Alojamiento",
+      "Desayunos",
+      "Asistencia médica",
+      "Impuestos hoteleros"
+    ],
+    "excludes": [
+      "Gastos no especificados"
+    ],
+    "conditions": [
+      {
+        "type": "ENTRADAS",
+        "text": "La variante con entradas incluye 3 días a parques Disney; la variante básica NO incluye entradas."
+      }
+    ],
+    "charges": [],
+    "promos": [],
+    "itinerary": [],
+    "description": "",
+    "commercialMessage": "",
+    "sourceText": "Orlando 6 días ☀️ 5 noches 🌙 desde $2'899.000\n\nFecha de viaje: Del 9 al 14 de marzo 2027\n\nTenemos 2 tipos de planes, todos con ✈️Vuelos desde Medellín + equipaje de cabina 🛏️ Alojamiento 🍽️Desayunos 🩺Asistencia médica ✅Impuestos hoteleros\n\n🧳 Sin entradas desde $2'899.000\n🎟️ Con entradas desde $5'399.000\n\n*Valores por persona en acomodación doble. Sujetos a cambios por disponibilidad. Plan con entradas incluye 3 días a los parques de Disney. No incluyen gastos no especificados.",
+    "notes": "",
+    "priceConfirmed": false,
+    "availabilityConfirmed": false,
+    "updatedAt": "2026-11-05",
+    "publicNote": "Precios sujetos a cambios por disponibilidad. Confirmar antes de reservar."
+  },
+  {
+    "id": "BOT-MDE-026",
+    "title": "Orlando · Universal + Epic",
+    "origin": "MDE",
+    "dest": "MCO",
+    "destName": "Orlando",
+    "kind": "VUELO_HOTEL",
+    "status": "BORRADOR",
+    "source": "BOT_MDE",
+    "sourceRow": 26,
+    "sourceFile": "TABLAS LANDIGNS MDE.xlsx",
+    "periods": [
+      {
+        "id": "uni-5",
+        "label": "6 días / 5 noches",
+        "nights": 5,
+        "start": "2027-04-04",
+        "end": "2027-04-09",
+        "flexible": false,
+        "recommended": false
+      }
+    ],
+    "variants": [
+      {
+        "id": "uni-1",
+        "periodId": "uni-5",
+        "name": "Ramada by Wyndham Kissimmee Gateway + parques",
+        "hotel": "",
+        "price": 4499000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "NO_INDICADO",
+        "room": "",
+        "kind": "PAQUETE",
+        "notes": "Entradas Universal 2 días + Epic 1 día y traslados a parques incluidos.",
+        "availability": "POR_CONFIRMAR"
+      }
+    ],
+    "includes": [
+      "Vuelos ida y regreso desde Medellín",
+      "Alojamiento Ramada by Wyndham Kissimmee Gateway",
+      "Entradas 2 días a Universal y 1 día a Epic",
+      "Traslados a los parques",
+      "Asistencia médica",
+      "Impuestos anunciados",
+      "Tarifa administrativa"
+    ],
+    "excludes": [
+      "Gastos no especificados",
+      "Impuesto del alojamiento USD 20 por noche",
+      "Depósito en el alojamiento"
+    ],
+    "conditions": [],
+    "charges": [
+      {
+        "id": "uni-c1",
+        "name": "Impuesto hotelero",
+        "amount": 20,
+        "currency": "USD",
+        "unit": "POR_NOCHE",
+        "mandatory": true,
+        "included": false,
+        "note": "Según oferta, verificar condiciones de cobro."
+      },
+      {
+        "id": "uni-c2",
+        "name": "Depósito en el alojamiento",
+        "amount": null,
+        "currency": "USD",
+        "unit": "POR_ESTANCIA",
+        "mandatory": false,
+        "included": false,
+        "note": "Importe/reembolsabilidad no informados; confirmar."
+      }
+    ],
+    "promos": [],
+    "itinerary": [],
+    "description": "",
+    "commercialMessage": "",
+    "sourceText": "Orlando 6 días ☀️ 5 noches 🌙 desde $4'499.000\n\nFecha de viaje: Del 4 al 9 de abril 2027\n\nEl plan incluye: \n✈️Tiquetes aéreos ida y regreso desde Medellín 🏨Alojamiento en el hotel Ramada by Wyndham Kissimmee Gateway🩺Asistencia médica 🎟️Entrada 2 días a parques Universal + 1 día a Epic🚐Traslados a los parques ✅Impuestos ✅Tarifa administrativa.\n\nNo incluye gastos no especificados en el plan • Impuesto de USD 20 por noche • Depósito en el alojamiento\n\n*Valor por persona en acomodación doble. Sujetos a cambios por disponibilidad.",
+    "notes": "",
+    "priceConfirmed": false,
+    "availabilityConfirmed": false,
+    "updatedAt": "2026-11-05",
+    "publicNote": "Precios sujetos a cambios por disponibilidad. Confirmar antes de reservar."
+  },
+  {
+    "id": "BOT-MDE-007",
+    "title": "Triángulo Argentino · Buenos Aires, Bariloche e Iguazú",
+    "origin": "BOG",
+    "dest": "EZE",
+    "destName": "Argentina (circuito)",
+    "kind": "CIRCUITO",
+    "status": "BORRADOR",
+    "source": "BOT_MDE",
+    "sourceRow": 7,
+    "sourceFile": "TABLAS LANDIGNS MDE.xlsx",
+    "periods": [
+      {
+        "id": "arg-8",
+        "label": "9 días / 8 noches",
+        "nights": 8,
+        "start": "2027-05-20",
+        "end": "2027-05-28",
+        "flexible": false,
+        "recommended": false
+      }
+    ],
+    "variants": [
+      {
+        "id": "arg-1",
+        "periodId": "arg-8",
+        "name": "Circuito Triángulo Argentino",
+        "hotel": "",
+        "price": 5999000,
+        "currency": "COP",
+        "basis": "POR_PERSONA",
+        "occupancy": "DOBLE",
+        "meal": "DESAYUNO",
+        "room": "",
+        "kind": "CIRCUITO",
+        "notes": "",
+        "availability": "POR_CONFIRMAR"
+      }
+    ],
+    "includes": [
+      "Vuelos ida y regreso desde Bogotá",
+      "Vuelos internos",
+      "Alojamiento",
+      "Desayunos",
+      "Traslados",
+      "City tour por Buenos Aires",
+      "Circuito Chico y Cerro Campanario",
+      "Cataratas Argentinas"
+    ],
+    "excludes": [
+      "Tasa ecoturística en Iguazú y Buenos Aires",
+      "Entradas a los parques",
+      "Gastos no especificados"
+    ],
+    "conditions": [],
+    "charges": [],
+    "promos": [],
+    "itinerary": [
+      "Buenos Aires",
+      "Bariloche",
+      "Iguazú"
+    ],
+    "description": "",
+    "commercialMessage": "",
+    "sourceText": "Triángulo Argentino 9 días ☀️ 8 noches 🌙 desde $5'999.000\n\nFecha de viaje: Del 20 al 28 de mayo 2027\n\n🌎 Visita: Buenos Aires - Bariloche e Iguazú\n\nEl plan incluye:\n✈️ Tiquetes ida y regreso desde Bogotá y vuelos internos 🏨 Alojamiento 🥞 Desayunos 🚐 Traslados \nTours:\n🌆 City tour por Buenos Aires\n🏔️ Circuito Chico + Cerro Campanario\n🏞️ Cataratas Argentinas\n\nNo incluye:\nTasa Ecoturística en Iguazú y Buenos Aires • Entradas a los parques • Ningún gasto no especificado \n\n*Valor por persona en acomodación doble. Sujetos a cambios por disponibilidad.",
+    "notes": "",
+    "priceConfirmed": false,
+    "availabilityConfirmed": false,
+    "updatedAt": "2026-11-05",
+    "publicNote": "Precios sujetos a cambios por disponibilidad. Confirmar antes de reservar."
+  }
+]
