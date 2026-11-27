@@ -901,78 +901,163 @@ export class FlightBlockingsService {
     return file;
   }
 
-  async importFromExcel(fileBuffer: Buffer, userId: string) {
+   async importFromExcel(fileBuffer: Buffer, userId: string) {
     try {
-      const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+      const workbook = XLSX.read(fileBuffer, { type: "buffer" });
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
-
-      // Convertimos el Excel a una matriz de texto (igual que el CSV)
-      const rows = XLSX.utils.sheet_to_json<string[]>(sheet, {
-        header: 1,
-        raw: false,
-        defval: '',
+      
+      // Leemos todo como matriz de texto
+      const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { 
+        header: 1, 
+        raw: false, 
+        defval: "" 
       });
 
-      // ¡AQUÍ ESTÁ LA MAGIA! Usamos el parser original de Drive
-      let parsedBlocks;
-      try {
-        parsedBlocks = parseDriveBlocks(rows, new Date().toISOString());
-      } catch (parseError: any) {
-        throw new Error(`Error de estructura: ${parseError.message}`);
+      if (rows.length === 0) throw new Error("El archivo está vacío.");
+
+      // 1. Buscamos en todo el Excel la fila que tenga la palabra "CODIGO"
+      const headerRowIdx = rows.findIndex((r) => 
+        r.some(c => String(c).toUpperCase().trim() === "CODIGO")
+      );
+
+      if (headerRowIdx === -1) {
+        throw new Error("No se encontró la palabra 'CODIGO' en ninguna celda del Excel. Revisa que la tabla tenga los encabezados.");
       }
 
-      if (!parsedBlocks || parsedBlocks.length === 0) {
-        throw new Error(
-          'El parser no encontró bloqueos válidos en el archivo.',
-        );
-      }
+      // 2. Encontramos en qué columna está "CODIGO" (usualmente la 0 o la 1)
+      const codeColIdx = rows[headerRowIdx].findIndex(
+        c => String(c).toUpperCase().trim() === "CODIGO"
+      );
 
-      // Insertamos en la base de datos
-      let imported = 0;
-      for (const b of parsedBlocks) {
-        // Verificamos si ya existe para no duplicar
-        const exists = await this.prisma.flightBlocking.findUnique({
-          where: {
-            code_departDate: { code: b.code, departDate: b.departDate },
-          },
-        });
-
-        if (!exists) {
-          await this.prisma.flightBlocking.create({
-            data: {
-              code: b.code,
-              title: b.title,
-              departDate: b.departDate,
-              returnDate: b.returnDate,
-              departTime: b.departTime,
-              returnTime: b.returnTime,
-              origin: b.origin || '',
-              destination: b.destination || '',
-              flight: b.flight || '',
-              capacity: b.capacity || null,
-              notes: b.notes || '',
-              aliases: b.aliases || [],
-              source: 'Import',
-              updatedBy: userId,
-              drive: b.drive ? JSON.parse(JSON.stringify(b.drive)) : null,
-            },
-          });
-          imported++;
+      // 3. Detectamos el año (buscando en las filas de arriba, ej: "2026" o "2027")
+      let year = new Date().getFullYear();
+      for (let i = 0; i < headerRowIdx; i++) {
+        const text = rows[i].join(" ");
+        const yearMatch = text.match(/\b(20\d{2})\b/);
+        if (yearMatch) {
+          year = parseInt(yearMatch[1]);
+          break;
         }
       }
 
-  
+      // 4. Buscamos el título del destino (la fila justo antes del encabezado)
+      const title = String(rows[headerRowIdx - 1]?.find(c => String(c).trim().length > 3) || "Sin título").trim();
+
+      const dataStart = headerRowIdx + 1;
+      const blocksToInsert: any[] = [];
+
+      // 5. Función para parsear fechas "22/2/2026", "22-feb" o "22/02"
+      const parseDate = (str: string) => {
+        if (!str) return "";
+        const clean = str.trim().toLowerCase();
+        
+        // Formato "2026-12-31"
+        if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+        
+        // Formato "22/2/2026" o "22/02"
+        const slashMatch = clean.match(/^(\d{1,2})[-/](\d{1,2})(?:[-/](\d{4}))?$/);
+        if (slashMatch) {
+          const day = slashMatch[1].padStart(2, "0");
+          const month = slashMatch[2].padStart(2, "0");
+          return `${slashMatch[3] || year}-${month}-${day}`;
+        }
+
+        // Formato "22-feb" (con letras)
+        const months: Record<string, string> = {
+          ene: "01", feb: "02", mar: "03", abr: "04", may: "05", jun: "06",
+          jul: "07", ago: "08", sep: "09", oct: "10", nov: "11", dic: "12",
+          jan: "01", apr: "04", aug: "08", dec: "12"
+        };
+        const textMatch = clean.match(/^(\d{1,2})[-/]([a-z]{3})$/);
+        if (textMatch) {
+          const day = textMatch[1].padStart(2, "0");
+          const month = months[textMatch[2]] || "01";
+          return `${year}-${month}-${day}`;
+        }
+        
+        return "";
+      };
+
+      // 6. Función para parsear horas "09 08 AM"
+      const parseTime = (str: string) => {
+        if (!str) return "";
+        const match = str.trim().match(/^(\d{1,2})\s*[: ]\s*(\d{2})\s*(AM|PM)?$/i);
+        if (match) {
+          let hour = parseInt(match[1]);
+          const min = match[2];
+          const ampm = match[3]?.toUpperCase();
+          if (ampm === "PM" && hour < 12) hour += 12;
+          if (ampm === "AM" && hour === 12) hour = 0;
+          return `${String(hour).padStart(2, "0")}:${min}`;
+        }
+        return "";
+      };
+
+      // 7. Iteramos sobre las filas de datos
+      for (let i = dataStart; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || !r.some(c => c && String(c).trim())) continue;
+
+        // Leemos los datos desde la columna donde encontramos "CODIGO"
+        const code = String(r[codeColIdx] || "").trim().toUpperCase();
+        
+        // Si está vacío, si es un título o si es muy corto, lo saltamos
+        if (!code || code.length < 3 || code.includes("CODIGO")) continue;
+
+        const departDateRaw = String(r[codeColIdx + 1] || "").trim();
+        const departTimeRaw = String(r[codeColIdx + 2] || "").trim();
+        const returnDateRaw = String(r[codeColIdx + 3] || "").trim();
+        const returnTimeRaw = String(r[codeColIdx + 4] || "").trim();
+        const capacityRaw = String(r[codeColIdx + 5] || "").trim();
+        const priceRaw = String(r[codeColIdx + 6] || "").trim();
+
+        const capacity = parseInt(capacityRaw.replace(/[^\d]/g, "")) || null;
+        const price = Number(priceRaw.replace(/[^\d]/g, "")) || 0;
+
+        blocksToInsert.push({
+          code,
+          title: title || "Sin título",
+          departDate: parseDate(departDateRaw),
+          departTime: parseTime(departTimeRaw),
+          returnDate: parseDate(returnDateRaw),
+          returnTime: parseTime(returnTimeRaw),
+          capacity,
+          origin: "",
+          destination: "",
+          flight: "",
+          notes: "",
+          aliases: [],
+          source: "excel",
+          updatedBy: userId,
+          drive: { price, available: capacity || 0, prior: {}, at: new Date().toISOString() },
+        });
+      }
+
+      if (blocksToInsert.length === 0) {
+        throw new Error("No se encontraron filas válidas debajo del encabezado 'CODIGO'.");
+      }
+
+      // 8. Guardamos en Prisma
+      let imported = 0;
+      for (const block of blocksToInsert) {
+        const exists = await this.prisma.flightBlocking.findUnique({
+          where: { code_departDate: { code: block.code, departDate: block.departDate } }
+        });
+        if (exists) continue;
+
+        await this.prisma.flightBlocking.create({ data: block });
+        imported++;
+      }
+
       await this.prisma.flightBlockingEvent.create({
-        data: { action: 'import_excel', data: { imported }, by: userId },
+        data: { action: "import_excel", data: { imported }, by: userId }
       });
 
       return { success: true, imported };
     } catch (error: any) {
-      console.error('Error importando bloqueos:', error);
-      throw new BadRequestException(
-        `Error al importar bloqueos: ${error.message}`,
-      );
+      console.error("Error importando bloqueos:", error);
+      throw new BadRequestException(`Error al importar bloqueos: ${error.message}`);
     }
   }
 
