@@ -3,19 +3,19 @@ import {
   afterCutover,
   couldAffectBlock,
   type DriveBalance,
-} from "./flight-blocking-drive";
+} from './flight-blocking-drive';
 
 export const normalizeBlockingOperator = (v: string) =>
-  v.trim().toLowerCase().replace(/\s+/g, " ");
+  v.trim().toLowerCase().replace(/\s+/g, ' ');
 
 export const isBlockingFlight = (r: { kind?: string; operator?: string }) =>
-  r.kind === "Tiquete" &&
+  r.kind === 'Tiquete' &&
   /^transport contract avioa(?:\. contract: transport-\d+(?:,\s*transport-\d+)*)?$/.test(
-    normalizeBlockingOperator(r.operator || ""),
+    normalizeBlockingOperator(r.operator || ''),
   );
 
 export type FlightSource = {
-  source?: "manual";
+  source?: 'manual';
   deletedAt?: string;
   id: string;
   avi: string;
@@ -38,7 +38,7 @@ export type FlightSource = {
 
 export type BlockData = {
   deletedAt?: string;
-  source?: "manual";
+  source?: 'manual';
   drive?: DriveBalance;
   code: string;
   title: string;
@@ -71,7 +71,7 @@ export type Link = {
   signature: string;
 };
 
-const key = (x: string) => x.trim().toUpperCase().replace(/\s/g, "");
+const key = (x: string) => x.trim().toUpperCase().replace(/\s/g, '');
 
 export function flightSignature(s: FlightSource) {
   return JSON.stringify([
@@ -89,14 +89,14 @@ export function flightSignature(s: FlightSource) {
 
 export function paymentDue(day: string) {
   if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return day;
-  const time = Date.parse(day + "T12:00:00Z");
+  const time = Date.parse(day + 'T12:00:00Z');
   if (isNaN(time)) return day;
   return new Date(time - 30 * 86400000).toISOString().slice(0, 10);
 }
 
 export function namesDue(day: string) {
   if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return day;
-  const time = Date.parse(day + "T12:00:00Z");
+  const time = Date.parse(day + 'T12:00:00Z');
   if (isNaN(time)) return day;
   return new Date(time - 15 * 86400000).toISOString().slice(0, 10);
 }
@@ -110,13 +110,13 @@ export function summarizeBlocks(
   const assignments = services.map((s) => {
     const link = links.find((l) => l.serviceId === s.id);
     let block: Block | undefined,
-      reason = "";
+      reason = '';
     if (link) {
       if (
         link.signature !== flightSignature(s) &&
-        !["CANCELED", "CANCELLED", "OUT_OF_SCOPE"].includes(s.status)
+        !['CANCELED', 'CANCELLED', 'OUT_OF_SCOPE'].includes(s.status)
       )
-        reason = "La reserva cambió: revisa la vinculación.";
+        reason = 'La reserva cambió: revisa la vinculación.';
       else block = blocks.find((b) => b.id === link.blockId);
     } else {
       const candidates = blocks.filter(
@@ -136,8 +136,8 @@ export function summarizeBlocks(
       if (candidates.length === 1) block = candidates[0];
       else
         reason = candidates.length
-          ? "Más de un bloqueo coincide."
-          : "Sin bloqueo vinculado.";
+          ? 'Más de un bloqueo coincide.'
+          : 'Sin bloqueo vinculado.';
     }
     const seats =
       link?.signature === flightSignature(s) && link.seats !== null
@@ -145,22 +145,22 @@ export function summarizeBlocks(
         : s.seats;
     if (
       !reason &&
-      !["BOOKED", "CANCELED", "CANCELLED", "OUT_OF_SCOPE"].includes(s.status)
+      !['BOOKED', 'CANCELED', 'CANCELLED', 'OUT_OF_SCOPE'].includes(s.status)
     )
       reason =
-        s.status === "SOURCE_NOT_SEEN"
-          ? "La reserva no apareció en la última lectura completa de TC. Requiere revisión; no se liberan cupos."
-          : "Confirma el estado de la reserva con Travel Compositor.";
+        s.status === 'SOURCE_NOT_SEEN'
+          ? 'La reserva no apareció en la última lectura completa de TC. Requiere revisión; no se liberan cupos.'
+          : 'Confirma el estado de la reserva con Travel Compositor.';
     if (!reason && seats === null)
-      reason = "Confirma la cantidad de cupos de esta reserva.";
+      reason = 'Confirma la cantidad de cupos de esta reserva.';
     return {
       ...s,
       sourceSignature: flightSignature(s),
       blockId: block?.id || null,
       seats,
       reason,
-      cancelled: ["CANCELED", "CANCELLED", "OUT_OF_SCOPE"].includes(s.status),
-      confirmed: s.status === "BOOKED",
+      cancelled: ['CANCELED', 'CANCELLED', 'OUT_OF_SCOPE'].includes(s.status),
+      confirmed: s.status === 'BOOKED',
     };
   });
 
@@ -194,7 +194,8 @@ export function summarizeBlocks(
           links.some((l) => l.serviceId === s.id && l.blockId === b.id)),
     );
     unresolved += new Set(unlinked.map((s) => s.avi || s.id)).size;
-    const remainingMode = !!b.drive && b.drive.inventoryMode !== "total";
+    //SIEMPRE usa el modo de resta directa (como si fuera manual)
+    const remainingMode = false;
     const movement = remainingMode
       ? driveMovement(
           b.drive!,
@@ -215,7 +216,7 @@ export function summarizeBlocks(
           avi: s.avi || s.id,
           reason:
             s.reason ||
-            "Sin bloqueo vinculado: confirma código, ruta y fechas.",
+            'Sin bloqueo vinculado: confirma código, ruta y fechas.',
         })),
     ].filter((s, i, items) => items.findIndex((x) => x.avi === s.avi) === i);
     const inventoryUnresolved = movement ? inventoryIssues.length : unresolved;
@@ -254,10 +255,10 @@ export function summarizeBlocks(
     ),
     alerts: inventory.flatMap((b) => [
       ...(b.paymentAlert
-        ? [{ blockId: b.id, kind: "payment", due: b.paymentDue }]
+        ? [{ blockId: b.id, kind: 'payment', due: b.paymentDue }]
         : []),
       ...(b.namesAlert
-        ? [{ blockId: b.id, kind: "names", due: b.namesDue }]
+        ? [{ blockId: b.id, kind: 'names', due: b.namesDue }]
         : []),
     ]),
   };

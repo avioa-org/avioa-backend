@@ -60,7 +60,6 @@ export class FlightBlockingsService {
   private async transaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
     return this.prisma.$transaction(
       async (tx) => {
-        // Ejecutamos el bloqueo de Postgres, pero con "SELECT 1" al final para evitar el error de 'void'
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(170113, 8041);`;
         return fn(tx);
       },
@@ -276,7 +275,6 @@ export class FlightBlockingsService {
       files: files.map((f) => ({ ...f, at: f.at.toISOString() })),
       events: await Promise.all(
         events.map(async (e) => {
-          // Buscamos el usuario por su ID (e.by)
           const user = await tx.user.findUnique({
             where: { userId: e.by },
             select: { name: true },
@@ -284,7 +282,7 @@ export class FlightBlockingsService {
 
           return {
             ...e,
-            by: user?.name || e.by, // Si encuentra el nombre, lo usa. Si no, deja el ID.
+            by: user?.name || e.by,
             data: JSON.stringify(e.data),
             at: e.at.toISOString(),
           };
@@ -353,6 +351,7 @@ export class FlightBlockingsService {
       );
     }
   }
+
   private publicBoard(
     board: Awaited<ReturnType<FlightBlockingsService['snapshot']>>,
   ) {
@@ -760,6 +759,7 @@ export class FlightBlockingsService {
             updatedBy: by,
           },
         });
+
         await this.event(
           tx,
           'delete_block',
@@ -767,6 +767,32 @@ export class FlightBlockingsService {
           by,
           block.id,
         );
+      } else if (p.action === 'deleteReservations') {
+        // 👇 LÓGICA PARA ELIMINAR (CANCELAR) RESERVAS SELECCIONADAS
+        const servicesToDelete = await tx.flightBlockingService.findMany({
+          where: { id: { in: p.serviceIds } }
+        });
+
+        for (const service of servicesToDelete) {
+          const source = service.data as unknown as FlightSource;
+          
+          await tx.flightBlockingService.update({
+            where: { id: service.id },
+            data: {
+              deletedAt: new Date(),
+              data: json({ ...source, status: 'CANCELLED' })
+            }
+          });
+
+          await this.event(
+            tx,
+            'delete_reservation',
+            { avi: service.avi },
+            by,
+            null,
+            service.id
+          );
+        }
       } else if (p.action === 'complete' || p.action === 'reopen') {
         const block = requireBlock(p.blockId, p.revision),
           done = p.action === 'complete';
@@ -891,6 +917,7 @@ export class FlightBlockingsService {
       return { ok: true, id: saved.id };
     });
   }
+
   async downloadFile(id: string) {
     if (typeof id !== 'string' || !id || id.length > 200)
       throw new BadRequestException('Archivo inválido.');
@@ -977,7 +1004,7 @@ export class FlightBlockingsService {
 
       const parseTime = (str: string) => {
         if (!str) return '';
-        const clean = str.trim().replace(/\s+/, ':'); // "07 59" -> "07:59"
+        const clean = str.trim().replace(/\s+/, ':'); 
         const match = clean.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
         if (match) {
           let hour = parseInt(match[1]);
@@ -1043,23 +1070,23 @@ export class FlightBlockingsService {
       let imported = 0;
       for (const block of blocksToInsert) {
         const exists = await this.prisma.flightBlocking.findUnique({
-          where: { code_departDate: { code: block.code, departDate: block.departDate } }
+          where: {
+            code_departDate: { code: block.code, departDate: block.departDate },
+          },
         });
-        
+
         if (exists) {
-         
           if (exists.deletedAt) {
             await this.prisma.flightBlocking.update({
               where: { id: exists.id },
               data: {
-                deletedAt: null, 
+                deletedAt: null,
                 title: block.title,
-                
-              }
+              },
             });
             imported++;
           }
-          continue; 
+          continue;
         }
 
         await this.prisma.flightBlocking.create({ data: block });
@@ -1106,6 +1133,7 @@ export class FlightBlockingsService {
             avi: source.avi,
             data: json(source),
             sourceAt: new Date(source.sourceAt),
+            deletedAt: null, // para darle vida a las reservas eliminadas y tal
           },
         });
       }
