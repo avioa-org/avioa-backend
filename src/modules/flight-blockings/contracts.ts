@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 const text = (max = 200) => z.string().max(max);
 const date = z
   .string()
@@ -8,10 +8,10 @@ const date = z
       Number.isFinite(Date.parse(v)) &&
       new Date(v).toISOString().slice(0, 10) === v,
   );
-const optionalDate = z.union([date, z.literal("")]);
+const optionalDate = z.union([date, z.literal('')]);
 const time = z.union([
   z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-  z.literal(""),
+  z.literal(''),
 ]);
 const id = z.string().min(1).max(200);
 const revision = z.number().int().positive();
@@ -32,11 +32,11 @@ export const blockInput = z
     capacity: z.number().int().min(1).max(10000),
     notes: text(2000),
     aliases: z.array(text(100).trim().min(1)).max(20),
-    drive: z.any().optional(), 
+    drive: z.any().optional(),
   })
   .refine(
     (v) => !v.returnDate || v.returnDate >= v.departDate,
-    "Regreso anterior a la ida.",
+    'Regreso anterior a la ida.',
   );
 export const splitInput = z.object({
   code: text(100),
@@ -53,8 +53,8 @@ export const manualInput = z.object({
 });
 export type ManualInput = z.infer<typeof manualInput>;
 const complete = z.object({
-  action: z.enum(["complete", "reopen"]),
-  kind: z.enum(["payment", "names"]),
+  action: z.enum(['complete', 'reopen']),
+  kind: z.enum(['payment', 'names']),
   blockId: id,
   revision,
   signature: z.string().max(200000),
@@ -63,48 +63,52 @@ const complete = z.object({
 });
 export const actionInput = z.union([
   z.object({
-    action: z.literal("saveBlock"),
+    action: z.literal('saveBlock'),
     id: id.optional(),
     revision: revision.optional(),
     data: blockInput,
   }),
-  z.object({ action: z.literal("deleteBlock"), blockId: id, revision }),
-  manualInput.extend({ action: z.literal("addManualReservation") }),
   z.object({
-    action: z.literal("deleteManualReservation"),
+    action: z.literal('deleteReservations'),
+    serviceIds: z.array(id).min(1).max(100),
+  }),
+  z.object({ action: z.literal('deleteBlock'), blockId: id, revision }),
+  manualInput.extend({ action: z.literal('addManualReservation') }),
+  z.object({
+    action: z.literal('deleteManualReservation'),
     serviceId: id,
     signature: z.string().max(200000),
   }),
   z.object({
-    action: z.literal("link"),
+    action: z.literal('link'),
     serviceId: id,
     blockId: id,
     seats: z.number().int().min(1).max(500).nullable(),
     signature: z.string().max(200000),
   }),
   z.object({
-    action: z.literal("splitReservation"),
+    action: z.literal('splitReservation'),
     serviceId: id,
     signature: z.string().max(200000),
     revision: z.string(),
     splits: z.array(splitInput).max(100),
   }),
   z.object({
-    action: z.literal("reviewReservation"),
+    action: z.literal('reviewReservation'),
     reviewKey: id,
     signature: z.string().max(200000),
   }),
   z.object({
-    action: z.literal("adjustDriveInventory"),
+    action: z.literal('adjustDriveInventory'),
     blockId: id,
     revision,
     inventorySignature: z.string().max(200000),
-    mode: z.enum(["remaining", "total"]),
+    mode: z.enum(['remaining', 'total']),
     quantity: z.number().int().min(0).max(10000),
     reason: z.string().trim().min(5).max(1000),
   }),
   z.object({
-    action: z.literal("importBlocks"),
+    action: z.literal('importBlocks'),
     rows: z.array(blockInput).min(1).max(100),
   }),
   complete,
